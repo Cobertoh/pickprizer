@@ -1,0 +1,6 @@
+// Same as the top-level wrangler.jsonc, for a project whose root directory is set to "public".
+{
+  "name": "pickprizer",
+  "main": "_worker.js",
+  "compatibility_date": "2026-11-01"
+}

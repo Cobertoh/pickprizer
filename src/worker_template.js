@@ -57,14 +57,20 @@ async function proxy(req, ctx) {
   return out;
 }
 // A board someone pasted in, shared with every visitor for 20 minutes (PrizePicks blocks this server from fetching it).
+const MEM = new Map();   // backup for hosts where the Cache API is a no-op (*.workers.dev)
 async function board(req, ctx, league) {
   const key = new Request("https://cache.pickprizer/board/" + league);
-  if (req.method === "GET") return (await caches.default.match(key)) || json({ message: "no shared board" }, 404);
+  if (req.method === "GET") {
+    const hit = await caches.default.match(key); if (hit) return hit;
+    const m = MEM.get(league);
+    return m && Date.now() - m.t < 1200e3 ? new Response(m.text, { headers: { "content-type": "application/json" } }) : json({ message: "no shared board" }, 404);
+  }
   if (req.method !== "POST") return json({ message: "method" }, 405);
   const text = await req.text();
   if (text.length > 8e6) return json({ message: "too big" }, 413);
   let js; try { js = JSON.parse(text); } catch { return json({ message: "not JSON" }, 400); }
   if (!Array.isArray(js.data) || !js.data.length || !js.data.every(d => d && typeof d === "object" && d.attributes)) return json({ message: "not a PrizePicks board" }, 400);
+  MEM.set(league, { t: Date.now(), text });
   ctx.waitUntil(caches.default.put(key, new Response(text, { headers: { "content-type": "application/json", "cache-control": "public, max-age=1200" } })));
   return json({ ok: true }, 200);
 }

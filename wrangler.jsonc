@@ -1,0 +1,7 @@
+// Lets the same code deploy as a Cloudflare Worker (Workers "Import a repository" runs `npx wrangler deploy`).
+// Cloudflare Pages ignores this file and uses the public/ folder instead.
+{
+  "name": "pickprizer",
+  "main": "public/_worker.js",
+  "compatibility_date": "2026-11-01"
+}
