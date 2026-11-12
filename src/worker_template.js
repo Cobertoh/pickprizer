@@ -41,9 +41,10 @@ async function proxy(req, ctx) {
   const hit = await cache.match(key);
   if (hit) return hit;
   let r, body;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  const tries = t.hostname.endsWith("prizepicks.com") ? 1 : 3;   // PrizePicks either answers or blocks; don't make people wait
+  for (let attempt = 0; attempt < tries; attempt++) {
     try {
-      r = await fetch(t.toString(), { headers: headersFor(t.hostname) });
+      r = await fetch(t.toString(), { headers: headersFor(t.hostname), signal: AbortSignal.timeout(9000) });
       body = await r.arrayBuffer();
       if (r.status !== 429 && r.status < 500) break;
     } catch (e) { r = null; body = null; }

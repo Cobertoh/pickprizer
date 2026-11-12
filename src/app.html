@@ -225,13 +225,15 @@ const IS_WEB = !window.EXT_FETCH && !/^(127\.0\.0\.1|localhost)$/.test(location.
 // then a board someone pasted in the last 20 minutes (shared by the website).
 async function fetchBoard(sport = SPORT){
   const tries = [];
-  if (IS_WEB) tries.push(() => fetch(ppUrl(sport), {credentials: "omit"}));
-  tries.push(() => rawFetch(ppUrl(sport)));
-  tries.push(() => rawFetch(`https://partner-api.prizepicks.com/projections?league_id=${SPORTS[sport].league}&per_page=1000&single_stat=true`));
-  if (IS_WEB) tries.push(() => fetch(`/board/${SPORTS[sport].league}`));
-  let last = null;
+  const L = SPORTS[sport].league, quiet = sport !== SPORT;
+  if (IS_WEB) tries.push(() => tFetch(`/board/${L}`, {}, 8000));   // someone pasted it in the last 20 minutes: fastest
+  if (IS_WEB) tries.push(() => tFetch(ppUrl(sport), {credentials: "omit"}, 10000));
+  tries.push(() => rawFetch(ppUrl(sport), 14000));
+  tries.push(() => rawFetch(`https://partner-api.prizepicks.com/projections?league_id=${L}&per_page=1000&single_stat=true`, 14000));
+  let last = null, i = 0;
   for (const t of tries) {
-    try { const r = await t(); if (r.ok) { const js = await r.json(); if (Array.isArray(js.data)) return js; } last = r.status; } catch (e) { last = e.message; }
+    if (!quiet) setStatus(`Getting today's ${SPORTS[sport].name} picks (try ${++i} of ${tries.length})…`, 0.02);
+    try { const r = await t(); if (r.ok) { const js = await r.json(); if (Array.isArray(js.data) && js.data.length) return js; } last = r.status; } catch (e) { last = e.message; }
   }
   return {error: last};
 }
@@ -282,7 +284,12 @@ const nickToAbbr = name => Object.keys(TEAMS).find(a => (name || "").includes(TE
 
 function setStatus(t, frac){ $("#status").textContent = t; if (frac != null) $("#bar div").style.width = (100*frac) + "%"; }
 // In the Chrome extension, ext.js provides EXT_FETCH (direct, cached fetches). In the .exe, the local server does it.
-const rawFetch = u => window.EXT_FETCH ? window.EXT_FETCH(u) : fetch("/p?u=" + encodeURIComponent(u));
+// every request gets a time limit, so one site that never answers can't freeze the app
+function tFetch(u, o = {}, ms = 20000){
+  const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
+  return fetch(u, {...o, signal: c.signal}).catch(e => { throw new Error(e.name === "AbortError" ? "timed out" : e.message); }).finally(() => clearTimeout(t));
+}
+const rawFetch = (u, ms = 30000) => window.EXT_FETCH ? window.EXT_FETCH(u) : tFetch("/p?u=" + encodeURIComponent(u), {}, ms);
 async function getJSON(u){
   const r = await rawFetch((u));
   if (!r.ok) { let m = ""; try { const j = await r.json(); m = j.message || j.error || ""; } catch {} throw new Error(`HTTP ${r.status}${m ? " " + m : ""}`); }
@@ -1176,7 +1183,7 @@ function card(p, i){
     <div class="chips">${chips.join("")}</div>
     ${p.inj ? `<div class="inj">⚠ ${esc(p.inj.status)}${p.inj.comment ? ": " + esc(p.inj.comment.slice(0, 100)) : ""}</div>` : ""}
     ${UNVERIFIED.has(p.sport + "|" + p.stat) ? `<div class="inj">⚠ PrizePicks' tennis fantasy scoring isn't confirmed, so this is a rough guess and it's never used in lineups</div>` : ""}
-    ${p.games < 3 ? `<div class="note">${p.found === false ? (p.sport === "tennis" ? "player not found on Sofascore" : "player not found on ESPN or NBA.com") : p.games ? `too few ${p.unit || "games"} to rate` : "no stats loaded (tap "Having trouble?" at the bottom)"}</div>` : ""}</div>
+    ${p.games < 3 ? `<div class="note">${p.found === false ? (p.sport === "tennis" ? "player not found on Sofascore" : "player not found on ESPN or NBA.com") : p.games ? `too few ${p.unit || "games"} to rate` : "no stats loaded (tap “Having trouble?” at the bottom)"}</div>` : ""}</div>
     <div class="pct" style="color:${prob != null ? c : "var(--mut)"}">${pct(prob)}<small>${side.toLowerCase()}</small></div></div>`;
 }
 function render(){
@@ -1318,7 +1325,7 @@ async function analyzeNFL(picks){
   }
   const miss = players.filter(nm => !logs[nm] || !logs[nm].flat().length).length;
   let note = "";
-  if (miss) note = ` · ⚠ no game stats for ${miss}/${players.length} players${errSummary("ESPN game logs") ? ` (ESPN: ${errSummary("ESPN game logs")})` : ""}. Tap "Having trouble?" at the bottom`;
+  if (miss) note = ` · ⚠ no game stats for ${miss}/${players.length} players${errSummary("ESPN game logs") ? ` (ESPN: ${errSummary("ESPN game logs")})` : ""}. Tap “Having trouble?” at the bottom`;
   return {note, booksUsed: false};
 }
 
@@ -1567,7 +1574,7 @@ async function analyzeTennis(picks){
   }
   const miss = players.filter(nm => !info[nm] || !info[nm].rows.length).length;
   let note = "";
-  if (miss) note = ` · ⚠ no match history for ${miss}/${players.length} players${errSummary("Sofascore") ? ` (Sofascore: ${errSummary("Sofascore")})` : ""}. Tap "Having trouble?" at the bottom`;
+  if (miss) note = ` · ⚠ no match history for ${miss}/${players.length} players${errSummary("Sofascore") ? ` (Sofascore: ${errSummary("Sofascore")})` : ""}. Tap “Having trouble?” at the bottom`;
   return {note, booksUsed: false};
 }
 
@@ -1864,7 +1871,7 @@ async function analyzeNBA(picks){
       if (b) { const mp = marketProbs(b); p.mMore = mp.more; p.mLess = mp.less; p.books = mp.n; } }
   }
   const noStats = players.filter(nm => { const r = logs[nm]; return !r || !r.logs || !r.logs.flat().length; }).length;
-  if (noStats) note += ` · ⚠ no game stats for ${noStats}/${players.length} players${errSummary("ESPN game logs") ? ` (ESPN: ${errSummary("ESPN game logs")}` + (errSummary("NBA.com") ? `; NBA.com: ${errSummary("NBA.com")})` : ")") : ""}. Tap "Having trouble?" at the bottom`;
+  if (noStats) note += ` · ⚠ no game stats for ${noStats}/${players.length} players${errSummary("ESPN game logs") ? ` (ESPN: ${errSummary("ESPN game logs")}` + (errSummary("NBA.com") ? `; NBA.com: ${errSummary("NBA.com")})` : ")") : ""}. Tap “Having trouble?” at the bottom`;
   return {note, booksUsed};
 }
 
