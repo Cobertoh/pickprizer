@@ -1,0 +1,1963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PickPrizer</title>
+<meta name="theme-color" content="#050a24">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PickPrizer">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon.png">
+<link rel="icon" href="data:image/png;base64,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">
+<style>
+:root{--bg:#0b0f14;--card:#141a22;--card2:#1b2330;--line:#2a3442;--fg:#e8eef5;--mut:#8b97a6;--good:#3fb950;--mid:#d29922;--bad:#f85149;--acc:#7c5cff;--acc2:#21d4a5;--gob:#3fb950;--dem:#f85149;--std:#58a6ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding-bottom:40px}
+header{position:sticky;top:0;z-index:5;background:rgba(11,15,20,.95);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);padding:12px 18px;display:flex;gap:8px;align-items:center}
+header h1{font-size:20px;margin:0;flex:1;letter-spacing:-.3px}
+header h1 b{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+button,select,input,textarea{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 12px}
+button{cursor:pointer}button:disabled{opacity:.5;cursor:default}
+button.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+main{max-width:980px;margin:0 auto;padding:12px 18px}
+#status{color:var(--mut);font-size:13px;min-height:18px;margin:6px 0}
+#bar{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:6px}
+#bar div{height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:width .2s}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0}
+.panel label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+.panel input[type=text],.panel input[type=number],.panel textarea{width:100%}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tabs{display:flex;gap:6px;margin:12px 0 4px}
+.tabs button{flex:1;font-weight:600}
+.tabs button.on{background:var(--card2);border-color:var(--acc);color:#fff}
+h2{font-size:16px;margin:22px 0 8px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h2 small{color:var(--mut);font-weight:400;font-size:12px}
+.pick{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0}
+.rank{color:var(--mut);width:20px;text-align:right;font-size:13px}
+.pct{font-size:22px;font-weight:800;min-width:60px;text-align:right}
+.pct small{display:block;font-size:11px;font-weight:500;color:var(--mut)}
+.info{flex:1;min-width:0}
+.name{font-weight:650}.name small{color:var(--mut);font-weight:400}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.chip{font-size:11.5px;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:1px 7px}
+.chip.up{color:var(--good)}.chip.dn{color:var(--bad)}
+.tag{font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;margin-right:4px;vertical-align:1px}
+.tag.demon{background:#f8514922;color:var(--dem)}.tag.goblin{background:#3fb95022;color:var(--gob)}.tag.standard{background:#58a6ff22;color:var(--std)}
+.inj{color:var(--mid);font-size:12px}
+.note{font-size:12px;color:var(--mut);margin-top:3px}
+.hide{display:none}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.foot{color:var(--mut);font-size:12px;margin-top:28px}
+/* coach */
+.lineup{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:14px 0}
+.lineup.best{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.lhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.lhead h3{margin:0;font-size:17px}
+.lhead .sub{color:var(--mut);font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.stat{background:var(--card2);border-radius:10px;padding:8px 10px}
+.stat b{display:block;font-size:18px}
+.stat span{font-size:11.5px;color:var(--mut)}
+.leg{border-top:1px solid var(--line);padding:10px 0;display:flex;gap:10px}
+.leg .n{color:var(--mut);width:16px}
+.leg .body{flex:1;min-width:0}
+.leg .p{font-weight:800;font-size:18px;min-width:52px;text-align:right}
+.why,.risk{font-size:13px;margin-top:3px}
+.why::before{content:"✓ ";color:var(--good);font-weight:700}
+.risk::before{content:"⚠ ";color:var(--mid)}
+.verdict{background:var(--card2);border-radius:10px;padding:10px 12px;margin-top:10px;font-size:13.5px}
+.verdict p{margin:4px 0}
+.vd{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:var(--fg);vertical-align:1px}
+.vd i{width:10px;height:10px;border-radius:50%;display:inline-block;background:var(--mut);flex:none}
+.vd.g i{background:var(--good)}.vd.y i{background:var(--mid)}.vd.r i{background:var(--bad)}.vd.big{font-size:15px}.vd.big i{width:14px;height:14px}
+.pick[data-pk],.leg[data-pk],.grow{cursor:pointer}.pick[data-pk]:hover,.grow:hover{border-color:var(--acc)}
+.grow{display:flex;gap:8px;align-items:center;border-top:1px solid var(--line);padding:8px 2px}.gname{flex:1;min-width:0}.gname small{color:var(--mut)}.gp{min-width:40px;text-align:right}
+.trk{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0}
+#modal{position:fixed;inset:0;z-index:50;background:#000b;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 10px}
+#modal.hide{display:none}
+.mbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;max-width:640px;width:100%;position:relative}
+.mbox h4{margin:14px 0 4px;font-size:13.5px}.mclose{position:absolute;top:10px;right:10px;padding:4px 10px}
+.mver{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;background:var(--card2);border-radius:10px;padding:8px 12px}
+.mtabs{margin:12px 0 6px}
+.bsum{font-size:13.5px;margin:6px 0 2px}.bleg{color:var(--mut);font-size:12px;margin-left:8px}.bleg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin:0 4px 0 8px}
+.bchart{position:relative;display:flex;align-items:flex-end;gap:2px;padding-top:26px}
+.bcol{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;position:relative;outline:none}
+.bbar{width:70%;max-width:34px;border-radius:4px 4px 0 0}.bbar.hit,.bleg i.hit{background:var(--good)}.bbar.miss,.bleg i.miss{background:var(--bad)}.bbar.push{background:var(--mut)}
+.bcol:hover .bbar,.bcol:focus .bbar{filter:brightness(1.25)}
+.bval{font-size:12px;font-weight:700;margin-bottom:2px}.blab,.blab2{font-size:10.5px;color:var(--mut);height:16px;line-height:16px;white-space:nowrap;overflow:hidden;max-width:100%}
+.bline{position:absolute;left:0;right:0;border-top:2px dashed var(--fg);opacity:.75;pointer-events:none}
+.bline span{position:absolute;right:0;top:-18px;font-size:11.5px;font-weight:700;background:var(--card);padding:0 4px;border-radius:4px}
+.bcol:hover::after,.bcol:focus::after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#000;color:#fff;border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12px;white-space:nowrap;z-index:5}
+.bcol:first-child:hover::after,.bcol:nth-child(2):hover::after{left:0;transform:none}.bcol:nth-last-child(2):hover::after,.bcol:nth-last-child(3):hover::after{left:auto;right:0;transform:none}
+.snip{font-size:12.5px;color:var(--mut);margin:4px 0}.snip.up{color:var(--good)}.snip.dn{color:var(--bad)}
+.hitbar{border:1px solid;border-radius:10px;padding:8px 12px;margin:-2px 0 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card2)}
+.hitbar b{font-size:26px}.hitbar span{font-weight:700;margin-left:6px}.hitbar small{color:var(--mut)}
+.sumtab{width:100%;border-collapse:collapse;margin:8px 0}.sumtab td{padding:7px 4px;border-top:1px solid var(--line);cursor:pointer}
+.sumtab tr:hover td{background:var(--card2)}
+.betrow{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:8px}
+.betrow label{display:flex;flex-direction:column;font-size:13px;color:var(--mut);gap:4px}
+.betrow input{width:120px}
+.sports{display:flex;gap:6px;margin:4px 0 8px;overflow-x:auto}
+.sports button{white-space:nowrap;font-weight:600}.sports button.on{background:var(--card2);border-color:var(--acc2);color:#fff}
+.slot{display:flex;gap:10px;align-items:flex-start;border-top:1px solid var(--line);padding:10px 0}
+.slotn{width:22px;height:22px;border-radius:50%;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-top:8px}
+.slotbody{flex:1;min-width:0}.acwrap{position:relative}.acin{width:100%}
+.acbox{position:absolute;z-index:20;left:0;right:0;top:100%;background:var(--card2);border:1px solid var(--line);border-radius:9px;margin-top:4px;overflow:hidden;box-shadow:0 8px 24px #0008}
+.acitem{padding:8px 10px;cursor:pointer}.acitem.on,.acitem:hover{background:var(--acc)}.acitem small{color:var(--mut)}.acitem.on small{color:#eee}
+.slotopts{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.propsel.demon,option.demon{color:#ff6b62;font-weight:700}.propsel.goblin,option.goblin{color:#46d160;font-weight:700}
+option.standard{color:var(--fg);font-weight:400}option{background:var(--card)}
+.sidebtn{padding:6px 12px}.sidebtn.on{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:700}
+.slotp{min-width:44px;text-align:right;font-size:16px}.slotx{padding:4px 9px;color:var(--mut)}
+.gsel{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.gsel select{max-width:100%}
+.npick{display:flex;gap:6px;align-items:center;margin:12px 0;color:var(--mut);font-size:14px;flex-wrap:wrap}
+.npick button{min-width:44px;font-weight:700}.npick button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.copy{font-size:12px;padding:5px 10px}
+@media (max-width:600px){.stats{grid-template-columns:repeat(2,1fr)}.row2{grid-template-columns:1fr}}
+
+/* ---- PickPrizer theme: royal navy + gold ---- */
+:root{--bg:#040823;--card:#0a1238;--card2:#101b4d;--line:#22306e;--fg:#f3f5fb;--mut:#9aa6cf;--good:#35d07f;--mid:#f5b942;--bad:#ff5d5d;--acc:#f5b942;--acc2:#ffd978;--gob:#35d07f;--dem:#ff5d5d;--std:#8fb4ff;--gold:linear-gradient(180deg,#ffe08a,#f5b942 55%,#c98a12)}
+body{font-size:16px;background:
+  linear-gradient(135deg,transparent 49.4%,#16226033 49.6%,#16226033 50.4%,transparent 50.6%) 0 0/72px 72px,
+  linear-gradient(45deg,transparent 49.4%,#16226033 49.6%,#16226033 50.4%,transparent 50.6%) 0 0/72px 72px,
+  radial-gradient(1200px 600px at 50% -10%,#10206a 0%,#040823 60%) fixed,#040823}
+header{background:rgba(4,8,35,.94);border-bottom:1px solid #f5b94255;padding:8px 14px}
+header h1{display:flex;align-items:center;min-width:0}
+header h1 img{height:40px;max-width:100%;border-radius:8px;display:block}
+#setBtn,#feedBtn{display:none!important}
+button,select,input,textarea{border-radius:11px;min-height:42px}
+button.pri,.tabs button.on,.sidebtn.on,.npick button.on,.sports button.on{background:var(--gold);border-color:#ffd978;color:#1a1200;font-weight:800}
+.acitem.on,.acitem:hover{background:#f5b942;color:#1a1200}.acitem.on small,.acitem:hover small{color:#3a2a00}
+.panel,.pick,.lineup,.mbox{border-color:#22306e;box-shadow:0 6px 22px #0006}
+.lineup.best{border-color:#f5b942;box-shadow:0 0 0 1px #f5b942 inset,0 0 26px #f5b94222}
+.pick[data-pk]:hover,.grow:hover{border-color:#f5b942}
+#bar div{background:var(--gold)}
+.tabs button{padding:11px 6px}
+.sports button{padding:9px 14px}
+.howto{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:13.5px}
+.foot a{color:var(--acc2)}
+#helpPanel .sumtab td{cursor:default}
+@media (max-width:600px){main{padding:10px 12px}.pct{font-size:20px;min-width:52px}.betrow input{width:100%}.betrow label{flex:1}}
+.bigbtn{display:block;width:100%;text-align:center;padding:14px;font-size:17px;font-weight:800;border-radius:12px;text-decoration:none}
+a.bigbtn{background:var(--card2);border:1px solid #f5b942;color:var(--acc2)}
+details summary{cursor:pointer;margin:6px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1><img alt="PickPrizer" src="data:image/webp;base64,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"></h1>
+  <button id="setBtn" title="Settings">⚙︎</button>
+  <button id="runBtn" class="pri">Refresh</button>
+</header>
+<main>
+  <div class="sports" id="sportTabs"></div>
+  <div id="bar"><div></div></div>
+  <div id="status">Loading today's picks…</div>
+
+  <form id="settings" class="panel hide" autocomplete="off">
+    <label>The Odds API key (optional, free at the-odds-api.com, adds sportsbook odds, the strongest signal)</label>
+    <input type="text" id="oddsKey" placeholder="paste key" autocomplete="off">
+    <div class="row2">
+      <div><label>Demon payout boost per pick (estimate, ×)</label><input type="number" id="demF" step="0.05" min="1"></div>
+      <div><label>Goblin payout cut per pick (estimate, ×)</label><input type="number" id="gobF" step="0.05" max="1"></div>
+    </div>
+    <p class="note">PrizePicks doesn't publish exact goblin/demon multipliers. These are estimates used to compare lineups. Every lineup also shows the minimum payout it needs, so you can check it against the real number in the app.</p>
+    <label><input type="checkbox" id="useBooks" style="width:auto"> Use sportsbook odds (each Refresh costs roughly 1 credit per stat type per game; results are reused for 20 min)</label>
+    <label><input type="checkbox" id="useReddit" style="width:auto"> Read Reddit (pick threads, fantasy and injury talk) for the community's opinion</label>
+    <label>Games of history to use</label>
+    <select id="depth"><option>60</option><option>100</option><option>200</option></select>
+    <p style="display:flex;gap:10px;align-items:center;margin-bottom:0;flex-wrap:wrap"><button type="submit" class="pri">Save (Enter)</button><button type="button" id="diagBtn">🩺 Data check</button><button type="button" id="clearBtn" class="hide">🗑 Clear saved data</button><button type="button" id="feedBtn" class="hide">🛰 Scan PrizePicks Feed</button><span id="saveMsg" class="note"></span></p>
+  </form>
+
+  <div id="helpPanel" class="panel hide"><b>Checking that everything is reachable…</b><div id="diag"></div></div>
+  <div id="pastePanel" class="panel hide">
+    <b>PrizePicks needs one tap from you</b>
+    <p class="note">PrizePicks blocks websites from loading its picks, so grab them yourself. It takes 10 seconds and lasts 20 minutes for everyone using this site.</p>
+    <p><a id="ppLink" class="bigbtn" target="_blank" rel="noopener">1 · Open today's picks</a></p>
+    <p class="note">On the page that opens (lots of text): press and hold the text, tap <b>Select All</b>, then <b>Copy</b>. On a computer: Ctrl+A, then Ctrl+C. Then come back here.</p>
+    <p><button id="clipGo" class="pri bigbtn">2 · Paste &amp; show my picks</button></p>
+    <details><summary class="note">Paste button not working?</summary>
+      <textarea id="pasteBox" rows="4" placeholder="press and hold here, then Paste"></textarea>
+      <p><button id="pasteGo">Use what I pasted</button></p></details>
+  </div>
+
+  <div class="tabs hide" id="tabs">
+    <button data-tab="coach" class="on">⭐ Pick4Me</button>
+    <button data-tab="board">📋 All picks</button>
+    <button data-tab="mine">🧾 My lineup</button>
+  </div>
+
+  <div class="panel howto hide" id="howto"><span class="vd g"><i></i>Strong</span><span class="vd y"><i></i>Coin flip</span><span class="vd r"><i></i>Avoid</span><span class="note">Tap any pick to see the last 10 games and why.</span></div>
+  <section id="coachView"></section>
+
+  <section id="mineView" class="hide"></section>
+
+  <section id="boardView" class="hide">
+    <div class="filters">
+      <select id="typeSel"><option value="">All types</option><option value="standard">Standard</option><option value="goblin">Goblins</option><option value="demon">Demons</option></select>
+      <select id="gameSel"><option value="">All games</option></select>
+      <select id="statSel"><option value="">All stats</option></select>
+      <select id="confSel"><option value="">Any rating</option><option value="g">🟢 Strong only</option><option value="gy">🟢 + 🟡</option></select>
+      <input type="text" id="playerQ" list="playerList" placeholder="🔎 Type a player's name…" autocomplete="off" style="flex:1;min-width:180px"><datalist id="playerList"></datalist>
+    </div>
+    <div id="out"></div>
+  </section>
+
+  <p class="foot">PickPrizer rates every pick by replaying thousands of real past games, then checking injuries, teammates, the matchup, news and what other people are picking. 🟢 Strong means it has gone over 80%+ of the time in situations like this with no warning signs. It is still not a guarantee: strong picks miss about 1 time in 6, and lineups with several picks miss more often. PickPrizer is not affiliated with PrizePicks. Play only what you can afford to lose. <a href="#" id="helpLink">Having trouble? Run a check</a></p>
+</main>
+
+<div id="modal" class="hide"></div>
+<script>
+window.__dbg = () => ({ALL, reasons, buildLegs});
+const SPORTS = {
+  nba:    {name: "NBA",    label: "🏀 NBA",    league: 7, leagueNames: ["NBA"],    unitGame: "game"},
+  nfl:    {name: "NFL",    label: "🏈 NFL",    league: 9, leagueNames: ["NFL"],    unitGame: "game"},
+  cfb:    {name: "College Football", label: "🏟️ CFB", league: 15, leagueNames: ["CFB", "NCAAF"], unitGame: "game"},
+  tennis: {name: "Tennis", label: "🎾 Tennis", league: 5, leagueNames: ["TENNIS"], unitGame: "match"},
+};
+let SPORT = (() => { try { return localStorage.getItem("pp_sport") || "nba"; } catch { return "nba"; } })();
+if (!SPORTS[SPORT]) SPORT = "nba";
+const ppUrl = (sport = SPORT) => `https://api.prizepicks.com/projections?league_id=${SPORTS[sport].league}&per_page=1000&single_stat=true`;
+const BOARDS = {};
+const IS_WEB = !window.EXT_FETCH && !/^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+// Getting the PrizePicks board: straight from your browser, then through our server, then PrizePicks' partner feed,
+// then a board someone pasted in the last 20 minutes (shared by the website).
+async function fetchBoard(sport = SPORT){
+  const tries = [];
+  if (IS_WEB) tries.push(() => fetch(ppUrl(sport), {credentials: "omit"}));
+  tries.push(() => rawFetch(ppUrl(sport)));
+  tries.push(() => rawFetch(`https://partner-api.prizepicks.com/projections?league_id=${SPORTS[sport].league}&per_page=1000&single_stat=true`));
+  if (IS_WEB) tries.push(() => fetch(`/board/${SPORTS[sport].league}`));
+  let last = null;
+  for (const t of tries) {
+    try { const r = await t(); if (r.ok) { const js = await r.json(); if (Array.isArray(js.data)) return js; } last = r.status; } catch (e) { last = e.message; }
+  }
+  return {error: last};
+}
+function shareBoard(js, sport){
+  if (!IS_WEB) return;
+  try { fetch(`/board/${SPORTS[sport].league}`, {method: "POST", body: JSON.stringify(js), headers: {"content-type": "application/json"}}).catch(() => {}); } catch {}
+}   // sport -> board picks fetched for My lineup (not rated until that sport is analyzed)
+const DATA = {};   // sport -> {picks, note, booksUsed, time}
+const ESPN = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba";
+const ESPN_LOG = "https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes";
+const ODDS = "https://api.the-odds-api.com/v4/sports/basketball_nba";
+// PrizePicks standard payouts (index = number of correct picks)
+const POWER = {2: 3, 3: 6, 4: 10, 5: 20, 6: 37.5};
+const FLEX = {3: [0, 0, 1, 3], 4: [0, 0, 0, 1.5, 6], 5: [0, 0, 0, 0.4, 2, 10], 6: [0, 0, 0, 0, 0.4, 2, 25]};
+
+const STATS = {
+  "Points":{PTS:1},"Rebounds":{REB:1},"Assists":{AST:1},"3-PT Made":{FG3M:1},
+  "Pts+Rebs+Asts":{PTS:1,REB:1,AST:1},"Pts+Rebs":{PTS:1,REB:1},"Pts+Asts":{PTS:1,AST:1},
+  "Rebs+Asts":{REB:1,AST:1},"Blocked Shots":{BLK:1},"Steals":{STL:1},"Blks+Stls":{BLK:1,STL:1},
+  "Turnovers":{TOV:1},"Fantasy Score":{PTS:1,REB:1.2,AST:1.5,STL:3,BLK:3,TOV:-1},
+  "FG Made":{FGM:1},"FG Attempted":{FGA:1},"Free Throws Made":{FTM:1},"Free Throws Attempted":{FTA:1},
+  "3-PT Attempted":{FG3A:1},"Personal Fouls":{PF:1}
+};
+const VOLATILE = new Set(["Blocked Shots","Steals","Blks+Stls","Turnovers","3-PT Made","Personal Fouls"]);
+const ODDS_MARKETS = {"Points":"player_points","Rebounds":"player_rebounds","Assists":"player_assists",
+  "3-PT Made":"player_threes","Pts+Rebs+Asts":"player_points_rebounds_assists","Pts+Rebs":"player_points_rebounds",
+  "Pts+Asts":"player_points_assists","Rebs+Asts":"player_rebounds_assists","Blocked Shots":"player_blocks","Steals":"player_steals"};
+const ALIASES = {NO:"NOP",UTAH:"UTA",GS:"GSW",SA:"SAS",NY:"NYK",BRK:"BKN",PHO:"PHX",WSH:"WAS",CHO:"CHA"};
+const TEAMS = {ATL:"Hawks",BOS:"Celtics",BKN:"Nets",CHA:"Hornets",CHI:"Bulls",CLE:"Cavaliers",DAL:"Mavericks",DEN:"Nuggets",
+  DET:"Pistons",GSW:"Warriors",HOU:"Rockets",IND:"Pacers",LAC:"Clippers",LAL:"Lakers",MEM:"Grizzlies",MIA:"Heat",MIL:"Bucks",
+  MIN:"Timberwolves",NOP:"Pelicans",NYK:"Knicks",OKC:"Thunder",ORL:"Magic",PHI:"76ers",PHX:"Suns",POR:"Trail Blazers",
+  SAC:"Kings",SAS:"Spurs",TOR:"Raptors",UTA:"Jazz",WAS:"Wizards"};
+const ESPN_ABBR = {GSW:"gs",NYK:"ny",SAS:"sa",NOP:"no",UTA:"utah",WAS:"wsh"};
+const POS = /\b(more|over|overs|lock|locks|hammer|smash|love|like|tail|free money|easy|cash|hit)\b/g;
+const ROLE = /\b(starting|starter|start|minutes|usage|ruled out|is out|out tonight|restriction|limited|bench|role|return|back tonight)\b/;
+const NEG = /\b(less|under|unders|fade|avoid|stay away|trap|no way|risky|scared)\b/g;
+
+const $ = s => document.querySelector(s);
+const clip = (x,a,b) => Math.max(a, Math.min(b, x));
+function erf(x){const t=1/(1+0.3275911*Math.abs(x));const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return x>=0?y:-y}
+const phi = z => 0.5 * (1 + erf(z / Math.SQRT2));
+const norm = s => (s||"").normalize("NFKD").replace(/[̀-ͯ]/g,"").toLowerCase()
+  .replace(/[.'\-]/g," ").replace(/\b(jr|sr|ii|iii|iv)\b/g,"").split(/\s+/).filter(Boolean).join(" ");
+const pct = x => x == null ? "–" : Math.round(100 * x) + "%";
+const pct1 = x => x == null ? "–" : (x < 0.1 ? (100 * x).toFixed(1) : Math.round(100 * x)) + "%";
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nickToAbbr = name => Object.keys(TEAMS).find(a => (name || "").includes(TEAMS[a]));
+
+function setStatus(t, frac){ $("#status").textContent = t; if (frac != null) $("#bar div").style.width = (100*frac) + "%"; }
+// In the Chrome extension, ext.js provides EXT_FETCH (direct, cached fetches). In the .exe, the local server does it.
+const rawFetch = u => window.EXT_FETCH ? window.EXT_FETCH(u) : fetch("/p?u=" + encodeURIComponent(u));
+async function getJSON(u){
+  const r = await rawFetch((u));
+  if (!r.ok) { let m = ""; try { const j = await r.json(); m = j.message || j.error || ""; } catch {} throw new Error(`HTTP ${r.status}${m ? " " + m : ""}`); }
+  return r.json();
+}
+async function pool(items, n, fn){ let i = 0; const run = async () => { while (i < items.length) { const k = i++; await fn(items[k], k); } }; await Promise.all(Array.from({length: Math.min(n, items.length)}, run)); }
+
+// ---------- settings
+const store = { get(k,d){ try { const v = localStorage.getItem("pp_"+k); return v == null ? d : v; } catch { return d; } },
+                set(k,v){ try { localStorage.setItem("pp_"+k, v); } catch {} } };
+const DEFAULT_ODDS_KEY = "";
+const SET = {oddsKey:["odds",DEFAULT_ODDS_KEY], demF:["demF","1.6"], gobF:["gobF","0.85"], depth:["depth","100"]};
+for (const [id,[k,d]] of Object.entries(SET)) $("#"+id).value = store.get(k,d) || d;
+$("#useReddit").checked = true;
+$("#useBooks").checked = !!$("#oddsKey").value && store.get("books","0") === "1";
+async function testKey(key){
+  const r = await rawFetch((`https://api.the-odds-api.com/v4/sports?apiKey=${encodeURIComponent(key)}`));
+  if (!r.ok) { let m = ""; try { m = (await r.json()).message || ""; } catch {} throw new Error(m || "HTTP " + r.status); }
+  return r.headers.get("x-requests-remaining");
+}
+$("#settings").onsubmit = async e => {
+  e.preventDefault();
+  for (const [id,[k]] of Object.entries(SET)) store.set(k, $("#"+id).value.trim());
+  store.set("reddit", $("#useReddit").checked ? "1" : "0");
+  store.set("books", $("#useBooks").checked ? "1" : "0");
+  const msg = $("#saveMsg"), key = $("#oddsKey").value.trim();
+  msg.style.color = "var(--good)"; msg.textContent = "Saved ✓" + (key ? " Testing your Odds API key…" : "");
+  if (ALL.length) renderCoach();
+  if (!key) return;
+  try { const left = await testKey(key); msg.textContent = `Saved ✓ Odds API key works${left ? ` (${left} credits left this month)` : ""}. Click Refresh to use it.`; }
+  catch (err) { msg.style.color = "var(--bad)"; msg.textContent = "Saved, but the Odds API rejected the key: " + err.message; }
+};
+$("#setBtn").onclick = () => $("#settings").classList.toggle("hide");
+function drawSportTabs(){
+  $("#sportTabs").innerHTML = Object.entries(SPORTS).map(([k, v]) => `<button data-sport="${k}" class="${k === SPORT ? "on" : ""}">${v.label}</button>`).join("");
+  document.querySelectorAll("[data-sport]").forEach(b => b.onclick = () => {
+    if (busy) return;
+    SPORT = b.dataset.sport; store.set("sport", SPORT); drawSportTabs(); $("#pastePanel").classList.add("hide"); showSport();
+    if (!DATA[SPORT]) $("#runBtn").click();
+  });
+  $("#ppLink").href = ppUrl();
+}
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === b));
+  $("#coachView").classList.toggle("hide", b.dataset.tab !== "coach");
+  $("#boardView").classList.toggle("hide", b.dataset.tab !== "board");
+  $("#mineView").classList.toggle("hide", b.dataset.tab !== "mine");
+  if (b.dataset.tab === "mine") renderMine();
+});
+
+// ---------- PrizePicks
+function parseBoard(js, sport = SPORT){
+  const people = {}, leagues = {};
+  for (const i of js.included || []) {
+    if (i.type === "new_player" || i.type === "player") people[i.id] = i.attributes || {};
+    if (i.type === "league") leagues[i.id] = String(i.attributes?.name || "").toUpperCase();
+  }
+  const sp = SPORTS[sport], tennis = sport === "tennis", picks = [];
+  for (const p of js.data || []) {
+    const a = p.attributes || {};
+    const lid = p.relationships?.league?.data?.id;
+    if (lid != null && leagues[lid] && !sp.leagueNames.includes(leagues[lid])) continue;   // pasted a different sport
+    if (lid != null && !leagues[lid] && String(lid) !== String(sp.league)) continue;
+    const type = (a.odds_type || "standard").toLowerCase();
+    if (!["standard","goblin","demon"].includes(type) || a.is_promo) continue;
+    if (a.status != null && a.status !== "pre_game") continue;
+    const rel = p.relationships || {};
+    const pid = ((rel.new_player || rel.player || {}).data || {}).id;
+    const pl = people[pid] || {};
+    const name = pl.display_name || pl.name || "";
+    if (!name || name.includes("+") || pl.combo) continue;
+    let team, opp = "";
+    if (tennis) {
+      team = name; opp = String(a.description || "").replace(/^(vs\.?|@)\s*/i, "").trim();
+      if (!TENNIS_STATS[a.stat_type]) continue;
+    } else if (sport === "cfb") {
+      team = String(pl.team || pl.team_name || "").toUpperCase();
+      opp = String(a.description || "").replace(/^(vs\.?|@)\s*/i, "").trim().toUpperCase();
+      if (opp === team) opp = "";
+      if (!NFL_STATS[a.stat_type]) continue;
+    } else if (sport === "nfl") {
+      team = (pl.team || "").toUpperCase(); team = NFL_ALIASES[team] || team;
+      for (const tok of (a.description || "").match(/[A-Za-z]{2,4}/g) || []) {
+        const t = NFL_ALIASES[tok.toUpperCase()] || tok.toUpperCase();
+        if (t !== team && NFL_TEAMS[t]) { opp = t; break; }
+      }
+      if (!NFL_STATS[a.stat_type]) continue;
+    } else {
+      team = (pl.team || "").toUpperCase(); team = ALIASES[team] || team;
+      for (const tok of (a.description || "").match(/[A-Za-z]{2,4}/g) || []) {
+        const t = ALIASES[tok.toUpperCase()] || tok.toUpperCase();
+        if (t !== team && TEAMS[t]) { opp = t; break; }
+      }
+      if (!STATS[a.stat_type]) continue;
+    }
+    picks.push({id: p.id, sport, player:name, team, opp, stat:a.stat_type, line:+a.line_score, type, start:a.start_time || "",
+                trending: typeof a.trending_count === "number" ? a.trending_count : null});
+  }
+  return picks;
+}
+
+// ---------- ESPN: rosters, game logs, injuries
+function seasonYears(){ const d = new Date(); const y = d.getMonth() >= 9 ? d.getFullYear() + 1 : d.getFullYear(); return [y, y - 1, y - 2, y - 3, y - 4]; }
+async function rosterIds(teams, base = ESPN, abbrMap = ESPN_ABBR){
+  const ids = {};
+  await pool([...teams], 6, async t => {
+    try {
+      const js = await getJSON(`${base}/teams/${abbrMap[t] || t.toLowerCase()}/roster`);
+      let ath = js.athletes || [];
+      if (ath.length && ath[0].items) ath = ath.flatMap(g => g.items);
+      for (const a of ath) for (const n of [a.fullName, a.displayName]) if (n) ids[norm(n)] = a.id;
+    } catch (e) { noteErr("roster", t, e); }
+  });
+  return ids;
+}
+function findId(ids, name){
+  const n = norm(name); if (ids[n]) return ids[n];
+  const p = n.split(" ");
+  for (const k in ids) { const q = k.split(" "); if (q[q.length-1] === p[p.length-1] && q[0][0] === p[0][0]) return ids[k]; }
+  return null;
+}
+function parseGamelog(js){
+  const labels = js.labels || [];
+  const ix = l => labels.indexOf(l);
+  const seen = new Set(), games = [];
+  for (const st of js.seasonTypes || []) {
+    if (/preseason/i.test(st.displayName || "")) continue;
+    for (const cat of st.categories || []) for (const ev of cat.events || []) {
+      if (seen.has(ev.eventId)) continue; seen.add(ev.eventId);
+      const s = ev.stats || [], meta = (js.events || {})[ev.eventId] || {};
+      const num = l => { const v = parseFloat(s[ix(l)]); return isNaN(v) ? 0 : v; };
+      const pair = l => { const [m, a] = String(s[ix(l)] || "0-0").split("-").map(Number); return [m || 0, a || 0]; };
+      const [fgm,fga] = pair("FG"), [f3m,f3a] = pair("3PT"), [ftm,fta] = pair("FT");
+      games.push({date: meta.gameDate || "", eid: String(ev.eventId), opp: oppAbbr(meta, ALIASES), home: meta.atVs !== "@", MIN:num("MIN"), PTS:num("PTS"), REB:num("REB"), AST:num("AST"),
+        STL:num("STL"), BLK:num("BLK"), TOV:num("TO"), PF:num("PF"), FGM:fgm, FGA:fga, FG3M:f3m, FG3A:f3a, FTM:ftm, FTA:fta});
+    }
+  }
+  return games.sort((a, b) => (b.date > a.date ? 1 : -1));
+}
+// ---------- game logs: ESPN first, NBA.com as a backup
+const ERRS = {};   // source -> {message: count}
+const noteErr = (src, ...rest) => { const e = rest[rest.length - 1]; const m = String(e && e.message || e).slice(0, 80); ((ERRS[src] ||= {})[m] = (ERRS[src][m] || 0) + 1); };
+const errSummary = src => { const e = ERRS[src]; if (!e) return ""; const [m] = Object.entries(e).sort((a, b) => b[1] - a[1])[0]; return m; };
+async function gamelog(id, year){
+  try { return parseGamelog(await getJSON(`${ESPN_LOG}/${id}/gamelog?season=${year}`)); }
+  catch (e) { noteErr("ESPN game logs", e); return []; }
+}
+const NBA = "https://stats.nba.com/stats";
+const nbaSeason = y => `${y - 1}-${String(y).slice(2)}`;
+let NBA_IDS = null;
+function nbaIds(){ return NBA_IDS ||= loadNbaIds(); }   // share one download between every caller
+async function loadNbaIds(){
+  const ids = {};
+  try {
+    const js = await getJSON(`${NBA}/commonallplayers?LeagueID=00&Season=${nbaSeason(seasonYears()[0])}&IsOnlyCurrentSeason=1`);
+    const rs = js.resultSets[0], h = rs.headers, iId = h.indexOf("PERSON_ID"), iN = h.indexOf("DISPLAY_FIRST_LAST");
+    for (const r of rs.rowSet) ids[norm(r[iN])] = r[iId];
+  } catch (e) { noteErr("NBA.com", e); NBA_IDS = null; }   // allow a retry next Refresh
+  return ids;
+}
+async function nbaGamelog(id, year){
+  try {
+    const js = await getJSON(`${NBA}/playergamelogs?PlayerID=${id}&Season=${nbaSeason(year)}&SeasonType=Regular%20Season`);
+    const rs = js.resultSets[0], h = rs.headers, ix = k => h.indexOf(k);
+    return rs.rowSet.map(r => {
+      const mu = String(r[ix("MATCHUP")] || ""), o = mu.split(" ").pop().toUpperCase();
+      const g = {date: r[ix("GAME_DATE")] || "", eid: String(r[ix("GAME_ID")] || ""), opp: ALIASES[o] || o, home: !mu.includes("@")};
+      for (const k of ["MIN","PTS","REB","AST","STL","BLK","TOV","PF","FGM","FGA","FG3M","FG3A","FTM","FTA"]) g[k] = +r[ix(k)] || 0;
+      return g;
+    }).sort((a, b) => (b.date > a.date ? 1 : -1));
+  } catch (e) { noteErr("NBA.com", e); return []; }
+}
+async function playerLogs(name, espnIds, years){
+  const id = findId(espnIds, name);
+  let logs = id ? [] : null;
+  if (id) {   // current + last season first, older seasons after (fewer requests at once)
+    const first = await Promise.all(years.slice(0, 2).map(y => gamelog(id, y)));
+    const rest = first.flat().length ? await Promise.all(years.slice(2).map(y => gamelog(id, y))) : [];
+    logs = first.concat(rest);
+  }
+  if (!logs || !logs.flat().length) {   // ESPN had nothing: try NBA.com
+    const nid = findId(await nbaIds(), name);
+    if (nid) {
+      const first = await Promise.all(years.slice(0, 2).map(y => nbaGamelog(nid, y)));
+      const rest = first.flat().length ? await Promise.all(years.slice(2).map(y => nbaGamelog(nid, y))) : [];
+      const nl = first.concat(rest);
+      if (nl.flat().length) return {logs: nl, src: "NBA.com"};
+    }
+  }
+  return {logs, src: "ESPN", missing: !id && !logs};
+}
+async function injuries(base = ESPN, toAbbr = nickToAbbr){
+  const out = {}; // norm name -> {status, team, comment}
+  try {
+    const js = await getJSON(`${base}/injuries`);
+    const walk = (o, team) => {
+      if (Array.isArray(o)) return o.forEach(x => walk(x, team));
+      if (!o || typeof o !== "object") return;
+      const t = o.displayName && !o.athlete && o.injuries ? toAbbr(o.displayName) : team;
+      if (o.athlete && o.status) {
+        const ab = toAbbr(o.athlete.team?.displayName) || t;
+        out[norm(o.athlete.displayName || o.athlete.fullName)] = {status: String(o.status), team: ab, comment: o.shortComment || ""};
+      }
+      for (const v of Object.values(o)) if (v && typeof v === "object") walk(v, t);
+    };
+    walk(js, null);
+  } catch (e) { noteErr("injuries", e); }
+  return out;
+}
+async function news(base = ESPN){
+  try {
+    const js = await getJSON(`${base}/news?limit=100`);
+    return (js.articles || []).map(a => ({h: a.headline || "", t: norm(`${a.headline || ""} ${a.description || ""}`),
+      ath: (a.categories || []).filter(c => c.athlete || c.type === "athlete").map(c => norm(c.description || c.athlete?.displayName || ""))}));
+  } catch (e) { noteErr("news", e); return []; }
+}
+const NEWS_BAD = /\b(out|injur\w*|sidelined|ruled out|minutes restriction|questionable|doubtful|rest(ing)?|suspend\w*|illness|sore\w*|strain|sprain|surgery|load management)\b/;
+const NEWS_GOOD = /\b(return\w*|cleared|available|upgraded|starting|starts|career-high|breakout)\b/;
+const val = (g, comps) => Object.entries(comps).reduce((s, [k, w]) => s + w * (g[k] || 0), 0);
+
+function scoreStats(p, seasons, depth, factor = 1){
+  const cur = seasons[0] || [];
+  const comps0 = STATS[p.stat], comps = Object.fromEntries(Object.entries(comps0).map(([k, w]) => [k, w * factor]));
+  const games = seasons.flatMap((ss, i) => ss.map(g => [g, i === 0 ? 1 : 0.6])).filter(([g]) => g.MIN >= 5).slice(0, depth);
+  if (games.length < 3) { p.games = games.length; return; }
+  const w = games.map(([, sw], i) => sw * Math.pow(0.97, i)), W = w.reduce((a, b) => a + b, 0);
+  const vals = games.map(([g]) => val(g, comps)), mins = games.map(([g]) => g.MIN);
+  const mu = vals.reduce((s, v, i) => s + w[i] * v, 0) / W;
+  let sd = Math.sqrt(vals.reduce((s, v, i) => s + w[i] * (v - mu) ** 2, 0) / W);
+  sd = Math.max(sd, 0.15 * mu, 0.8);
+  const mAvg = mins.reduce((s, m, i) => s + w[i] * m, 0) / W;
+  const r5 = mins.slice(0, 5), mRecent = r5.reduce((a, b) => a + b, 0) / r5.length;
+  const mt = mAvg ? clip(1 + 0.5 * (mRecent / mAvg - 1), 0.85, 1.15) : 1;
+  const proj = mu * mt, k = 6;
+  const tMore = Math.floor(p.line) + 0.5, tLess = Math.ceil(p.line) - 0.5;
+  const hitM = vals.reduce((s, v, i) => s + (v > tMore ? w[i] : 0), 0);
+  const hitL = vals.reduce((s, v, i) => s + (v < tLess ? w[i] : 0), 0);
+  p.sMore = (hitM + k * (1 - phi((tMore - proj) / sd))) / (W + k);
+  p.sLess = (hitL + k * phi((tLess - proj) / sd)) / (W + k);
+  // long-term check: every game from up to 5 seasons, unweighted
+  const played = seasons.map(ss => ss.filter(g => g.MIN >= 5));
+  const longVals = played.flat().map(g => val(g, comps));
+  p.longN = longVals.length; p.longSeasons = played.filter(ss => ss.length).length;
+  const curN = played[0].length, lw = curN < 15 ? 0.4 : 0.25;   // early season: lean harder on the long-run rate
+  if (longVals.length >= 20) {
+    p.longMore = longVals.filter(v => v > tMore).length / longVals.length;
+    p.longLess = longVals.filter(v => v < tLess).length / longVals.length;
+    p.sMore = (1 - lw) * p.sMore + lw * p.longMore;   // pull hot/cold streaks back toward the long-run rate
+    p.sLess = (1 - lw) * p.sLess + lw * p.longLess;
+  }
+  const rate = (vs, side) => vs.length ? `${vs.filter(v => side === "More" ? v > tMore : v < tLess).length}/${vs.length}` : "–";
+  const curVals = cur.filter(g => g.MIN >= 5).map(g => val(g, comps));
+  p.hits = side => ({l5: rate(vals.slice(0, 5), side), l10: rate(vals.slice(0, 10), side), season: rate(curVals, side)});
+  const m15 = mins.slice(0, 15), mm = m15.reduce((a, b) => a + b, 0) / m15.length;
+  p.minCv = m15.length >= 8 && mm ? Math.sqrt(m15.reduce((a, b) => a + (b - mm) ** 2, 0) / m15.length) / mm : null;
+  Object.assign(p, {games: games.length, proj: +proj.toFixed(1), sd: +sd.toFixed(1), minTrend: mt, minAvg: +mAvg.toFixed(1)});
+}
+
+// ---------- sportsbooks
+async function market(key, picks){
+  const out = {};
+  let events, left = null;
+  try {
+    const r = await rawFetch((`${ODDS}/events?apiKey=${encodeURIComponent(key)}`));
+    left = r.headers.get("x-requests-remaining");
+    if (!r.ok) { let m = ""; try { m = (await r.json()).message || ""; } catch {} throw new Error(`HTTP ${r.status} ${m}`); }
+    events = await r.json();
+  } catch (e) { return {error: "Odds API " + e.message}; }
+  if (left != null && +left <= 0) return {error: "Odds API is out of credits for this month (free plan = 500). Sportsbook check skipped"};
+  const byTeam = {};
+  for (const p of picks) if (ODDS_MARKETS[p.stat]) (byTeam[p.team] ||= new Set()).add(ODDS_MARKETS[p.stat]);
+  const now = Date.now(), rev = Object.fromEntries(Object.entries(ODDS_MARKETS).map(([a, b]) => [b, a]));
+  const todo = [];
+  for (const ev of events) {
+    const t = Date.parse(ev.commence_time);
+    if (!(t > now - 3600e3 && t < now + 36 * 3600e3)) continue;
+    const m = new Set();
+    for (const [abbr, ms] of Object.entries(byTeam)) {
+      const nick = TEAMS[abbr]; if (nick && (ev.home_team.includes(nick) || ev.away_team.includes(nick))) ms.forEach(x => m.add(x));
+    }
+    if (m.size) todo.push([ev, [...m]]);
+  }
+  const info = {games: todo.length, lines: 0, err: null};
+  const grab = async (ev, mk) => {
+    const js = await getJSON(`${ODDS}/events/${ev.id}/odds?apiKey=${encodeURIComponent(key)}&regions=us&oddsFormat=decimal&markets=${mk.join(",")}`);
+    for (const bk of js.bookmakers || []) for (const m of bk.markets || []) {
+        const stat = rev[m.key.replace("_alternate", "")];
+        for (const o of m.outcomes || []) if ((o.name === "Over" || o.name === "Under") && o.point != null && o.price) {
+          const k = `${norm(o.description)}|${stat}|${+o.point}`;
+          ((out[k] ||= {})[bk.key] ||= {})[o.name] = 1 / o.price; info.lines++;
+        }
+      }
+  };
+  await pool(todo, 3, async ([ev, mk]) => {
+    try { await grab(ev, mk); } catch (e) { info.err ||= e.message; noteErr("odds", ev.id, e); }
+  });
+  info.left = left; out.__info = info;
+  return out;
+}
+function marketProbs(books){
+  // devig books that quote both sides; one-sided quotes get a flat ~6% hold removed
+  let mo = [], ml = [];
+  for (const q of Object.values(books)) {
+    if (q.Over && q.Under) { const s = q.Over + q.Under; mo.push(q.Over / s); ml.push(q.Under / s); }
+    else if (q.Over) mo.push(q.Over * 0.94);
+    else if (q.Under) ml.push(q.Under * 0.94);
+  }
+  const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  return {more: avg(mo), less: avg(ml), n: Object.keys(books).length};
+}
+
+// ---------- history store, head-to-head, PrizePicks-line anchor, verdicts
+const HIST = {};   // sport -> player -> games, newest first
+const oppAbbr = (meta, al) => { const a = String(meta.opponent?.abbreviation || "").toUpperCase(); return al[a] || a; };
+const statFn = (sport, stat) => sport === "tennis" ? TENNIS_STATS[stat] : sport === "nfl" || sport === "cfb" ? NFL_STATS[stat] : (STATS[stat] ? g => val(g, STATS[stat]) : null);
+function seriesFor(p){
+  const f = statFn(p.sport, p.stat), gs = (HIST[p.sport] || {})[p.player] || [];
+  if (!f) return [];
+  return gs.filter(g => p.sport !== "nba" || g.MIN >= 5).map(g => ({date: g.date, opp: g.opp || "", home: g.home, v: f(g), min: g.MIN})).filter(x => x.v != null);
+}
+function sameOpp(p, o){
+  if (!p.opp || !o) return false;
+  if (p.sport === "tennis") { const a = norm(p.opp).split(" ").pop(), b = norm(o); return a.length > 2 && b.split(" ").includes(a); }
+  return String(o).toUpperCase() === String(p.opp).toUpperCase();
+}
+function enrich(picks){
+  if (picks.length) calibrate(picks[0].sport, picks);
+  // 1) head-to-head: how he's done against this opponent
+  for (const p of picks) {
+    if (p.sMore == null) continue;
+    const vs = seriesFor(p).filter(x => sameOpp(p, x.opp)).slice(0, 10);
+    p.vsN = vs.length;
+    if (vs.length >= 3) {
+      const tM = Math.floor(p.line) + 0.5, tL = Math.ceil(p.line) - 0.5;
+      p.vsMore = vs.filter(x => x.v > tM).length / vs.length; p.vsLess = vs.filter(x => x.v < tL).length / vs.length;
+      p.vsAvg = +(vs.reduce((s, x) => s + x.v, 0) / vs.length).toFixed(1);
+      const w = Math.min(0.25, vs.length / (vs.length + 12));
+      p.sMore = (1 - w) * p.sMore + w * p.vsMore; if (p.sLess != null) p.sLess = (1 - w) * p.sLess + w * p.vsLess;
+    }
+  }
+  // 2) anchor on PrizePicks' own standard line. That line is set close to a true 50/50, so history alone
+  //    is not allowed to claim a standard pick is 85%; goblins/demons are measured by their distance from it.
+  const groups = {};
+  for (const p of picks) (groups[p.player + "|" + p.stat] ||= []).push(p);
+  for (const g of Object.values(groups)) {
+    const std = g.find(p => p.type === "standard");
+    for (const p of g) {
+      if (p.sMore == null) continue;
+      p.histMore = p.sMore; p.histLess = p.sLess;
+      const sd = p.sd || Math.max(0.8, 0.3 * (std ? std.line : p.line));
+      if (std) {
+        p.stdLine = std.line;
+        const gap = p.proj != null ? (std.line - p.proj) / sd : 0;
+        p.trap = Math.abs(gap) > 0.9 ? (gap > 0 ? "high" : "low") : null;
+        p.cal = p === std ? null : measured(p, std.line);
+        const wH = p.trap ? 0.2 : p.cal ? 0.3 : 0.4, aMore = p === std ? 0.5 : p.cal ? p.cal.p : 1 - phi((p.line - std.line) / sd);
+        p.anchor = aMore;
+        p.sMore = (1 - wH) * aMore + wH * p.sMore;
+        if (p.sLess != null) p.sLess = (1 - wH) * (1 - aMore) + wH * p.sLess;
+      } else { p.sMore = 0.5 + 0.7 * (p.sMore - 0.5); if (p.sLess != null) p.sLess = 0.5 + 0.7 * (p.sLess - 0.5); }
+    }
+  }
+}
+// ---------- self-calibration: replay every past game of tonight's players to MEASURE how often lines this deep really hit
+const CAL = {};   // sport -> {pooled, byStat, per, W, games}
+const mkArr = () => Array.from({length: 21}, () => [0, 0]);   // buckets: line sits z = -2.5 … +2.5 spreads below his usual, step 0.25
+function calibrate(sport, picks){
+  const W = sport === "nfl" || sport === "cfb" ? 10 : 20, pooled = mkArr(), byStat = {}, per = {};
+  let games = 0;
+  for (const key of new Set(picks.map(p => p.player + "|" + p.stat))) {
+    const i0 = key.lastIndexOf("|"), player = key.slice(0, i0), stat = key.slice(i0 + 1);
+    const v = seriesFor({sport, player, stat}).map(x => x.v).reverse();   // oldest first
+    if (v.length < W + 5) continue;
+    const mine = mkArr(), st = (byStat[stat] ||= mkArr());
+    const sdOf = a => { const m = a.reduce((s, x) => s + x, 0) / a.length; return Math.max(Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / a.length), 0.15 * Math.abs(m), 0.8); };
+    for (let i = W; i < v.length; i++) {
+      const prior = v.slice(i - W, i), sorted = prior.slice().sort((a, b) => a - b), med = (sorted[W / 2 - 1] + sorted[W / 2]) / 2, sd = sdOf(prior);
+      for (let b = 0; b <= 20; b++) {
+        const line = Math.floor(med - ((b - 10) / 4) * sd) + 0.5, hit = v[i] > line ? 1 : 0;
+        mine[b][0] += hit; mine[b][1]++; st[b][0] += hit; st[b][1]++; pooled[b][0] += hit; pooled[b][1]++;
+      }
+      games++;
+    }
+    per[key] = {arr: mine, sd: sdOf(v.slice(-W))};
+  }
+  CAL[sport] = {pooled, byStat, per, W, games};
+}
+function calRate(arr, z, minN){
+  if (!arr) return null;
+  const x = clip(z * 4 + 10, 0, 20), lo = Math.floor(x), hi = Math.ceil(x), t = x - lo;
+  if (arr[lo][1] < minN || arr[hi][1] < minN) return null;
+  return {p: (1 - t) * arr[lo][0] / arr[lo][1] + t * arr[hi][0] / arr[hi][1], n: Math.min(arr[lo][1], arr[hi][1])};
+}
+// measured chance of going over a line that sits z spreads below (or above, if negative) the player's usual
+function measured(p, stdLine){
+  const c = CAL[p.sport]; if (!c) return null;
+  const me = c.per[p.player + "|" + p.stat], sd = me ? me.sd : p.sd; if (!sd) return null;
+  const z = (stdLine - p.line) / sd;
+  const league = calRate(c.byStat[p.stat], z, 300) || calRate(c.pooled, z, 300), own = me ? calRate(me.arr, z, 30) : null;
+  if (!league && !own) return null;
+  return {z, p: league && own ? 0.5 * league.p + 0.5 * own.p : (league || own).p, league: league && league.p, leagueN: league ? league.n : 0, own: own && own.p, ownN: own ? own.n : 0};
+}
+function calHTML(sport){
+  const c = CAL[sport]; if (!c || !c.games) return "";
+  const row = (z, label) => { const r = calRate(c.pooled, z, 50); return r ? `<tr><td>${label}</td><td><b>${pct(r.p)}</b></td><td class="note">${r.n.toLocaleString()} games</td></tr>` : ""; };
+  return `<div class="panel"><b>🔬 Backtest on real games</b> <span class="note">every past game of the players on this board (${c.games.toLocaleString()} player-games), replayed one at a time using only what was known before each game</span>
+    <table class="sumtab"><tr><td class="note">Line compared with his usual</td><td class="note">Went over</td><td></td></tr>
+    ${row(0, "At his usual (like a standard line)")}${row(0.5, "A little below (shallow goblin)")}${row(1, "Well below (deep goblin)")}${row(1.5, "Far below")}${row(2, "Very far below")}${row(-0.75, "Above his usual (like a demon)")}</table>
+    <p class="note">These are measured, not guessed, and every rating now uses them. 🟢 needs a measured 80%+ and no warning flags.</p></div>`;
+}
+const VLAB = {g: "Strong", y: "Coin flip", r: "Avoid", n: "Not rated"};
+function verdictOf(p, side){
+  const prob = side === "More" ? p.pMore : p.pLess;
+  if (prob == null) return {c: "n", model: "n", crowd: null, flags: ["not rated"], prob: null};
+  const h = p.hits ? p.hits(side) : null, rt = x => { const [a, b] = String(x || "").split("/").map(Number); return b >= 5 ? a / b : null; };
+  const long = side === "More" ? p.longMore : p.longLess, l10 = h ? rt(h.l10) : null;
+  const st = p.inj ? String(p.inj.status) : "", q = /question|day|doubt|out|suspen|reserve/i.test(st);
+  const flags = [];
+  if (q) flags.push("injury tag: " + st);
+  if (p.news?.some(n => n.tone === "bad")) flags.push("bad news");
+  if (p.trap) flags.push("line is far from his average");
+  if (p.games < 10) flags.push("small sample");
+  if (long != null && long < 0.5) flags.push("weak long-term rate");
+  if (l10 != null && l10 < 0.5) flags.push("cold last 10");
+  if (p.ctxNotes?.some(n => n.dir === 0)) flags.push("key teammate out, effect unknown");
+  if (p.minCv != null && p.minCv > 0.22) flags.push("his minutes swing a lot");
+  if (p.type !== "standard" && !(p.cal && p.cal.ownN >= 30)) flags.push("too little history to verify");
+  if (UNVERIFIED.has(p.sport + "|" + p.stat)) flags.push("scoring unconfirmed");
+  const model = prob >= 0.8 && !flags.length ? "g" : (prob < 0.47 || /doubt|out|suspen|reserve/i.test(st) || (flags.length >= 2 && prob < 0.6)) ? "r" : "y";
+  let crowd = null;
+  if (p.buzz >= 3 && Math.abs(p.buzzSent) > 0.2) crowd = (p.buzzSent > 0) === (side === "More") ? "g" : "r";
+  else if (p.popPct != null && p.popPct >= 0.9) crowd = side === "More" ? "g" : "y";
+  let c = model;
+  if (model === "g" && crowd === "r") c = "y";
+  if (model === "y" && crowd === "g" && prob >= 0.77 && !flags.length) c = "g";
+  if (model === "y" && crowd === "r" && prob < 0.55) c = "r";
+  return {c, model, crowd, flags, prob};
+}
+const vdot = (v, label) => !v ? "" : `<span class="vd ${v.c}" title="${esc(VLAB[v.c] + (v.flags.length ? ": " + v.flags.join(", ") : ""))}"><i></i>${label ? VLAB[v.c] : ""}</span>`;
+const pickedTxt = p => p.trending != null ? `🔥 Picked ${p.trending.toLocaleString()}×` : p.trendKnown ? "Not among the most picked" : "Pick count n/a";
+
+// ---------- track record: grade yesterday's ratings against what actually happened
+function trackLoad(sport){ try { return JSON.parse(localStorage.getItem("pp_track_" + sport) || "[]"); } catch { return []; } }
+function trackSave(sport, rows){ try { localStorage.setItem("pp_track_" + sport, JSON.stringify(rows)); } catch {} }
+function trackUpdate(sport, picks){
+  const now = Date.now(), rows = trackLoad(sport).filter(r => now - Date.parse(r[5]) < 21 * 864e5);
+  // grade finished games
+  for (const r of rows) {
+    if (r[6] != null || !(now - Date.parse(r[5]) > 5 * 3600e3)) continue;
+    const f = statFn(sport, r[1]), g = ((HIST[sport] || {})[r[0]] || []).find(g => g.date && Math.abs(Date.parse(g.date) - Date.parse(r[5])) < 18 * 3600e3 && (sport !== "nba" || g.MIN >= 1));
+    if (!f || !g) continue;
+    const v = f(g); if (v == null || v === r[2]) continue;
+    r[6] = (r[3] === "M" ? v > r[2] : v < r[2]) ? 1 : 0;
+  }
+  // remember today's ratings (top 80 per colour)
+  const have = new Set(rows.map(r => r.slice(0, 4).join("|") + r[5])), add = {g: [], y: [], r: []};
+  for (const p of picks) {
+    if (!p.verdict || !p.start || !add[p.verdict.c] || Date.parse(p.start) < now) continue;
+    add[p.verdict.c].push(p);
+  }
+  for (const c of ["g", "y", "r"]) for (const p of add[c].sort((a, b) => b.verdict.prob - a.verdict.prob).slice(0, 80)) {
+    const r = [p.player, p.stat, p.line, p.best === "More" ? "M" : "L", c, p.start, null, +p.verdict.prob.toFixed(2)];
+    const k = r.slice(0, 4).join("|") + r[5];
+    if (!have.has(k)) { have.add(k); rows.push(r); }
+  }
+  trackSave(sport, rows);
+}
+function trackHTML(sport){
+  const rows = trackLoad(sport).filter(r => r[6] != null);
+  const part = c => { const x = rows.filter(r => r[4] === c); return x.length ? `<span class="vd ${c}"><i></i>${VLAB[c]}: <b>${x.filter(r => r[6]).length}/${x.length}</b> hit (${pct(x.filter(r => r[6]).length / x.length)})</span>` : `<span class="vd ${c}"><i></i>${VLAB[c]}: no results yet</span>`; };
+  return `<div class="panel"><b>📈 Track record</b> <span class="note">how this app's ratings actually did, last 3 weeks</span>
+    <div class="trk">${part("g")}${part("y")}${part("r")}</div>
+    <p class="note">${rows.length ? "If 🟢 isn't hitting clearly more often than 🟡, don't trust the ratings." : "Fills in on its own: ratings are saved at each Refresh and graded at a later Refresh once the games are over (only for players who appear on the board again)."}</p></div>`;
+}
+
+// ---------- crowd
+const REDDIT_SUBS = {nba: ["fantasybball/new.json?limit=100", "nba/search.json?q=prizepicks%20OR%20props%20OR%20injury&restrict_sr=1&sort=new&t=day&limit=100"],
+  nfl: ["fantasyfootball/new.json?limit=100", "nfl/search.json?q=injury%20OR%20props&restrict_sr=1&sort=new&t=day&limit=100"],
+  cfb: ["CFB/search.json?q=injury%20OR%20props%20OR%20out&restrict_sr=1&sort=new&t=day&limit=100"],
+  tennis: ["tennis/new.json?limit=100"]};
+async function reddit(sport = "nba"){
+  const cutoff = Date.now() / 1000 - 36 * 3600, texts = [], threads = [];
+  for (const u of ["https://www.reddit.com/r/PrizePicks/new.json?limit=100",
+                   "https://www.reddit.com/r/sportsbook/new.json?limit=100",
+                   ...(REDDIT_SUBS[sport] || []).map(x => "https://www.reddit.com/r/" + x)]) {
+    try {
+      const js = await getJSON(u);
+      for (const c of js.data?.children || []) {
+        const d = c.data; if (d.created_utc < cutoff) continue;
+        texts.push(`${d.title}\n${d.selftext || ""}`);
+        if (/nba|nfl|cfb|college|tennis|daily|picks|props|thread|injur|index/i.test(d.title) && d.num_comments > 5) threads.push([d.num_comments, d.permalink]);
+      }
+    } catch (e) { noteErr("Reddit", e); if (/HTTP (401|403|429)/.test(e.message)) return texts; }
+  }
+  threads.sort((a, b) => b[0] - a[0]);
+  for (const [, link] of threads.slice(0, 8)) {
+    try {
+      const js = await getJSON(`https://www.reddit.com${link}.json?limit=500`);
+      const stack = [...(js[1]?.data?.children || [])];
+      while (stack.length) { const c = stack.pop(); if (c.kind !== "t1") continue; texts.push(c.data.body || "");
+        if (c.data.replies?.data) stack.push(...c.data.replies.data.children); }
+    } catch {}
+  }
+  return texts;
+}
+function scoreBuzz(picks, texts){
+  const blob = texts.map(norm), lastMap = {}, done = {};
+  const rxEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  for (const p of picks) { const f = norm(p.player), l = f.split(" ").pop(); (lastMap[l] ||= new Set()).add(f); }
+  for (const p of picks) {
+    const full = norm(p.player);
+    if (!done[full]) {
+      const last = full.split(" ").pop();
+      const pats = [rxEsc(full)]; if (last.length > 3 && lastMap[last].size === 1) pats.push(`\\b${rxEsc(last)}\\b`);
+      const rx = new RegExp(pats.join("|"), "g");
+      let n = 0, pos = 0, neg = 0; const snips = [];
+      for (const t of blob) for (const m of t.matchAll(rx)) {
+        n++; const win = t.slice(Math.max(0, m.index - 40), m.index + m[0].length + 60);
+        const a = (win.match(POS) || []).length, b = (win.match(NEG) || []).length; pos += a; neg += b;
+        const role = ROLE.test(win);
+        if (snips.length < 4 && (a || b || role)) snips.push({t: t.slice(Math.max(0, m.index - 70), m.index + m[0].length + 130).trim(), tone: a > b ? "up" : b > a ? "dn" : "", role});
+      }
+      done[full] = [n, +((pos - neg) / (pos + neg + 1)).toFixed(2), snips];
+    }
+    [p.buzz, p.buzzSent, p.snips] = done[full];
+  }
+}
+
+// ---------- combine into More / Less probabilities
+function finalize(picks){
+  const trend = picks.map(p => p.trending).filter(t => t != null).sort((a, b) => a - b);
+  for (const p of picks) {
+    const crowd = 0.03 * (p.buzzSent || 0) * Math.min(1, (p.buzz || 0) / 5);
+    let tr = 0;
+    if (trend.length && p.trending != null) {
+      const f = trend.filter(t => t <= p.trending).length / trend.length;
+      if (p.trendKnown) { p.popPct = 0.9 + 0.1 * f; tr = 0.02; }   // only PrizePicks' most-picked props have a count at all
+      else { p.popPct = f; tr = 0.02 * (2 * f - 1); }
+    }
+    const blend = (m, s) => m != null && s != null ? 0.55 * m + 0.45 * s : (m ?? s);
+    const bm = blend(p.mMore, p.sMore), bl = blend(p.mLess, p.sLess);
+    p.pMore = bm == null ? null : clip(bm + crowd + tr, 0.03, 0.9);   // never claim more than 90%: injuries, blowouts and foul trouble exist
+    p.pLess = p.type !== "standard" || bl == null ? null : clip(bl - crowd, 0.03, 0.9);
+    let conf = p.mMore != null && p.games >= 15 ? "High" : (p.games >= 8 || p.mMore != null) ? "Med" : "Low";
+    if (p.inj && /question|day|doubt/i.test(p.inj.status)) conf = "Low";
+    p.conf = p.pMore == null ? "" : conf;
+    p.best = p.pLess != null && p.pLess > p.pMore ? "Less" : "More";
+    p.vd = {More: verdictOf(p, "More"), Less: p.pLess != null ? verdictOf(p, "Less") : null};
+    p.verdict = p.vd[p.best];
+  }
+}
+
+// ---------- 6-pick coach
+const factorOf = type => type === "demon" ? +$("#demF").value || 1.6 : type === "goblin" ? +$("#gobF").value || 0.85 : 1;
+// Coach game filter: "" = all games, otherwise one game (remembered per sport)
+const coachGame = () => { const g = store.get("cgame_" + SPORT, ""); return g && ALL.some(p => gameOf(p) === g) ? g : ""; };
+function buildLegs(){
+  const legs = [], g = coachGame(), pool = g ? ALL.filter(p => gameOf(p) === g) : ALL;
+  const nGames = new Set(pool.filter(p => p.pMore != null).map(gameOf)).size || 1;
+  GAME_CAP = nGames >= 3 ? 2 : nGames === 2 ? 3 : 6;
+  for (const p of pool) {
+    if (p.inj && /out|doubt|injured reserve|suspen/i.test(p.inj.status)) continue;
+    if (UNVERIFIED.has(p.sport + "|" + p.stat)) continue;
+    for (const side of p.type === "standard" ? ["More", "Less"] : ["More"]) {
+      const prob = side === "More" ? p.pMore : p.pLess;
+      if (prob == null || p.games < 5) continue;
+      const long = side === "More" ? p.longMore : p.longLess, model = side === "More" ? p.sMore : p.sLess;
+      const hh = p.hits ? p.hits(side) : null, rt = x => { const [a, b] = String(x || "").split("/").map(Number); return b >= 5 ? a / b : null; };
+      const fluke = long != null && hh && [hh.l5, hh.season, hh.l10].some(x => rt(x) != null && rt(x) - long >= 0.25) ? 0.04 : 0;
+      const pen = (p.conf === "Low" ? 0.05 : p.conf === "Med" ? 0.015 : 0) + (p.inj && /question|day/i.test(p.inj.status) ? 0.12 : 0)
+        + (p.news?.some(n => n.tone === "bad") ? 0.05 : 0) + fluke;
+      const pe = clip(prob - pen, 0.01, 0.97);
+      legs.push({pk: p, side, p: prob, pe, f: factorOf(p.type), key: p.id + side, v: p.vd ? p.vd[side] : verdictOf(p, side)});
+    }
+  }
+  return legs;
+}
+function dist(ps){ let d = [1]; for (const p of ps) { const n = Array(d.length + 1).fill(0); d.forEach((v, k) => { n[k] += v * (1 - p); n[k + 1] += v * p; }); d = n; } return d; }
+function lineupStats(L, useEff = true){
+  const n = L.length, ps = L.map(l => useEff ? l.pe : l.p), F = L.reduce((a, l) => a * l.f, 1), d = dist(ps);
+  const ft = FLEX[n] || [];
+  return {n, d, F, power: POWER[n] * F * d[n], flex: ft.length ? F * ft.reduce((s, m, k) => s + m * (d[k] || 0), 0) : 0,
+    powerPay: POWER[n] * F, flexPay: ft.length ? ft[n] * F : 0};
+}
+const gameOf = p => [p.team, p.opp].sort().join(" vs ");
+let GAME_CAP = 2;   // max picks from one game; loosened automatically on small slates
+function valid(L, n){
+  const players = new Set(), teams = new Set(), games = {};
+  for (const l of L) {
+    if (players.has(l.pk.player)) return false;
+    players.add(l.pk.player); teams.add(l.pk.team);
+    const g = gameOf(l.pk); games[g] = (games[g] || 0) + 1; if (games[g] > GAME_CAP) return false;
+  }
+  return L.length < n || teams.size >= 2;
+}
+function optimize(legs, score, filter, must, seed, n, avoid){
+  avoid ||= new Set();
+  filter ||= () => true; must ||= () => true;
+  const all = legs.filter(filter).sort((a, b) => b.pe * b.f - a.pe * a.f);
+  const pool = all.slice(0, 70);
+  let L = [];
+  for (const sd of seed || []) {
+    const sp = all.filter(sd.pred); let added = 0;
+    for (const l of sp) { if (added === sd.n || L.length === n) break; if (!avoid.has(l.key) && !L.includes(l) && valid([...L, l], n)) { L.push(l); added++; } }
+    for (const l of sp.slice(0, 20)) if (!pool.includes(l)) pool.push(l);
+  }
+  for (const l of pool) { if (L.length === n) break; if (!avoid.has(l.key) && !L.includes(l) && valid([...L, l], n)) L.push(l); }
+  for (const l of all) { if (L.length === n) break; if (!avoid.has(l.key) && !L.includes(l) && valid([...L, l], n)) { L.push(l); if (!pool.includes(l)) pool.push(l); } }
+  if (L.length < n) return null;
+  let best = must(L) ? score(L) : -Infinity, improved = true, iter = 0;
+  while (improved && iter++ < 80) {
+    improved = false;
+    for (let i = 0; i < n; i++) for (const c of pool) {
+      if (L.includes(c)) continue;
+      const T = L.slice(); T[i] = c;
+      if (!valid(T, n) || !must(T)) continue;
+      const s = score(T);
+      if (s > best + 1e-9) { L = T; best = s; improved = true; }
+    }
+  }
+  return must(L) ? L : null;
+}
+const vsText = p => p.sport === "tennis" ? `vs ${esc(p.opp || "?")}` : `${esc(p.team)} vs ${esc(p.opp)}`;
+function reasons(l){
+  const p = l.pk, why = [...(p.extraWhy || [])], risk = [...(p.extraRisk || [])], h = p.hits ? p.hits(l.side) : null;
+  const T = p.sport === "tennis", unit = p.unit || "games", szn = T ? "this year" : "this season";
+  const span = `${p.longN} ${unit} across ${p.longSeasons} ${T ? "year" : "season"}${p.longSeasons === 1 ? "" : "s"}`;
+  const edge = l.side === "More" ? p.proj - p.line : p.line - p.proj;
+  if (p.proj != null) {
+    if (edge > 0) why.push(`Projects ${p.proj} vs a line of ${p.line} (${edge.toFixed(1)} of cushion)`);
+    else risk.push(`Projection ${p.proj} is on the wrong side of ${p.line}; this relies on hit history or the books`);
+  }
+  if (h) {
+    const [a, b] = h.l10.split("/").map(Number);
+    if (b && a / b >= 0.7) why.push(`Cleared it in ${h.l10} of the last 10 (${h.season} ${szn})`);
+    else if (b && a / b <= 0.4) risk.push(`Only cleared it in ${h.l10} of the last 10`);
+    else why.push(`Hit rate ${h.l10} last 10, ${h.season} ${szn}`);
+  }
+  const long = l.side === "More" ? p.longMore : p.longLess;
+  if (long != null && h) {
+    const rt = s => { const [a, b] = String(s).split("/").map(Number); return b >= 5 ? a / b : null; };
+    const hot = [["last 5", h.l5], [szn, h.season], ["last 10", h.l10]].find(([, x]) => rt(x) != null && rt(x) - long >= 0.25);
+    if (hot) risk.push(`Fluke check: hot ${hot[0]} (${hot[1]}) but only ${pct(long)} over ${span}, so the streak may not last`);
+    else if (long >= 0.6) why.push(`Not a fluke: cleared it in ${pct(long)} of ${span}`);
+    else if (long < 0.45) risk.push(`Long-term only ${pct(long)} over ${span}`);
+  }
+  for (const n of p.news || []) (n.tone === "bad" ? risk : n.tone === "good" ? why : risk).push(`In the news: "${n.h.slice(0, 90)}"`);
+  const m = l.side === "More" ? p.mMore : p.mLess, s = l.side === "More" ? p.sMore : p.sLess;
+  if (m != null) {
+    if (m >= 0.55) why.push(`Sharp read: sportsbooks (where pro bettors move lines) price it at ${pct(m)} across ${p.books} book${p.books > 1 ? "s" : ""}`);
+    else if (m < 0.45) risk.push(`Sharp read: sportsbooks only give it ${pct(m)}`);
+    if (s != null && Math.abs(m - s) > 0.12) risk.push(`Stats (${pct(s)}) and books (${pct(m)}) disagree, so treat this one with caution`);
+  } else if (!T) risk.push("No sportsbook line to double-check it");
+  if (p.minTrend >= 1.05) (l.side === "More" ? why : risk).push(`Minutes trending up (~${p.minAvg} avg)`);
+  if (p.minTrend <= 0.95) (l.side === "Less" ? why : risk).push("Minutes trending down");
+  for (const n of p.ctxNotes || []) (n.dir === 0 ? risk : n.dir === 0.5 ? why : (n.dir > 0) === (l.side === "More") ? why : risk).push(n.t + (n.dir === 0.5 ? " (little change)" : ""));
+  if (!p.ctxNotes?.length && p.teammatesOut?.length && p.sport === "nfl") risk.push(`Teammate${p.teammatesOut.length > 1 ? "s" : ""} out: ${p.teammatesOut.slice(0, 3).join(", ")}. Roles may shift`);
+  if (p.trap) risk.push(`PrizePicks' line (${p.stdLine}) is well ${p.trap === "high" ? "above" : "below"} his recent average (${p.proj}). They're pricing in something the stats don't show (role change, injury, matchup), so history can't be trusted here`);
+  if (p.cal && l.side === "More") (p.cal.p >= 0.75 ? why : p.cal.p < 0.5 ? risk : why).push(`Measured: lines this far ${p.cal.z >= 0 ? "below" : "above"} a player's usual went over ${p.cal.league != null ? pct(p.cal.league) + ` of the time across ${p.cal.leagueN.toLocaleString()} past games` : ""}${p.cal.own != null ? `${p.cal.league != null ? "; for him it's " : ""}${pct(p.cal.own)} over his own ${p.cal.ownN} games` : ""}`);
+  if (p.minCv != null && p.minCv > 0.22) risk.push("His minutes swing a lot from game to game, which is how safe-looking picks miss");
+  if (p.vsN >= 3) { const r = l.side === "More" ? p.vsMore : p.vsLess; (r >= 0.6 ? why : r <= 0.4 ? risk : why).push(`vs ${p.opp}: cleared it in ${Math.round(r * p.vsN)} of his last ${p.vsN} meetings (avg ${p.vsAvg})`); }
+  if (p.inj) risk.push(`Injury report: ${p.inj.status}${p.inj.comment ? ", " + p.inj.comment.slice(0, 90) : ""}. Check before lock`);
+  if (p.buzz >= 3) {
+    const lean = p.buzzSent > 0.2 ? "More" : p.buzzSent < -0.2 ? "Less" : null;
+    if (lean === l.side) why.push(`Crowd is on it too (${p.buzz} Reddit mentions leaning ${lean})`);
+    else if (lean) risk.push(`Crowd leans ${lean} (${p.buzz} Reddit mentions)`);
+  }
+  if (p.popPct != null && l.side === "More") {
+    if (p.popPct >= 0.9) (m != null && m < 0.5 ? risk : why).push(`One of the most-picked props on PrizePicks right now (top ${Math.max(1, Math.round(100 * (1 - p.popPct)))}%)${m != null && m < 0.5 ? ", but the books don't agree, so the crowd may be wrong" : ""}`);
+  }
+  const FB = p.sport === "nfl" || p.sport === "cfb";
+  if (!T && (FB ? NFL_VOLATILE : VOLATILE).has(p.stat)) risk.push(`${p.stat} is a streaky, all-or-nothing stat; one bad ${FB ? "game script" : "night"} sinks it`);
+  if (p.games < 10) risk.push(`Small sample (${p.games} ${unit})`);
+  if (p.type === "goblin") why.push("Goblin: lowered line, so a safer leg (pays less)");
+  if (p.type === "demon") risk.push("Demon: raised line, so harder to hit (pays more)");
+  return {why, risk};
+}
+function lineupCard(def, L, best){
+  const {title, sub} = def;
+  if (!L) return {html: `<div class="lineup"><div class="lhead"><div><h3>${title}</h3><div class="sub">${sub}</div></div></div><p class="note">Not enough eligible picks on tonight's board to build this one.</p></div>`};
+  const e = lineupStats(L, true), raw = lineupStats(L, false), n = L.length, ft = FLEX[n];
+  const usePower = !ft ? true : def.mode ? def.mode === "power" : e.power >= e.flex, ev = usePower ? e.power : e.flex;
+  const pay = usePower ? raw.powerPay : raw.flexPay;
+  const profitTiers = ft ? ft.map((m, k) => m > 1 ? k : -1).filter(k => k >= 0) : [];
+  const hit = usePower ? raw.d[n] : profitTiers.reduce((s, k) => s + raw.d[k], 0);
+  const hitLbl = usePower ? `chance all ${n} hit` : `chance of ${Math.min(...profitTiers)}+ of ${n} hitting (Flex profit)`;
+  const hitCol = hit >= 0.3 ? "var(--good)" : hit >= 0.12 ? "var(--mid)" : "var(--bad)";
+  const hitWord = hit >= 0.5 ? "Strong" : hit >= 0.3 ? "Solid" : hit >= 0.12 ? "Risky" : "Long shot";
+  const breakEven = 1 / raw.d[n];
+  const weakest = [...L].sort((a, b) => a.p - b.p)[0];
+  const gcount = {}; L.forEach(l => { const g = gameOf(l.pk); (gcount[g] ||= []).push(l.pk.player); });
+  const stacks = Object.entries(gcount).filter(([, v]) => v.length > 1);
+  const nDem = L.filter(l => l.pk.type === "demon").length, nGob = L.filter(l => l.pk.type === "goblin").length;
+  const legs = L.slice().sort((a, b) => b.p - a.p).map((l, i) => {
+    const r = reasons(l), p = l.pk;
+    return `<div class="leg" data-pk="${esc(p.sport + "|" + p.id)}" data-side="${l.side}"><div class="n">${i + 1}</div><div class="body">
+      <div class="name">${vdot(l.v || verdictOf(p, l.side))} <span class="tag ${p.type}">${p.type.toUpperCase()}</span>${esc(p.player)} <small>${vsText(p)} · ${esc(pickedTxt(p))}</small></div>
+      <div><b>${l.side}</b> than <b>${p.line}</b> ${esc(p.stat)}</div>
+      ${r.why.slice(0, 4).map(t => `<div class="why">${esc(t)}</div>`).join("")}
+      ${r.risk.slice(0, 3).map(t => `<div class="risk">${esc(t)}</div>`).join("")}
+    </div><div class="p" style="color:${l.p >= .6 ? "var(--good)" : l.p >= .45 ? "var(--mid)" : "var(--bad)"}">${pct(l.p)}</div></div>`;
+  }).join("");
+  const plain = L.map(l => `${l.pk.player} ${l.side} ${l.pk.line} ${l.pk.stat}${l.pk.type !== "standard" ? " (" + l.pk.type + ")" : ""}`).join("\n");
+  const verdict = [];
+  if (def.band) verdict.push(`<p><b>Target:</b> ${def.band[0].toFixed(1)}–${def.band[1].toFixed(1)}× payout. ${raw.powerPay >= def.band[0] - 1e-9 && raw.powerPay <= def.band[1] + 1e-9
+    ? `This is the safest ${n}-pick lineup tonight that lands in that range.` : `Nothing tonight lands in that range, so this is the closest (${raw.powerPay.toFixed(1)}×).`}</p>`);
+  verdict.push(`<p><b>Play it as a ${n}-Pick ${usePower ? "Power" : "Flex"}.</b> ${usePower
+    ? `All ${n} have to hit${ft ? `; at these odds the full payout is worth more than Flex's safety net` : ""}.`
+    : `Flex still pays if you miss one, and with these picks that safety net is worth more than Power's bigger top prize.`}</p>`);
+  verdict.push(`<p>Mix: ${n - nDem - nGob} standard, ${nGob} goblin${nGob === 1 ? "" : "s"}, ${nDem} demon${nDem === 1 ? "" : "s"}. ${nGob >= Math.ceil(n * 0.66) ? "Leans on safe legs, so a lower payout." : nDem >= Math.ceil(n / 2) ? "Swings big. Expect to lose most nights but win big when it hits." : "Balanced: safe anchors carry the riskier upside legs."}</p>`);
+  verdict.push(`<p><b>Weakest link:</b> ${esc(weakest.pk.player)} ${weakest.side} ${weakest.pk.line} ${esc(weakest.pk.stat)} at ${pct(weakest.p)}. If you want to tweak one pick, tweak this one.</p>`);
+  if (stacks.length) verdict.push(`<p><b>Correlation:</b> ${stacks.map(([g, v]) => `${esc(v.join(" & "))} are in the same game (${esc(g)})`).join("; ")}. A blowout or slow pace can sink both together. PrizePicks may also adjust the payout for same-game picks.</p>`);
+  verdict.push(`<p><b>Check the payout before you submit:</b> this only makes money long-term if PrizePicks shows <b>at least ${breakEven.toFixed(1)}×</b> for the Power Play (my projection is ${raw.powerPay.toFixed(1)}×${nDem + nGob ? "; goblins and demons make that a guess" : ""}).</p>`);
+  if (ev < 1) verdict.push(`<p style="color:var(--mid)"><b>Honest take:</b> this one is estimated to return ${(ev * 10).toFixed(2)} for every $10, which is a loss on average. Skip it or play it very small.</p>`);
+  verdict.push(`<p class="note">Before lock: check the injury report and starting lineups. A late scratch or a minutes limit changes everything.</p>`);
+  const html = `<div class="lineup${best ? " best" : ""}" id="lu-${def.id}">
+    <div class="hitbar" style="border-color:${hitCol}"><div><b style="color:${hitCol}">${pct1(hit)}</b> <span>${hitWord}</span> <small>${hitLbl}</small></div>
+      <div style="text-align:right"><b>${pay.toFixed(1)}×</b> <small>projected ${usePower ? "Power" : "Flex"} payout</small></div></div>
+    <div class="lhead"><div><h3>${title}</h3><div class="sub">${sub}</div></div>
+      <button class="copy" data-copy="${esc(plain)}">Copy picks</button></div>
+    <div class="stats">
+      <div class="stat"><b>${pct1(raw.d[n])}</b><span>all ${n} hit</span></div>
+      <div class="stat"><b>${n >= 3 ? pct(raw.d[n] + raw.d[n - 1]) : "–"}</b><span>${n >= 3 ? `${n - 1}+ hit` : "Power only"}</span></div>
+      <div class="stat"><b style="color:${ev >= 1 ? "var(--good)" : "var(--bad)"}">$${(ev * 10).toFixed(2)}</b><span>avg return per $10</span></div>
+      <div class="stat"><b>$${((def.stake || 10) * pay).toFixed(2)}</b><span>a $${def.stake || 10} entry pays if it wins</span></div>
+    </div>
+    ${legs}
+    <div class="verdict">${verdict.join("")}</div>
+  </div>`;
+  return {html, hit, hitCol, ev, usePower, pay, title, id: def.id};
+}
+// ---------- Coach: type a payout multiplier, built from the green list
+let BET = null;   // {M, entries, yellow}
+function betPanel(){
+  const m = store.get("mult", ""), en = store.get("entries", "1"), yl = store.get("useYellow", "0") === "1";
+  return `<form class="panel betform" id="betForm"><b>🎯 Build a lineup</b>
+    <div class="betrow"><label>Payout I want (× your entry)<input type="number" id="multIn" min="1.5" step="any" value="${esc(m)}" placeholder="10"></label>
+    <label>Number of entries<input type="number" id="entriesIn" min="1" max="20" step="1" value="${esc(en)}"></label>
+    <button type="submit" class="pri">Build (Enter)</button></div>
+    <label class="note" style="display:block;margin-top:8px"><input type="checkbox" id="yellowIn" style="width:auto" ${yl ? "checked" : ""}> Also allow 🟡 picks when there aren't enough 🟢 ones</label>
+    <p class="note">Example: 5 means a $10 entry pays about $50. Only 🟢 picks are used, and you get the lineup with the best chance of paying at least that much.</p></form>`;
+}
+function bestSizeFor(M, legs, mustExtra, avoid){
+  const S = L => lineupStats(L), tries = [];
+  for (const n of [2, 3, 4, 5, 6]) {
+    if (new Set(legs.map(l => l.pk.player)).size < n) { tries.push({n, L: null, reason: "not enough different players"}); continue; }
+    const short = L => { const p = S(L).powerPay; return p < M ? Math.log(M / p) : 0; };
+    const isDem = l => l.pk.type === "demon", needDem = POWER[n] >= M ? 0 : Math.min(n, Math.ceil(Math.log(M / POWER[n]) / Math.log(factorOf("demon"))));
+    const L = optimize(legs, L => Math.log(S(L).d[n] + 1e-12) - 12 * short(L), null, mustExtra, needDem ? [{pred: isDem, n: needDem}] : null, n, avoid);
+    if (!L) { tries.push({n, L: null, reason: mustExtra ? "couldn't build a different lineup" : "not enough different players/games"}); continue; }
+    const raw = lineupStats(L, false), ok = raw.powerPay >= M - 1e-9;
+    tries.push({n, L, hit: raw.d[n], pay: raw.powerPay, ok, reason: ok ? "" : `tops out at ${raw.powerPay.toFixed(1)}×`});
+  }
+  const good = tries.filter(t => t.ok).sort((a, b) => b.hit - a.hit);
+  return {tries, best: good[0] || null};
+}
+function renderBet(){
+  const box = $("#betOut"); if (!box) return;
+  if (!BET) { box.innerHTML = ""; return; }
+  const M = BET.M, entries = clip(Math.round(BET.entries || 1), 1, 20);
+  if (!(M >= 1.5)) { box.innerHTML = `<p class="note">Type the payout multiplier you want, like 5 or 25.</p>`; return; }
+  const all = buildLegs(), legs = all.filter(l => l.v.c === "g" || (BET.yellow && l.v.c === "y"));
+  const nG = new Set(all.filter(l => l.v.c === "g").map(l => l.pk.player)).size;
+  if (new Set(legs.map(l => l.pk.player)).size < 2) {
+    box.innerHTML = `<div class="panel"><b>Not enough 🟢 picks to build from</b> (${nG} player${nG === 1 ? "" : "s"} with a green pick${coachGame() ? " in this game" : ""}). ${BET.yellow ? "" : "Tick the 🟡 box above to allow coin-flip picks, or wait for more of the board to load."}</div>`; return; }
+  const first = bestSizeFor(M, legs);
+  const rows = first.tries.map(t => `<tr><td>${t.n} picks</td>
+    <td style="font-weight:800;color:${!t.ok ? "var(--mut)" : t.hit >= .3 ? "var(--good)" : t.hit >= .12 ? "var(--mid)" : "var(--bad)"}">${t.ok ? pct1(t.hit) : "–"}</td>
+    <td>${t.ok ? `<b>${t.pay.toFixed(1)}×</b>` : `<span class="note">${esc(t.reason)}</span>`}</td>
+    <td>${t === first.best ? "⭐ best" : ""}</td></tr>`).join("");
+  let h = `<div class="panel"><b>Lineups paying ${M}× or more${BET.yellow ? " (🟢 + 🟡 picks)" : " (🟢 picks only)"}</b>
+    <table class="sumtab"><tr><td class="note">Size</td><td class="note">Chance all hit</td><td class="note">Projected payout</td><td></td></tr>${rows}</table>`;
+  if (!first.best) {
+    const top = Math.max(0, ...first.tries.filter(t => t.L).map(t => t.pay));
+    box.innerHTML = h + `<p style="color:var(--mid)">${BET.yellow ? "Tonight's rated picks" : "🟢 picks alone"} can't reach ${M}×${top ? ` (the most is about ${top.toFixed(1)}×)` : ""}. Safe picks pay less, so a big multiplier needs riskier ones. Lower the multiplier${BET.yellow ? "" : " or tick the 🟡 box"}.</p></div>`; return; }
+  const n = first.best.n, lineups = [first.best.L];
+  while (lineups.length < entries) {
+    const prev = lineups.slice();
+    const distinct = L => prev.every(P => L.filter(l => P.some(q => q.key === l.key)).length <= 2);
+    const r = bestSizeFor(M, legs, distinct, new Set(prev.flat().map(l => l.key))), t = r.tries.find(x => x.n === n && x.ok) || r.best;
+    if (!t) break;
+    lineups.push(t.L);
+  }
+  const stats = lineups.map(L => { const raw = lineupStats(L, false); return {L, hit: raw.d[L.length], pay: raw.powerPay}; });
+  if (entries > 1) {
+    const anyHit = 1 - stats.reduce((a, s) => a * (1 - s.hit), 1);
+    h += `<p><b>${lineups.length} different entries.</b> Chance at least one wins: <b>${pct(anyHit)}</b> (rough, since some picks are shared).</p>
+      <table class="sumtab"><tr><td class="note">Entry</td><td class="note">Chance all hit</td><td class="note">Pays</td></tr>${stats.map((s, i) => `<tr data-go="lu-bet${i}"><td>#${i + 1} · ${s.L.length} picks</td><td style="font-weight:800">${pct1(s.hit)}</td><td><b>${s.pay.toFixed(1)}×</b></td></tr>`).join("")}</table>`;
+    if (lineups.length < entries) h += `<p class="note">Only ${lineups.length} different lineups reach ${M}× tonight.</p>`;
+  }
+  h += `<p class="note">Payouts with goblins or demons are estimates, so confirm the number in PrizePicks before you submit.</p></div>`;
+  h += stats.map((s, i) => lineupCard({id: "bet" + i, title: `🎯 ${entries > 1 ? `Entry #${i + 1}: ` : ""}${s.L.length} picks for ${s.pay.toFixed(1)}×`, sub: `Best chance of at least ${M}×`, mode: "power"}, s.L, i === 0).html).join("");
+  box.innerHTML = h;
+  bindCoach();
+}
+function renderCoach(){
+  const legs = buildLegs(), cg = coachGame(), unit = SPORTS[SPORT].unitGame;
+  const gameList = [...new Set(ALL.map(gameOf))].map(g => ({g, start: (ALL.find(p => gameOf(p) === g) || {}).start || ""})).sort((a, b) => (a.start > b.start ? 1 : -1));
+  const when = st => st ? new Date(st).toLocaleString([], {weekday: "short", hour: "numeric", minute: "2-digit"}) : "";
+  const gameRow = `<div class="npick"><label class="gsel">${unit === "match" ? "Matches" : "Games"}: <select id="coachGame"><option value="">All ${unit}s (${gameList.length})</option>${gameList.map(x => `<option value="${esc(x.g)}" ${x.g === cg ? "selected" : ""}>${esc(x.g)}${x.start ? " · " + esc(when(x.start)) : ""}</option>`).join("")}</select></label>${cg ? ` <span class="note">Using only this ${unit}</span>` : ""}</div>`;
+  const greens = legs.filter(l => l.v.c === "g").sort((a, b) => b.p - a.p), seen = new Set(), top = [];
+  for (const l of greens) { if (seen.has(l.pk.player + l.pk.stat)) continue; seen.add(l.pk.player + l.pk.stat); top.push(l); if (top.length === 25) break; }
+  const cnt = c => legs.filter(l => l.v.c === c).length;
+  const list = top.length ? top.map(l => `<div class="grow" data-pk="${esc(l.pk.sport + "|" + l.pk.id)}" data-side="${l.side}">${vdot(l.v)}<span class="gname"><span class="tag ${l.pk.type}">${l.pk.type.toUpperCase()}</span><b>${esc(l.pk.player)}</b> ${l.side} ${l.pk.line} ${esc(l.pk.stat)} <small>${vsText(l.pk)}</small></span><span class="note">${esc(pickedTxt(l.pk))}</span><b class="gp">${pct(l.p)}</b></div>`).join("")
+    : `<p class="note">No 🟢 picks ${cg ? "in this game" : "on this board"} right now. That's a real answer: nothing here clears the bar. 🟡 picks are in the All picks tab.</p>`;
+  if (!BET && store.get("mult", "")) BET = {M: +store.get("mult", ""), entries: +store.get("entries", "1") || 1, yellow: store.get("useYellow", "0") === "1"};
+  $("#coachView").innerHTML = gameRow + betPanel() + `<div id="betOut"></div>` +
+    `<div class="panel"><b>🟢 Green list</b> <span class="note">${cnt("g")} strong · ${cnt("y")} coin flip · ${cnt("r")} avoid. Click any pick for its last 10 games.</span>${list}</div>` + calHTML(SPORT) + trackHTML(SPORT);
+  bindCoach(); renderBet();
+}
+function bindCoach(){
+  const gs = $("#coachGame");
+  if (gs) gs.onchange = () => { store.set("cgame_" + SPORT, gs.value); renderCoach(); };
+  const f = $("#betForm");
+  if (f) f.onsubmit = e => { e.preventDefault(); const M = +$("#multIn").value, entries = +$("#entriesIn").value || 1, yellow = $("#yellowIn").checked;
+    store.set("mult", $("#multIn").value); store.set("entries", String(entries)); store.set("useYellow", yellow ? "1" : "0"); BET = {M, entries, yellow}; renderBet();
+    $("#betOut").scrollIntoView({behavior: "smooth", block: "start"}); };
+  document.querySelectorAll("[data-go]").forEach(r => r.onclick = () => document.getElementById(r.dataset.go)?.scrollIntoView({behavior: "smooth"}));
+  document.querySelectorAll("[data-copy]").forEach(b => b.onclick = async e => { e.stopPropagation();
+    try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copied ✓"; } catch { b.textContent = "Copy failed"; }
+  });
+}
+
+// ---------- pick details: last 10 games, and last 10 against tonight's opponent
+const fmtV = v => Number.isInteger(v) ? String(v) : v.toFixed(1);
+function chartHTML(rows, p, side){
+  if (!rows.length) return `<p class="note">No past ${p.unit || "games"} found for this.</p>`;
+  const d = rows.slice(0, 10).reverse(), H = 150, max = Math.max(p.line * 1.15, ...d.map(x => x.v), 1);
+  const hit = x => side === "More" ? x.v > p.line : x.v < p.line;
+  const n = d.filter(hit).length, avg = d.reduce((s, x) => s + x.v, 0) / d.length;
+  const bars = d.map(x => {
+    const h = Math.max(3, Math.round(H * Math.max(0, x.v) / max)), dt = x.date ? new Date(x.date).toLocaleDateString([], {month: "numeric", day: "numeric", year: "2-digit"}) : "";
+    const tip = `${dt}${x.opp ? (x.home === false ? " @ " : " vs ") + x.opp : ""}: ${fmtV(x.v)} ${p.stat}${x.min ? `, ${Math.round(x.min)} min` : ""} (${hit(x) ? "hit" : x.v === p.line ? "push" : "miss"})`;
+    return `<div class="bcol" tabindex="0" data-tip="${esc(tip)}"><span class="bval">${fmtV(x.v)}</span><div class="bbar ${hit(x) ? "hit" : x.v === p.line ? "push" : "miss"}" style="height:${h}px"></div><span class="blab">${esc(String(x.opp || "").slice(0, 9) || "–")}</span><span class="blab2">${esc(dt.replace(/\/\d+$/, ""))}</span></div>`;
+  }).join("");
+  return `<div class="bsum"><b>${n} of ${d.length}</b> ${side === "More" ? "over" : "under"} ${p.line} · average <b>${avg.toFixed(1)}</b> <span class="bleg"><i class="hit"></i>hit <i class="miss"></i>miss</span></div>
+    <div class="bchart">${bars}<div class="bline" style="bottom:${30 + Math.round(H * p.line / max)}px"><span>${p.line}</span></div></div>`;
+}
+function openPick(p, side){
+  side = side && (side === "More" || p.pLess != null) ? side : (p.best || "More");
+  const v = p.vd ? p.vd[side] : null, prob = side === "More" ? p.pMore : p.pLess;
+  const all = seriesFor(p), vs = all.filter(x => sameOpp(p, x.opp));
+  const r = prob != null ? reasons({pk: p, side, p: prob}) : {why: [], risk: []};
+  const sides = p.pLess != null ? ["More", "Less"] : ["More"];
+  const cl = c => c ? `<span class="vd ${c}"><i></i>${VLAB[c]}</span>` : `<span class="note">no signal</span>`;
+  const snips = (p.snips || []).map(s => `<div class="snip ${s.tone}">${s.tone === "up" ? "▲" : s.tone === "dn" ? "▼" : "•"} “…${esc(s.t)}…”</div>`).join("");
+  $("#modal").innerHTML = `<div class="mbox" role="dialog" aria-modal="true">
+    <button class="mclose" id="mClose" aria-label="Close">✕</button>
+    <div class="name" style="font-size:17px"><span class="tag ${p.type}">${p.type.toUpperCase()}</span>${esc(p.player)} <small>${vsText(p)}</small></div>
+    <div style="margin:4px 0 8px">${sides.map(sd => `<button class="sidebtn ${sd === side ? "on" : ""}" data-mside="${sd}">${sd}</button>`).join(" ")} than <b>${p.line}</b> ${esc(p.stat)} · <span class="note">${esc(pickedTxt(p))}</span></div>
+    <div class="mver"><div>${v ? `<span class="vd ${v.c} big"><i></i>${VLAB[v.c]}</span>` : ""} <b style="font-size:20px">${pct(prob)}</b> <span class="note">estimated chance</span></div>
+      <div class="note">My read: ${cl(v && v.model)} · Community: ${cl(v && v.crowd)}${v && v.flags.length ? `<br>Flags: ${esc(v.flags.join(", "))}` : ""}</div></div>
+    <div class="tabs mtabs"><button data-mtab="l10" class="on">Last 10</button><button data-mtab="vs">vs ${esc(p.opp || "opponent")} (${Math.min(10, vs.length)})</button></div>
+    <div id="mChart"></div>
+    ${r.why.length ? `<h4>Why it could hit</h4>${r.why.map(t => `<div class="why">${esc(t)}</div>`).join("")}` : ""}
+    ${r.risk.length ? `<h4>What could go wrong</h4>${r.risk.map(t => `<div class="risk">${esc(t)}</div>`).join("")}` : ""}
+    <h4>What people are saying</h4>${snips || `<p class="note">${p.buzz ? `${p.buzz} Reddit mention${p.buzz === 1 ? "" : "s"} in the last 36 hours, none with a clear opinion.` : "No Reddit talk about him in the last 36 hours."}</p>`}
+    <p class="note">${p.histMore != null ? `History alone says ${pct(side === "More" ? p.histMore : p.histLess)}; ` : ""}${p.stdLine != null ? `PrizePicks' standard line is ${p.stdLine}, which is treated as the 50/50 point.` : "No standard line on the board to anchor to."}</p>
+  </div>`;
+  const draw = tab => { $("#mChart").innerHTML = tab === "vs" ? (vs.length ? chartHTML(vs, p, side) : `<p class="note">No past ${p.unit || "games"} against ${esc(p.opp || "this opponent")} in the history I have.</p>`) : chartHTML(all, p, side);
+    document.querySelectorAll("[data-mtab]").forEach(b => b.classList.toggle("on", b.dataset.mtab === tab)); };
+  draw("l10");
+  document.querySelectorAll("[data-mtab]").forEach(b => b.onclick = () => draw(b.dataset.mtab));
+  document.querySelectorAll("[data-mside]").forEach(b => b.onclick = () => openPick(p, b.dataset.mside));
+  $("#mClose").onclick = closePick;
+  $("#modal").classList.remove("hide");
+}
+function closePick(){ $("#modal").classList.add("hide"); $("#modal").innerHTML = ""; }
+document.addEventListener("click", e => {
+  if (e.target.id === "modal") return closePick();
+  if (e.target.closest("button, select, input, a, label, #modal")) return;
+  const el = e.target.closest("[data-pk]"); if (!el) return;
+  const [sp, ...rest] = el.dataset.pk.split("|"), id = rest.join("|");
+  const p = allLoaded().find(x => x.sport === sp && String(x.id) === id);
+  if (p) openPick(p, el.dataset.side);
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") closePick(); });
+
+// ---------- board view
+function card(p, i){
+  const side = p.best, prob = side === "More" ? p.pMore : p.pLess, h = p.hits ? p.hits(side) : {};
+  const c = prob >= 0.6 ? "var(--good)" : prob >= 0.45 ? "var(--mid)" : "var(--bad)";
+  const m = side === "More" ? p.mMore : p.mLess, s = side === "More" ? p.sMore : p.sLess;
+  const chips = [p.proj != null ? `Usually around ${p.proj}` : null, h.l5 ? `Last 5: ${h.l5}` : null, h.l10 ? `Last 10: ${h.l10}` : null,
+    p.vsN >= 3 ? `vs ${p.opp} ${Math.round((side === "More" ? p.vsMore : p.vsLess) * p.vsN)}/${p.vsN}` : null,
+    pickedTxt(p)].filter(Boolean).map(t => `<span class="chip">${esc(t)}</span>`);
+  if (p.buzz) chips.push(`<span class="chip ${p.buzzSent > 0.2 ? "up" : p.buzzSent < -0.2 ? "dn" : ""}">Reddit ${p.buzz}${p.buzzSent > 0.2 ? " ▲" : p.buzzSent < -0.2 ? " ▼" : ""}</span>`);
+  return `<div class="pick" data-pk="${esc(p.sport + "|" + p.id)}"><div class="rank">${i}</div><div class="info">
+    <div class="name">${vdot(p.verdict, true)} <span class="tag ${p.type}">${p.type.toUpperCase()}</span>${esc(p.player)} <small>${vsText(p)}</small></div>
+    <div><b>${side}</b> than <b>${p.line}</b> ${esc(p.stat)}</div>
+    <div class="chips">${chips.join("")}</div>
+    ${p.inj ? `<div class="inj">⚠ ${esc(p.inj.status)}${p.inj.comment ? ": " + esc(p.inj.comment.slice(0, 100)) : ""}</div>` : ""}
+    ${UNVERIFIED.has(p.sport + "|" + p.stat) ? `<div class="inj">⚠ PrizePicks' tennis fantasy scoring isn't confirmed, so this is a rough guess and it's never used in lineups</div>` : ""}
+    ${p.games < 3 ? `<div class="note">${p.found === false ? (p.sport === "tennis" ? "player not found on Sofascore" : "player not found on ESPN or NBA.com") : p.games ? `too few ${p.unit || "games"} to rate` : "no stats loaded (tap "Having trouble?" at the bottom)"}</div>` : ""}</div>
+    <div class="pct" style="color:${prob != null ? c : "var(--mut)"}">${pct(prob)}<small>${side.toLowerCase()}</small></div></div>`;
+}
+function render(){
+  const t = $("#typeSel").value, g = $("#gameSel").value, s = $("#statSel").value, cf = $("#confSel").value;
+  const q = norm($("#playerQ").value), vc = p => p.verdict ? p.verdict.c : "n";
+  const ok = p => (!t || p.type === t) && (!g || gameOf(p) === g) && (!s || p.stat === s) && (!q || norm(p.player).includes(q)) &&
+    (!cf || (cf === "g" ? vc(p) === "g" : vc(p) === "g" || vc(p) === "y"));
+  const pb = p => (p.best === "More" ? p.pMore : p.pLess) ?? -1;
+  const list = ALL.filter(ok), by = (a, b) => pb(b) - pb(a);
+  let h = "";
+  if (!g) {
+    $("#out").innerHTML = list.length ? `<h2>All games <small>${list.length} picks · highest chance first</small></h2>` +
+      list.sort(by).slice(0, 300).map((p, i) => card(p, i + 1)).join("") : `<p class="note">No picks match these filters.</p>`;
+    return;
+  }
+  const games = {};
+  for (const p of list) (games[gameOf(p)] ||= []).push(p);
+  for (const [k, ps] of Object.entries(games).sort((a, b) => (a[1][0].start > b[1][0].start ? 1 : -1))) {
+    const tm = ps[0].start ? new Date(ps[0].start).toLocaleString([], {weekday:"short", hour:"numeric", minute:"2-digit"}) : "";
+    h += `<h2>${esc(k)} <small>${esc(tm)} · ${ps.length} picks</small></h2>` + ps.sort(by).slice(0, 60).map((p, i) => card(p, i + 1)).join("");
+  }
+  $("#out").innerHTML = h || `<p class="note">No picks match these filters.</p>`;
+}
+for (const id of ["#typeSel", "#gameSel", "#statSel", "#confSel"]) $(id).onchange = render;
+$("#playerQ").oninput = render;
+
+// ---------- NFL (ESPN game logs)
+const NFL_BASE = "https://site.api.espn.com/apis/site/v2/sports/football/nfl";
+const NFL_LOG = "https://site.web.api.espn.com/apis/common/v3/sports/football/nfl/athletes";
+const NFL_TEAMS = {ARI:"Cardinals",ATL:"Falcons",BAL:"Ravens",BUF:"Bills",CAR:"Panthers",CHI:"Bears",CIN:"Bengals",CLE:"Browns",
+  DAL:"Cowboys",DEN:"Broncos",DET:"Lions",GB:"Packers",HOU:"Texans",IND:"Colts",JAX:"Jaguars",KC:"Chiefs",LV:"Raiders",LAC:"Chargers",
+  LAR:"Rams",MIA:"Dolphins",MIN:"Vikings",NE:"Patriots",NO:"Saints",NYG:"Giants",NYJ:"Jets",PHI:"Eagles",PIT:"Steelers",SF:"49ers",
+  SEA:"Seahawks",TB:"Buccaneers",TEN:"Titans",WSH:"Commanders"};
+const NFL_ALIASES = {JAC:"JAX",LA:"LAR",WAS:"WSH",LVR:"LV",OAK:"LV",ARZ:"ARI",GNB:"GB",KAN:"KC",NWE:"NE",NOR:"NO",SFO:"SF",TAM:"TB",SD:"LAC",STL:"LAR"};
+const nflNick = name => Object.keys(NFL_TEAMS).find(a => (name || "").includes(NFL_TEAMS[a]));
+// each field: possible ESPN column names ("names" array) and category.label fallbacks
+const NFL_COLS = {
+  passYds: ["passingYards", "passing.YDS"], passTD: ["passingTouchdowns", "passing.TD"], passAtt: ["passingAttempts", "passing.ATT"],
+  passCmp: ["completions", "passing.CMP"], int: ["interceptions", "passing.INT"], sacked: ["sacks", "passing.SACK"],
+  rushAtt: ["rushingAttempts", "rushing.CAR"], rushYds: ["rushingYards", "rushing.YDS"], rushTD: ["rushingTouchdowns", "rushing.TD"],
+  rushLng: ["longRushing", "rushing.LNG"], rec: ["receptions", "receiving.REC"], tgt: ["receivingTargets", "receiving.TGTS", "receiving.TGT"],
+  recYds: ["receivingYards", "receiving.YDS"], recTD: ["receivingTouchdowns", "receiving.TD"], recLng: ["longReception", "receiving.LNG"],
+  fumLost: ["fumblesLost", "fumbles.LST"], tackles: ["totalTackles", "defensive.TOT"], solo: ["soloTackles", "defensive.SOLO"],
+  defSacks: ["defensive.SACK", "sacks"], fgm: ["fieldGoalsMade", "kicking.FG"], xpm: ["extraPointsMade", "kicking.XP"],
+};
+const NFL_STATS = {
+  "Pass Yards": g => g.passYds, "Passing Yards": g => g.passYds, "Pass TDs": g => g.passTD, "Passing TDs": g => g.passTD,
+  "Pass Attempts": g => g.passAtt, "Pass Completions": g => g.passCmp, "INT": g => g.int, "Interceptions": g => g.int, "Pass INTs": g => g.int,
+  "Rush Yards": g => g.rushYds, "Rushing Yards": g => g.rushYds, "Rush Attempts": g => g.rushAtt, "Rush TDs": g => g.rushTD,
+  "Receiving Yards": g => g.recYds, "Rec Yards": g => g.recYds, "Receptions": g => g.rec, "Rec Targets": g => g.tgt, "Targets": g => g.tgt,
+  "Rush+Rec Yds": g => g.rushYds + g.recYds, "Pass+Rush Yds": g => g.passYds + g.rushYds, "Rush+Rec TDs": g => g.rushTD + g.recTD,
+  "Longest Reception": g => g.recLng, "Longest Rush": g => g.rushLng, "Tackles+Ast": g => g.tackles, "Sacks": g => g.defSacks,
+  "Fantasy Score": g => 0.04 * g.passYds + 4 * g.passTD - g.int + 0.1 * (g.rushYds + g.recYds) + 6 * (g.rushTD + g.recTD) + g.rec - g.fumLost,
+};
+const NFL_VOLATILE = new Set(["Pass TDs", "Passing TDs", "Rush TDs", "Rush+Rec TDs", "INT", "Interceptions", "Pass INTs", "Longest Reception", "Longest Rush", "Sacks"]);
+const nflSeasons = () => { const d = new Date(); const y = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1; return [y, y - 1, y - 2, y - 3, y - 4]; };
+
+function parseNflGamelog(js){
+  const names = js.names || [], labels = js.labels || [];
+  const cats = (js.categories || []).flatMap(c => Array(c.count || 0).fill(String(c.name || "").toLowerCase()));
+  const qual = labels.map((l, i) => `${cats[i] || ""}.${l}`);
+  const col = {};
+  for (const [f, cands] of Object.entries(NFL_COLS)) {
+    for (const c of cands) { let i = names.indexOf(c); if (i < 0) i = qual.indexOf(c); if (i >= 0) { col[f] = i; break; } }
+  }
+  const seen = new Set(), games = [];
+  for (const st of js.seasonTypes || []) {
+    if (/preseason/i.test(st.displayName || "")) continue;
+    for (const cat of st.categories || []) for (const ev of cat.events || []) {
+      if (seen.has(ev.eventId)) continue; seen.add(ev.eventId);
+      const s = ev.stats || [], meta = (js.events || {})[ev.eventId] || {};
+      const g = {date: meta.gameDate || "", eid: String(ev.eventId), opp: oppAbbr(meta, NFL_ALIASES), home: meta.atVs !== "@"};
+      for (const f of Object.keys(NFL_COLS)) { const v = parseFloat(String(s[col[f]] ?? "").replace(/,/g, "")); g[f] = isNaN(v) ? 0 : v; }
+      games.push(g);
+    }
+  }
+  return games.sort((a, b) => (b.date > a.date ? 1 : -1));
+}
+async function nflLog(id, year, base = NFL_LOG){
+  try { return parseNflGamelog(await getJSON(`${base}/${id}/gamelog?season=${year}`)); }
+  catch (e) { noteErr("ESPN game logs", e); return []; }
+}
+function scoreNFL(p, seasons, depth){
+  const f = NFL_STATS[p.stat];
+  const all = seasons.flatMap((ss, i) => ss.map(g => [g, i === 0 ? 1 : 0.6]));
+  const games = all.slice(0, Math.min(depth, 60));
+  p.games = games.length; p.unit = "games";
+  if (games.length < 3) return;
+  const w = games.map(([, sw], i) => sw * Math.pow(0.93, i)), W = w.reduce((a, b) => a + b, 0);
+  const vals = games.map(([g]) => f(g));
+  const mu = vals.reduce((s, v, i) => s + w[i] * v, 0) / W;
+  const sd = Math.max(Math.sqrt(vals.reduce((s, v, i) => s + w[i] * (v - mu) ** 2, 0) / W), 0.2 * mu, 0.8);
+  const k = 4, tMore = Math.floor(p.line) + 0.5, tLess = Math.ceil(p.line) - 0.5;
+  const hitM = vals.reduce((s, v, i) => s + (v > tMore ? w[i] : 0), 0), hitL = vals.reduce((s, v, i) => s + (v < tLess ? w[i] : 0), 0);
+  p.sMore = (hitM + k * (1 - phi((tMore - mu) / sd))) / (W + k);
+  p.sLess = (hitL + k * phi((tLess - mu) / sd)) / (W + k);
+  const longVals = all.map(([g]) => f(g));
+  p.longN = longVals.length; p.longSeasons = seasons.filter(s => s.length).length;
+  const curN = seasons[0].length, lw = curN < 6 ? 0.4 : 0.25;
+  if (longVals.length >= 12) {
+    p.longMore = longVals.filter(v => v > tMore).length / longVals.length;
+    p.longLess = longVals.filter(v => v < tLess).length / longVals.length;
+    p.sMore = (1 - lw) * p.sMore + lw * p.longMore; p.sLess = (1 - lw) * p.sLess + lw * p.longLess;
+  }
+  const rate = (vs, side) => vs.length ? `${vs.filter(v => side === "More" ? v > tMore : v < tLess).length}/${vs.length}` : "–";
+  const cur = seasons[0].map(f);
+  p.hits = side => ({l5: rate(vals.slice(0, 5), side), l10: rate(vals.slice(0, 10), side), season: rate(cur, side)});
+  p.proj = +mu.toFixed(1); p.sd = +sd.toFixed(1); p.minTrend = 1;
+}
+async function analyzeNFL(picks){
+  const depth = +$("#depth").value, years = nflSeasons();
+  for (const p of picks) { p.sport = "nfl"; p.games = 0; }
+  setStatus(`Found ${picks.length} picks. Checking injuries and rosters…`, 0.04);
+  const teams = new Set(picks.flatMap(p => [p.team, p.opp]).filter(Boolean));
+  const [ids, inj, arts] = await Promise.all([rosterIds(teams, NFL_BASE, {WSH: "wsh"}), injuries(NFL_BASE, nflNick), news(NFL_BASE)]);
+  const players = [...new Set(picks.map(p => p.player))], logs = {};
+  let done = 0;
+  await pool(players, 4, async name => {
+    const id = findId(ids, name);
+    if (id) {
+      const first = await Promise.all(years.slice(0, 2).map(y => nflLog(id, y)));
+      const rest = first.flat().length ? await Promise.all(years.slice(2).map(y => nflLog(id, y))) : [];
+      logs[name] = first.concat(rest);
+    } else logs[name] = null;
+    setStatus(`Game logs ${++done}/${players.length} (first run downloads past seasons; later runs are much faster)…`, 0.05 + 0.7 * done / players.length);
+  });
+  HIST.nfl = {}; for (const nm of players) HIST.nfl[nm] = (logs[nm] || []).flat();
+  const outByTeam = {};
+  for (const [n, v] of Object.entries(inj)) if (/^out$/i.test(v.status) && v.team) (outByTeam[v.team] ||= []).push(n.replace(/\b\w/g, c => c.toUpperCase()));
+  for (const p of picks) {
+    const l = logs[p.player];
+    p.found = l !== null;
+    if (l && l.flat().length) scoreNFL(p, l, depth);
+    p.inj = inj[norm(p.player)] || null;
+    p.teammatesOut = (outByTeam[p.team] || []).filter(n => norm(n) !== norm(p.player)).slice(0, 4);
+    const nm = norm(p.player);
+    p.news = arts.filter(a => a.ath.includes(nm) || a.t.includes(nm)).slice(0, 3)
+      .map(a => ({h: a.h, tone: NEWS_BAD.test(a.t) ? "bad" : NEWS_GOOD.test(a.t) ? "good" : "neutral"}));
+  }
+  const miss = players.filter(nm => !logs[nm] || !logs[nm].flat().length).length;
+  let note = "";
+  if (miss) note = ` · ⚠ no game stats for ${miss}/${players.length} players${errSummary("ESPN game logs") ? ` (ESPN: ${errSummary("ESPN game logs")})` : ""}. Tap "Having trouble?" at the bottom`;
+  return {note, booksUsed: false};
+}
+
+// ---------- COLLEGE FOOTBALL (ESPN search for player IDs, same game-log format as the NFL)
+const CFB_BASE = "https://site.api.espn.com/apis/site/v2/sports/football/college-football";
+const CFB_LOG = "https://site.web.api.espn.com/apis/common/v3/sports/football/college-football/athletes";
+const ESPN_SEARCH = "https://site.web.api.espn.com/apis/common/v3/search";
+const cfbSeasons = () => { const d = new Date(); const y = d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear() - 1; return [y, y - 1, y - 2, y - 3]; };
+// ESPN athlete uids look like "s:20~l:23~a:4432577" (league 23 = college football)
+async function espnFindAthlete(name, leagueId){
+  const want = norm(name), last = want.split(" ").pop(), found = [];
+  try {
+    const js = await getJSON(`${ESPN_SEARCH}?query=${encodeURIComponent(name)}&limit=10&mode=prefix&lang=en&region=us`);
+    const walk = o => {
+      if (Array.isArray(o)) return o.forEach(walk);
+      if (!o || typeof o !== "object") return;
+      const uid = String(o.uid || "");
+      const m = uid.match(new RegExp(`~l:${leagueId}~a:(\\d+)`));
+      if (m) found.push({id: m[1], name: norm(o.displayName || o.name || o.title || "")});
+      for (const v of Object.values(o)) if (v && typeof v === "object") walk(v);
+    };
+    walk(js);
+  } catch (e) { noteErr("ESPN player search", e); return null; }
+  const hit = found.find(f => f.name === want) || found.find(f => f.name.split(" ").pop() === last && f.name[0] === want[0]);
+  return hit ? hit.id : null;
+}
+// Every FBS roster, indexed by player name (rosters are saved for 6 hours, the team list for a week)
+async function cfbRosterIndex(){
+  const out = {};
+  let teams = [];
+  try {
+    const js = await getJSON(`${CFB_BASE}/teams?groups=80&limit=1000`);
+    teams = (js.sports?.[0]?.leagues?.[0]?.teams || []).map(t => t.team).filter(Boolean);
+  } catch (e) { noteErr("ESPN college teams", e); }
+  let done = 0;
+  await pool(teams, 4, async t => {
+    try {
+      const js = await getJSON(`${CFB_BASE}/teams/${t.id}/roster`);
+      let ath = js.athletes || [];
+      if (ath.length && ath[0].items) ath = ath.flatMap(g => g.items);
+      const tn = [t.abbreviation, t.displayName, t.location, t.nickname, t.shortDisplayName, t.name].filter(Boolean).map(norm);
+      for (const a of ath) for (const n of new Set([a.fullName, a.displayName].filter(Boolean).map(norm))) (out[n] ||= []).push({id: a.id, team: tn});
+    } catch (e) { noteErr("ESPN college rosters", e); }
+    setStatus(`College rosters ${++done}/${teams.length} (saved for 6 hours after this)…`, 0.04 + 0.12 * done / Math.max(1, teams.length));
+  });
+  return {index: out, teams: teams.length};
+}
+function cfbPick(idx, name, team){
+  const c = idx[norm(name)] || [];
+  if (!c.length) { const n = norm(name), p = n.split(" "); for (const k in idx) { const q = k.split(" "); if (q[q.length - 1] === p[p.length - 1] && q[0] === p[0]) return idx[k][0].id; } return null; }
+  if (c.length === 1) return c[0].id;
+  const t = norm(team);
+  return (c.find(x => x.team.includes(t)) || c[0]).id;
+}
+async function analyzeCFB(picks){
+  const depth = +$("#depth").value, years = cfbSeasons();
+  for (const p of picks) { p.sport = "cfb"; p.games = 0; }
+  setStatus(`Found ${picks.length} picks. Loading college rosters…`, 0.04);
+  const [ros, arts] = await Promise.all([cfbRosterIndex(), news(CFB_BASE)]);
+  const players = [...new Set(picks.map(p => p.player))], logs = {};
+  let done = 0;
+  await pool(players, 6, async name => {
+    const pk = picks.find(p => p.player === name);
+    const id = cfbPick(ros.index, name, pk && pk.team) || await espnFindAthlete(name, 23);
+    if (id) {
+      const first = await Promise.all(years.slice(0, 2).map(y => nflLog(id, y, CFB_LOG)));
+      const rest = first.flat().length ? await Promise.all(years.slice(2).map(y => nflLog(id, y, CFB_LOG))) : [];
+      logs[name] = first.concat(rest);
+    } else logs[name] = null;
+    setStatus(`Game logs ${++done}/${players.length} (big Saturday slates take a few minutes the first time; later runs are much faster)…`, 0.05 + 0.75 * done / players.length);
+  });
+  HIST.cfb = {}; for (const nm of players) HIST.cfb[nm] = (logs[nm] || []).flat();
+  for (const p of picks) {
+    const l = logs[p.player];
+    p.found = l !== null;
+    if (l && l.flat().length) scoreNFL(p, l, depth);
+    p.inj = null; p.teammatesOut = [];
+    const nm = norm(p.player);
+    p.news = arts.filter(a => a.ath.includes(nm) || a.t.includes(nm)).slice(0, 3)
+      .map(a => ({h: a.h, tone: NEWS_BAD.test(a.t) ? "bad" : NEWS_GOOD.test(a.t) ? "good" : "neutral"}));
+    p.extraRisk = ["College: no official injury report feed, so check the team's news before lock"];
+  }
+  const miss = players.filter(nm => !logs[nm] || !logs[nm].flat().length).length;
+  let note = "";
+  const why = errSummary("ESPN college teams") || errSummary("ESPN college rosters") || errSummary("ESPN game logs");
+  if (miss) note = ` · ⚠ no game stats for ${miss}/${players.length} players (${ros.teams} college rosters loaded${why ? "; ESPN: " + why : ""}). Usually backups/freshmen with no college games yet`;
+  return {note, booksUsed: false};
+}
+
+// ---------- TENNIS (Sofascore match history)
+// Sofascore's website reads from www.sofascore.com/api/v1; api.sofascore.com is kept as a backup.
+const SOFA_BASES = ["https://www.sofascore.com/api/v1", "https://api.sofascore.com/api/v1"];
+let SOFA_BASE = null;
+// Tennis fantasy scoring isn't confirmed (published charts disagree), so it's shown but never used in lineups.
+const UNVERIFIED = new Set(["tennis|Fantasy Score", "cfb|Fantasy Score"]);
+const TENNIS_STATS = {
+  "Total Games Won": r => r.GW, "Games Won": r => r.GW, "Total Games": r => r.GW + r.GL, "Games Lost": r => r.GL,
+  "Aces": r => r.ACE, "Double Faults": r => r.DF, "Break Points Won": r => r.BPW,
+  "Total Sets": r => r.SETS, "Sets Won": r => r.SW, "Total Tie Breaks": r => r.TB, "Tie Breaks Played": r => r.TB,
+  "1st Set Games Won": r => r.S1W, "1st Set Total Games": r => r.S1T,
+  "Fantasy Score": r => r.ACE == null || r.DF == null ? null : 10 + r.GW - 0.8 * r.GL + 3 * r.SW + (r.won ? 3 : 0) + 0.5 * r.ACE - 0.5 * r.DF,
+};
+const TENNIS_VOLATILE = new Set(["Aces", "Double Faults", "Break Points Won", "Total Tie Breaks", "Tie Breaks Played"]);
+async function sofa(path){
+  const bases = SOFA_BASE ? [SOFA_BASE, ...SOFA_BASES.filter(b => b !== SOFA_BASE)] : SOFA_BASES;
+  let last;
+  for (const b of bases) {
+    try { const js = await getJSON(b + path); SOFA_BASE = b; return js; }
+    catch (e) { last = e; if (!/HTTP (401|403|429)/.test(e.message)) throw e; }
+  }
+  throw last;
+}
+
+async function sofaFind(name){
+  const n = norm(name), last = n.split(" ").pop();
+  try {
+    const js = await sofa(`/search/all?q=${encodeURIComponent(name)}&page=0`);
+    const cands = (js.results || []).filter(r => r.entity && (r.entity.sport?.slug || r.entity.sport?.name || "").toLowerCase().includes("tennis"));
+    const ok = e => { const en = norm(`${e.name || ""} ${e.slug ? e.slug.replace(/-/g, " ") : ""}`); return en.includes(last) && !/\//.test(e.name || ""); };
+    const hit = cands.find(r => ok(r.entity) && norm(r.entity.name) === n) || cands.find(r => ok(r.entity));
+    return hit ? hit.entity.id : null;
+  } catch (e) { noteErr("Sofascore", e); return null; }
+}
+function sofaRow(ev, me){
+  const home = ev.homeTeam?.id === me, my = home ? ev.homeScore : ev.awayScore, op = home ? ev.awayScore : ev.homeScore;
+  if (!my || !op) return null;
+  let GW = 0, GL = 0, SW = 0, SL = 0, TB = 0, SETS = 0, S1W = null, S1T = null;
+  for (let i = 1; i <= 5; i++) {
+    const a = my["period" + i], b = op["period" + i];
+    if (a == null || b == null) break;
+    SETS++; GW += a; GL += b;
+    if (a > b) SW++; else if (b > a) SL++;
+    if ((a === 7 && b === 6) || (a === 6 && b === 7) || my["period" + i + "TieBreak"] != null) TB++;
+    if (i === 1) { S1W = a; S1T = a + b; }
+  }
+  if (!SETS || GW + GL < 6) return null;   // walkovers / very early retirements
+  const won = ev.winnerCode === (home ? 1 : 2);
+  return {id: ev.id, date: new Date((ev.startTimestamp || 0) * 1000).toISOString(), year: new Date((ev.startTimestamp || 0) * 1000).getFullYear(),
+    GW, GL, SW, SL, TB, SETS, S1W, S1T, won, home, bo: ev.defaultPeriodCount || 3, surface: ev.groundType || "",
+    opp: (home ? ev.awayTeam : ev.homeTeam)?.name || "", oppRank: (home ? ev.awayTeam : ev.homeTeam)?.ranking || null, ACE: null, DF: null, BPW: null};
+}
+function statVal(items, re, side){
+  const it = items.find(x => re.test(x.name || x.key || ""));
+  if (!it) return null;
+  const v = side === "home" ? (it.homeValue ?? it.home) : (it.awayValue ?? it.away);
+  const n = parseInt(String(v), 10);
+  return isNaN(n) ? null : n;
+}
+async function sofaStats(row){
+  try {
+    const js = await sofa(`/event/${row.id}/statistics`);
+    const per = (js.statistics || []).find(s => s.period === "ALL") || (js.statistics || [])[0];
+    const items = (per?.groups || []).flatMap(g => g.statisticsItems || []), side = row.home ? "home" : "away";
+    row.ACE = statVal(items, /^aces$/i, side);
+    row.DF = statVal(items, /double fault/i, side);
+    row.BPW = statVal(items, /break points (converted|scored|won)/i, side);
+  } catch (e) { noteErr("Sofascore match stats", e); }
+}
+async function tennisPlayer(name, needStats){
+  const id = await sofaFind(name);
+  if (!id) return null;
+  const evs = [];
+  for (const pg of [0, 1, 2]) {   // ~90 most recent matches (usually 2-3 seasons)
+    try { const js = await sofa(`/team/${id}/events/last/${pg}`); evs.push(...(js.events || [])); if (!js.hasNextPage) break; }
+    catch (e) { noteErr("Sofascore", e); break; }
+  }
+  const rows = evs.filter(e => e.status?.type === "finished" && !/\//.test(e.homeTeam?.name || "") && !/\//.test(e.awayTeam?.name || ""))
+    .map(e => sofaRow(e, id)).filter(Boolean).sort((a, b) => (b.date > a.date ? 1 : -1));
+  if (needStats) await pool(rows.slice(0, 20), 3, sofaStats);
+  let next = null;
+  try {
+    const js = await sofa(`/team/${id}/events/next/0`);
+    const ev = (js.events || []).find(e => e.status?.type !== "finished");
+    if (ev) {
+      const home = ev.homeTeam?.id === id, me = home ? ev.homeTeam : ev.awayTeam, op = home ? ev.awayTeam : ev.homeTeam;
+      next = {opp: op?.name || "", myRank: me?.ranking || null, oppRank: op?.ranking || null, bo: ev.defaultPeriodCount || 3,
+        surface: ev.groundType || "", event: ev.tournament?.uniqueTournament?.name || ev.tournament?.name || ""};
+    }
+  } catch (e) { noteErr("Sofascore", e); }
+  return {id, rows, next};
+}
+function winProb(info){
+  const n = info.next, rows = info.rows;
+  if (n?.myRank && n?.oppRank) return clip(1 / (1 + Math.exp(0.75 * (Math.log(n.myRank) - Math.log(n.oppRank)))), 0.05, 0.95);
+  const r = rows.slice(0, 40); return r.length ? clip(r.filter(x => x.won).length / r.length, 0.15, 0.85) : 0.5;
+}
+function scoreTennis(p, info, depth){
+  const f = TENNIS_STATS[p.stat], n = info.next || {}, bo = n.bo || 3;
+  let rows = info.rows.filter(r => f(r) != null).slice(0, depth);
+  const sameFmt = rows.filter(r => r.bo === bo);
+  const scale = bo === 5 && sameFmt.length < 6 && !/Sets|Tie|1st Set/.test(p.stat) ? 1.4 : 1;   // best-of-5 with mostly best-of-3 history
+  if (sameFmt.length >= 6) rows = sameFmt;
+  p.games = rows.length; p.unit = "matches";
+  if (rows.length < 5) return;
+  const pw = winProb(info);
+  const wt = (r, i) => Math.pow(0.97, i) * (n.surface && r.surface === n.surface ? 1.3 : 1);
+  const tMore = Math.floor(p.line) + 0.5, tLess = Math.ceil(p.line) - 0.5, k = 4;
+  const part = sub => {
+    if (sub.length < 4) return null;
+    const w = sub.map(([, i]) => i), W = w.reduce((a, b) => a + b, 0), v = sub.map(([r]) => f(r) * scale);
+    const mu = v.reduce((s, x, i) => s + w[i] * x, 0) / W;
+    const sd = Math.max(Math.sqrt(v.reduce((s, x, i) => s + w[i] * (x - mu) ** 2, 0) / W), 0.15 * mu, 0.8);
+    const hm = v.reduce((s, x, i) => s + (x > tMore ? w[i] : 0), 0), hl = v.reduce((s, x, i) => s + (x < tLess ? w[i] : 0), 0);
+    return {mu, more: (hm + k * (1 - phi((tMore - mu) / sd))) / (W + k), less: (hl + k * phi((tLess - mu) / sd)) / (W + k)};
+  };
+  const all = rows.map((r, i) => [r, wt(r, i)]);
+  const pa = part(all), pW = part(all.filter(([r]) => r.won)) || pa, pL = part(all.filter(([r]) => !r.won)) || pa;
+  p.sMore = pw * pW.more + (1 - pw) * pL.more;
+  p.sLess = pw * pW.less + (1 - pw) * pL.less;
+  p.proj = +(pw * pW.mu + (1 - pw) * pL.mu).toFixed(1);
+  const vals = rows.map(r => f(r) * scale), yr = new Date().getFullYear();
+  const rate = (vs, side) => vs.length ? `${vs.filter(v => side === "More" ? v > tMore : v < tLess).length}/${vs.length}` : "–";
+  const thisYear = rows.filter(r => r.year === yr).map(r => f(r) * scale);
+  p.hits = side => ({l5: rate(vals.slice(0, 5), side), l10: rate(vals.slice(0, 10), side), season: rate(thisYear, side)});
+  p.longN = vals.length; p.longSeasons = new Set(rows.map(r => r.year)).size;
+  if (vals.length >= 15) { p.longMore = vals.filter(v => v > tMore).length / vals.length; p.longLess = vals.filter(v => v < tLess).length / vals.length; }
+  p.winP = pw; p.minTrend = 1;
+  const why = [], risk = [];
+  if (n.opp) {
+    const rk = n.myRank && n.oppRank ? ` (rank ${n.myRank} vs ${n.oppRank})` : "";
+    (pw >= 0.6 ? why : pw <= 0.4 ? risk : why).push(`${pw >= 0.5 ? "Favored" : "Underdog"} vs ${n.opp}: ~${pct(pw)} to win${rk}`);
+  } else risk.push("Couldn't find the upcoming match, so win chance is from recent form only");
+  if (n.surface) { const s = rows.filter(r => r.surface === n.surface).length; (s >= 8 ? why : risk).push(`${n.surface}: ${s} of the last ${rows.length} matches on this surface`); }
+  if (bo === 5) (scale > 1 ? risk : why).push(scale > 1 ? "Best-of-5 match but mostly best-of-3 history (counts scaled up ×1.4)" : `Best-of-5 match; using his ${rows.length} best-of-5 matches`);
+  if (TENNIS_VOLATILE.has(p.stat)) risk.push(`${p.stat} swings a lot match to match`);
+  p.extraWhy = why; p.extraRisk = risk;
+}
+async function analyzeTennis(picks){
+  const depth = +$("#depth").value;
+  for (const p of picks) { p.sport = "tennis"; p.games = 0; }
+  const players = [...new Set(picks.map(p => p.player))], info = {};
+  const needStats = new Set(picks.filter(p => /Aces|Double|Break|Fantasy/.test(p.stat)).map(p => p.player));
+  let done = 0;
+  await pool(players, 3, async name => {
+    info[name] = await tennisPlayer(name, needStats.has(name));
+    setStatus(`Match histories ${++done}/${players.length} (first run is slow; later runs reuse saved matches)…`, 0.05 + 0.75 * done / players.length);
+  });
+  HIST.tennis = {}; for (const nm of players) HIST.tennis[nm] = info[nm] ? info[nm].rows : [];
+  for (const p of picks) {
+    const inf = info[p.player];
+    p.found = !!inf;
+    if (inf) {
+      if (inf.next?.opp && !p.opp) p.opp = inf.next.opp;
+      scoreTennis(p, inf, depth);
+    }
+  }
+  const miss = players.filter(nm => !info[nm] || !info[nm].rows.length).length;
+  let note = "";
+  if (miss) note = ` · ⚠ no match history for ${miss}/${players.length} players${errSummary("Sofascore") ? ` (Sofascore: ${errSummary("Sofascore")})` : ""}. Tap "Having trouble?" at the bottom`;
+  return {note, booksUsed: false};
+}
+
+// ---------- MY LINEUP: check picks you've already made
+const MINE = Array.from({length: 6}, () => ({pk: null, side: "More"}));
+try { const saved = JSON.parse(localStorage.getItem("pp_mine") || "[]"); saved.forEach((s, i) => { if (s && MINE[i]) MINE[i]._saved = s; }); } catch {}
+const allLoaded = () => Object.keys(SPORTS).flatMap(s => DATA[s] ? DATA[s].picks : BOARDS[s] || []);
+let boardsLoading = null;
+function loadAllBoards(){
+  return boardsLoading ||= (async () => {
+    for (const s of Object.keys(SPORTS)) {
+      if (DATA[s] || BOARDS[s]) continue;
+      try { const js = await fetchBoard(s); if (js.error === undefined) BOARDS[s] = parseBoard(js, s); } catch {}
+    }
+    boardsLoading = null;
+    const focused = document.activeElement && document.activeElement.classList.contains("acin");
+    if (!$("#mineView").classList.contains("hide") && !focused) renderMine();
+  })();
+}
+const SPORT_ICON = {nba: "🏀", nfl: "🏈", cfb: "🏟️", tennis: "🎾"};
+function restoreMine(){
+  const all = allLoaded();
+  for (const s of MINE) if (s.pk) {   // a sport was refreshed: point at the fresh, rated version of the same pick
+    const cur = all.find(p => p.id === s.pk.id && p.sport === s.pk.sport);
+    if (cur && cur !== s.pk) s.pk = cur;
+  }
+  for (const s of MINE) if (s._saved && !s.pk) {
+    const sv = s._saved, same = p => !sv.sport || p.sport === sv.sport;
+    const pk = all.find(p => same(p) && p.id === sv.id) || all.find(p => same(p) && p.player === sv.player && p.stat === sv.stat && p.type === sv.type);
+    if (pk) { s.pk = pk; s.side = s._saved.side || "More"; }
+  }
+}
+function saveMine(){ try { localStorage.setItem("pp_mine", JSON.stringify(MINE.map(s => s.pk ? {id: s.pk.id, sport: s.pk.sport, player: s.pk.player, stat: s.pk.stat, type: s.pk.type, side: s.side} : null))); } catch {} }
+function legFor(pk, side){
+  const prob = side === "More" ? pk.pMore : pk.pLess;
+  const pen = (pk.conf === "Low" ? 0.05 : pk.conf === "Med" ? 0.015 : 0) + (pk.inj && /question|day/i.test(pk.inj.status) ? 0.12 : 0);
+  const p = prob == null ? 0.5 : prob;
+  return {pk, side, p, pe: clip(p - pen, 0.01, 0.97), f: factorOf(pk.type), key: pk.id + side, unrated: prob == null, v: verdictOf(pk, side)};
+}
+function renderMine(){
+  restoreMine();
+  const all = allLoaded();
+  if (Object.keys(SPORTS).some(s => !DATA[s] && !BOARDS[s])) loadAllBoards();
+  if (!all.length) { $("#mineView").innerHTML = `<p class="note">Loading today's boards so you can search every player…</p>`; return; }
+  const rows = MINE.map((s, i) => {
+    const pk = s.pk;
+    const props = pk ? all.filter(p => p.player === pk.player && p.sport === pk.sport) : [];
+    return `<div class="slot" data-i="${i}">
+      <div class="slotn">${i + 1}</div>
+      <div class="slotbody">
+        <div class="acwrap"><input class="acin" data-i="${i}" placeholder="Pick ${i + 1}: start typing a player…" value="${pk ? esc(pk.player) : ""}" autocomplete="off">
+          <div class="acbox hide" data-i="${i}"></div></div>
+        ${pk ? `<div class="slotopts">
+          <select class="propsel ${pk.type}" data-i="${i}">${props.map(p => `<option class="${p.type}" value="${esc(p.id)}" ${p.id === pk.id ? "selected" : ""}>${p.type === "demon" ? "😈 " : p.type === "goblin" ? "🟢 " : ""}${esc(p.stat)} ${p.line}${p.type !== "standard" ? ` (${p.type.toUpperCase()})` : ""}</option>`).join("")}</select>
+          <span class="tag ${pk.type}">${pk.type.toUpperCase()}</span>
+          <span class="sidebtns">${(pk.type === "standard" ? ["More", "Less"] : ["More"]).map(sd => `<button type="button" class="sidebtn ${s.side === sd ? "on" : ""}" data-i="${i}" data-side="${sd}">${sd}</button>`).join("")}</span>
+          <span class="slotp">${pk.pMore != null ? vdot(verdictOf(pk, s.side)) + " " : ""}${(() => { const pr = s.side === "More" ? pk.pMore : pk.pLess; return pr == null ? `<span class="note">not rated</span>` : `<b style="color:${pr >= .6 ? "var(--good)" : pr >= .45 ? "var(--mid)" : "var(--bad)"}">${pct(pr)}</b>`; })()}</span>
+          <button type="button" class="slotx" data-i="${i}" title="Clear">✕</button></div>` : ""}
+      </div></div>`;
+  }).join("");
+  $("#mineView").innerHTML = `<form class="panel" id="mineForm"><b>🧾 Check a lineup you already made</b>
+    <p class="note">Fill 2–6 slots. Type a name and pick from the list (↑/↓ and Enter work too), choose the prop and More/Less, then press Enter or Check. Every sport's board is searchable (${Object.keys(SPORTS).map(s => `${SPORTS[s].label}${DATA[s] ? "" : BOARDS[s] ? " (not rated yet)" : " (loading…)"}`).join(", ")}). Sports that aren't rated yet get analyzed automatically when you check.</p>
+    ${rows}
+    <p style="display:flex;gap:8px;flex-wrap:wrap"><button type="submit" class="pri">Check lineup (Enter)</button><button type="button" id="mineClear">Clear all</button></p></form>
+    <div id="mineOut"></div>`;
+  bindMine();
+}
+function bindMine(){
+  document.querySelectorAll(".acin").forEach(inp => {
+    const i = +inp.dataset.i, box = document.querySelector(`.acbox[data-i="${i}"]`);
+    let hits = [], sel = 0;
+    const draw = () => {
+      if (!hits.length) { box.classList.add("hide"); return; }
+      box.innerHTML = hits.map((h, k) => `<div class="acitem ${k === sel ? "on" : ""}" data-k="${k}">${SPORT_ICON[h.sport] || ""} <b>${esc(h.player)}</b> <small>${vsText(h)} · ${h.n} props</small></div>`).join("");
+      box.classList.remove("hide");
+      box.querySelectorAll(".acitem").forEach(el => el.onmousedown = e => { e.preventDefault(); choose(+el.dataset.k); });
+    };
+    const choose = k => {
+      const h = hits[k]; if (!h) return;
+      const props = allLoaded().filter(p => p.player === h.player && p.sport === h.sport);
+      // default to the player's most-picked standard line; you then pick the exact prop you played
+      const std = props.filter(p => p.type === "standard");
+      const best = (std.length ? std : props).slice().sort((a, b) => (b.trending ?? 0) - (a.trending ?? 0))[0];
+      MINE[i].pk = best; MINE[i].side = "More"; delete MINE[i]._saved;
+      saveMine(); renderMine();
+      const next = document.querySelector(`.acin[data-i="${i + 1}"]`); if (next && !MINE[i + 1].pk) next.focus();
+    };
+    inp.oninput = () => {
+      const q = norm(inp.value); sel = 0;
+      if (q.length < 2) { hits = []; return draw(); }
+      const by = {};
+      for (const p of allLoaded()) {
+        const n = norm(p.player);
+        if (!n.includes(q) && !n.split(" ").some(w => w.startsWith(q))) continue;
+        const k = p.sport + "|" + p.player;
+        (by[k] ||= {player: p.player, sport: p.sport, team: p.team, opp: p.opp, n: 0, starts: n.startsWith(q) || n.split(" ").some(w => w.startsWith(q))}).n++;
+      }
+      hits = Object.values(by).sort((a, b) => (b.starts - a.starts) || a.player.localeCompare(b.player)).slice(0, 8);
+      draw();
+    };
+    inp.onkeydown = e => {
+      if (box.classList.contains("hide")) return;
+      if (e.key === "ArrowDown") { sel = Math.min(sel + 1, hits.length - 1); draw(); e.preventDefault(); }
+      else if (e.key === "ArrowUp") { sel = Math.max(sel - 1, 0); draw(); e.preventDefault(); }
+      else if (e.key === "Enter" || e.key === "Tab") { if (hits.length) { e.preventDefault(); choose(sel); } }
+      else if (e.key === "Escape") box.classList.add("hide");
+    };
+    inp.onblur = () => setTimeout(() => box.classList.add("hide"), 150);
+  });
+  document.querySelectorAll(".propsel").forEach(s => s.onchange = () => {
+    const i = +s.dataset.i, cur = MINE[i].pk, pk = allLoaded().find(p => p.id === s.value && (!cur || p.sport === cur.sport));
+    if (pk) { MINE[i].pk = pk; if (pk.type !== "standard") MINE[i].side = "More"; saveMine(); renderMine(); }
+  });
+  document.querySelectorAll(".sidebtn").forEach(b => b.onclick = () => { MINE[+b.dataset.i].side = b.dataset.side; saveMine(); renderMine(); });
+  document.querySelectorAll(".slotx").forEach(b => b.onclick = () => { MINE[+b.dataset.i] = {pk: null, side: "More"}; saveMine(); renderMine(); });
+  $("#mineClear").onclick = () => { for (let i = 0; i < 6; i++) MINE[i] = {pk: null, side: "More"}; saveMine(); renderMine(); };
+  $("#mineForm").onsubmit = e => { e.preventDefault(); checkMine(); };
+}
+async function checkMine(){
+  const need = [...new Set(MINE.filter(s => s.pk && !DATA[s.pk.sport]).map(s => s.pk.sport))];
+  if (need.length) {
+    if (busy) { $("#mineOut").innerHTML = `<p class="note">Another refresh is running; try again in a moment.</p>`; return; }
+    busy = true; $("#runBtn").disabled = true;
+    try {
+      for (const sp of need) {
+        $("#mineOut").innerHTML = `<p class="note">Rating today's ${SPORTS[sp].name} picks first (one-time, see the status bar)…</p>`;
+        await analyze(BOARDS[sp] || [], sp);
+      }
+    } finally { busy = false; $("#runBtn").disabled = false; }
+    renderMine();
+  }
+  const out = $("#mineOut"), L = MINE.filter(s => s.pk).map(s => legFor(s.pk, s.side)), n = L.length;
+  if (n < 2) { out.innerHTML = `<p style="color:var(--mid)">Pick at least 2 players. PrizePicks lineups are 2 to 6 picks.</p>`; return; }
+  const warn = [];
+  const names = L.map(l => l.pk.player);
+  if (new Set(names).size < n) warn.push("The same player is in your lineup twice. PrizePicks won't allow that.");
+  if (new Set(L.map(l => l.pk.sport + l.pk.team)).size < 2) warn.push("Every pick is from the same team. PrizePicks requires at least 2 different teams.");
+  const unr = L.filter(l => l.unrated);
+  if (unr.length) warn.push(`${unr.map(l => esc(l.pk.player)).join(", ")} ${unr.length > 1 ? "aren't" : "isn't"} rated (no stats loaded), so I counted ${unr.length > 1 ? "them" : "it"} as a 50/50 coin flip.`);
+  const raw = lineupStats(L, false), ft = FLEX[n];
+  const flexProfit = ft ? ft.reduce((s, m, k) => s + (m > 1 ? raw.d[k] : 0), 0) : null;
+  // coach's swap: best replacement for the weakest pick that keeps a similar payout
+  let swap = "";
+  const weakest = L.slice().sort((a, b) => a.p - b.p)[0], wi = L.indexOf(weakest);
+  const pool = Object.values(DATA).flatMap(d => d.picks).filter(p => !names.includes(p.player));
+  let best = null;
+  for (const pk of pool) for (const side of pk.type === "standard" ? ["More", "Less"] : ["More"]) {
+    if ((side === "More" ? pk.pMore : pk.pLess) == null) continue;
+    if (pk.inj && /out|doubt|injured reserve|suspen/i.test(pk.inj.status)) continue;
+    if (typeof UNVERIFIED !== "undefined" && UNVERIFIED.has(pk.sport + "|" + pk.stat)) continue;
+    const T = L.slice(); T[wi] = legFor(pk, side);
+    const s = lineupStats(T, false);
+    if (s.powerPay < raw.powerPay * 0.9) continue;
+    if (!best || s.d[n] > best.d) best = {leg: T[wi], d: s.d[n], pay: s.powerPay};
+  }
+  if (best && best.d > raw.d[n] * 1.15) swap = `<div class="panel"><b>🔁 Coach's swap:</b> replace <b>${esc(weakest.pk.player)} ${weakest.side} ${weakest.pk.line} ${esc(weakest.pk.stat)}</b> (${pct(weakest.p)}) with <b>${esc(best.leg.pk.player)} ${best.leg.side} ${best.leg.pk.line} ${esc(best.leg.pk.stat)}</b>${best.leg.pk.type !== "standard" ? ` (${best.leg.pk.type})` : ""} (${pct(best.leg.p)}). Your chance of hitting goes from <b>${pct1(raw.d[n])}</b> to <b>${pct1(best.d)}</b>, paying about ${best.pay.toFixed(1)}×.</div>`;
+  const both = `<div class="panel"><b>Your ${n}-pick lineup</b>
+    <table class="sumtab"><tr><td class="note">Play as</td><td class="note">Chance to win</td><td class="note">Pays</td></tr>
+    <tr><td>Power (all ${n} must hit)</td><td style="font-weight:800">${pct1(raw.d[n])}</td><td><b>${raw.powerPay.toFixed(1)}×</b></td></tr>
+    ${ft ? `<tr><td>Flex (profit on ${Math.min(...ft.map((m, k) => m > 1 ? k : 99))}+ hits)</td><td style="font-weight:800">${pct1(flexProfit)}</td><td><b>${raw.flexPay.toFixed(1)}×</b> top</td></tr>` : ""}</table>
+    ${warn.map(w => `<p style="color:var(--mid)">⚠ ${w}</p>`).join("")}</div>`;
+  const card = lineupCard({id: "mine", title: "🧾 Your lineup", sub: "How each pick looks and what could go wrong"}, L, true);
+  out.innerHTML = both + swap + card.html;
+  bindCoach();
+  out.scrollIntoView({behavior: "smooth", block: "start"});
+}
+
+// ---------- data check
+async function dataCheck(){
+  const out = $("#diag"); out.innerHTML = `<p class="note">Checking every data source…</p>`;
+  const [cy, py] = seasonYears(), key = $("#oddsKey").value.trim();
+  const tests = [
+    ["PrizePicks board (" + SPORTS[SPORT].name + ")", ppUrl(), js => `${(js.data || []).length} projections, ${(js.data || []).filter(d => typeof d.attributes?.trending_count === "number").length} with pick counts`],
+    ["PrizePicks most-picked counts", `https://api.prizepicks.com/trending/${SPORTS[SPORT].league}`, js => `${Object.keys(js.data || {}).length} projections with a pick count`],
+    ["ESPN roster (Lakers)", `${ESPN}/teams/lal/roster`, js => { let a = js.athletes || []; if (a[0]?.items) a = a.flatMap(g => g.items); return `${a.length} players`; }],
+    ["ESPN game log, this season", `${ESPN_LOG}/1966/gamelog?season=${cy}`, js => `${parseGamelog(js).length} games`],
+    ["ESPN game log, last season", `${ESPN_LOG}/1966/gamelog?season=${py}`, js => `${parseGamelog(js).length} games`],
+    ["ESPN injuries", `${ESPN}/injuries`, js => `${JSON.stringify(js).match(/"status"/g)?.length || 0} entries`],
+    ["ESPN news", `${ESPN}/news?limit=50`, js => `${(js.articles || []).length} articles`],
+    ["NBA.com players", `${NBA}/commonallplayers?LeagueID=00&Season=${nbaSeason(cy)}&IsOnlyCurrentSeason=1`, js => `${js.resultSets?.[0]?.rowSet?.length || 0} players`],
+    ["NBA.com game log, last season", `${NBA}/playergamelogs?PlayerID=2544&Season=${nbaSeason(py)}&SeasonType=Regular%20Season`, js => `${js.resultSets?.[0]?.rowSet?.length || 0} games`],
+    ["ESPN NFL roster (Chiefs)", `${NFL_BASE}/teams/kc/roster`, js => { let a = js.athletes || []; if (a[0]?.items) a = a.flatMap(g => g.items); return `${a.length} players`; }],
+    ["ESPN NFL game log (last season)", `${NFL_LOG}/3139477/gamelog?season=${nflSeasons()[1]}`, js => `${parseNflGamelog(js).length} games, ${parseNflGamelog(js).reduce((s, g) => s + g.passYds, 0)} pass yds`],
+    ["ESPN college teams (FBS)", `${CFB_BASE}/teams?groups=80&limit=1000`, js => `${(js.sports?.[0]?.leagues?.[0]?.teams || []).length} teams`],
+    ["ESPN college roster (Texas)", `${CFB_BASE}/teams/251/roster`, js => { let a = js.athletes || []; if (a[0]?.items) a = a.flatMap(g => g.items); return `${a.length} players`; }],
+    ["ESPN player search (backup only)", `${ESPN_SEARCH}?query=Arch%20Manning&limit=10&mode=prefix&lang=en&region=us`, js => { const n = (JSON.stringify(js).match(/~l:23~a:\d+/g) || []).length; return n ? `${n} college matches` : "0 matches (fine) · sample: " + JSON.stringify(js).slice(0, 160); }],
+    ["Sofascore player search (tennis, www)", `${SOFA_BASES[0]}/search/all?q=Sinner&page=0`, js => `${(js.results || []).length} results`],
+    ["Sofascore match history (tennis, www)", `${SOFA_BASES[0]}/team/206570/events/last/0`, js => `${(js.events || []).length} matches`],
+    ["Sofascore player search (tennis, backup)", `${SOFA_BASES[1]}/search/all?q=Sinner&page=0`, js => `${(js.results || []).length} results`],
+    ["Reddit (optional crowd buzz)", "https://www.reddit.com/r/PrizePicks/new.json?limit=5", js => `${js.data?.children?.length || 0} posts`],
+  ];
+  if (key) tests.push(["Odds API key", `https://api.the-odds-api.com/v4/sports?apiKey=${encodeURIComponent(key)}`, (js, r) => `key OK, ${r.headers.get("x-requests-remaining") ?? "?"} credits left`]);
+  const rows = [];
+  for (const [name, u, f] of tests) {
+    const t0 = performance.now();
+    try {
+      const r = await rawFetch((u)), txt = await r.text();
+      let js = null; try { js = JSON.parse(txt); } catch {}
+      const ms = Math.round(performance.now() - t0);
+      if (!r.ok) rows.push([name, false, `HTTP ${r.status} ${(js?.message || txt).slice(0, 120)}`, ms]);
+      else if (!js) rows.push([name, false, `not JSON: ${txt.slice(0, 120)}`, ms]);
+      else { let d; try { d = f(js, r); } catch (e) { d = "unexpected format: " + JSON.stringify(js).slice(0, 160); } rows.push([name, !/^0 |unexpected/.test(d), d, ms]); }
+    } catch (e) { rows.push([name, false, e.message, 0]); }
+    out.innerHTML = `<p class="note">Checked ${rows.length}/${tests.length}…</p>`;
+  }
+  const report = "PickPrizer data check " + new Date().toISOString() + "\n" + rows.map(r => `${r[1] ? "OK  " : "FAIL"} ${r[0]}: ${r[2]} (${r[3]}ms)`).join("\n");
+  out.innerHTML = `<table class="sumtab">${rows.map(r => `<tr><td>${r[1] ? "✅" : "❌"} ${esc(r[0])}</td><td class="note">${esc(r[2])}</td></tr>`).join("")}</table>
+    <button type="button" id="copyDiag">Copy report</button> <span class="note">Paste this to Claude if something's failing.</span>`;
+  $("#copyDiag").onclick = async () => { try { await navigator.clipboard.writeText(report); $("#copyDiag").textContent = "Copied ✓"; } catch { $("#copyDiag").textContent = "Copy failed"; } };
+}
+// ---------- main
+let ALL = [];
+async function analyzeNBA(picks){
+  const depth = +$("#depth").value, years = seasonYears();
+  setStatus(`Found ${picks.length} picks. Checking injuries and rosters…`, 0.04);
+  const teams = new Set(picks.flatMap(p => [p.team, p.opp]).filter(Boolean));
+  const [ids, inj, arts] = await Promise.all([rosterIds(teams), injuries(), news()]);
+  NBA_IDS = null;
+  const players = [...new Set(picks.map(p => p.player))], logs = {};
+  let done = 0;
+  await pool(players, 4, async name => {
+    logs[name] = await playerLogs(name, ids, years);
+    setStatus(`Game logs ${++done}/${players.length} (first run downloads past seasons; later runs are much faster)…`, 0.05 + 0.6 * done / players.length);
+  });
+  const outByTeam = {};
+  for (const [n, v] of Object.entries(inj)) if (/out/i.test(v.status) && v.team) (outByTeam[v.team] ||= []).push(n.replace(/\b\w/g, c => c.toUpperCase()));
+  // --- teammate context: who is out tonight, who just came back, and what that did to each player before
+  HIST.nba = {}; const flat = {}, teamPlayers = {};
+  for (const nm of players) { const l = logs[nm] && logs[nm].logs; HIST.nba[nm] = l ? l.flat() : []; flat[nm] = l ? l.slice(0, 2).flat().filter(g => g.MIN >= 5) : []; }
+  for (const p of picks) { const a = (teamPlayers[p.team] ||= []); if (!a.includes(p.player)) a.push(p.player); }
+  const outKey = {}, outList = Object.entries(inj).filter(([, v]) => /out/i.test(v.status) && v.team && teams.has(v.team));
+  if (outList.length) setStatus("Checking how players do when injured teammates sit…", 0.66);
+  await pool(outList, 4, async ([n, v]) => {
+    const id = findId(ids, n); if (!id) return;
+    const gl = (await Promise.all(years.slice(0, 2).map(y => gamelog(id, y)))).flat().filter(g => g.MIN >= 5);
+    if (gl.length < 5) return;
+    const min = gl.slice(0, 25).reduce((s, g) => s + g.MIN, 0) / Math.min(25, gl.length);
+    if (min >= 22) (outKey[v.team] ||= []).push({name: n.replace(/\b\w/g, c => c.toUpperCase()), eids: new Set(gl.map(g => g.eid)), min});
+  });
+  const ctxFor = (name, team, stat) => {
+    const comps = STATS[stat], A = flat[name] || [], notes = []; let f = 1;
+    if (A.length < 8) return {f, notes};
+    const mean = gs => gs.reduce((s, g) => s + val(g, comps), 0) / gs.length, base = mean(A.slice(0, 15));
+    if (!(base > 0)) return {f, notes};
+    for (const B of outKey[team] || []) {
+      if (norm(B.name) === norm(name)) continue;
+      const withB = A.filter(g => B.eids.has(g.eid)); if (withB.length < 5) continue;
+      const first = withB[withB.length - 1].date, wo = A.filter(g => !B.eids.has(g.eid) && g.date > first);
+      if (wo.length < 3) { notes.push({dir: 0, t: `${B.name} (${Math.round(B.min)} min a game) is out and there are too few games without him to measure what that does`}); continue; }
+      const mO = mean(wo), k = clip(1 + (mO / base - 1) * wo.length / (wo.length + 4), 0.8, 1.4);
+      f *= k;
+      notes.push({dir: k > 1.03 ? 1 : k < 0.97 ? -1 : 0.5, t: `${B.name} is out: he averages ${mO.toFixed(1)} in ${wo.length} games without him vs ${mean(withB).toFixed(1)} with him`});
+    }
+    const last5 = A.slice(0, 5);
+    for (const bn of teamPlayers[team] || []) {
+      if (bn === name) continue;
+      const Bg = flat[bn] || []; if (Bg.length < 8) continue;
+      const bmin = Bg.slice(0, 25).reduce((s, g) => s + g.MIN, 0) / Math.min(25, Bg.length); if (bmin < 24) continue;
+      const be = new Set(Bg.map(g => g.eid)), missed = last5.filter(g => !be.has(g.eid)).length; if (missed < 3) continue;
+      const withB = A.filter(g => be.has(g.eid)); if (withB.length < 5) continue;
+      const mR = mean(A.slice(0, 10)), mW = mean(withB); if (!(mR > 0)) continue;
+      const k = clip(1 + (mW / mR - 1) * 0.7, 0.7, 1.2);
+      f *= k;
+      notes.push({dir: k > 1.03 ? 1 : k < 0.97 ? -1 : 0.5, t: `${bn} is back after missing ${missed} of the last 5: the recent ${mR.toFixed(1)} came without him, with him it's ${mW.toFixed(1)}`});
+    }
+    return {f: clip(f, 0.7, 1.5), notes};
+  };
+  for (const p of picks) {
+    p.games = 0;
+    const r = logs[p.player] || {}, l = r.logs;
+    p.found = !r.missing; p.statSrc = r.src;
+    const cx = STATS[p.stat] ? ctxFor(p.player, p.team, p.stat) : {f: 1, notes: []};
+    p.ctxF = cx.f; p.ctxNotes = cx.notes;
+    if (l && l.flat().length) scoreStats(p, l, depth, cx.f);
+    p.inj = inj[norm(p.player)] || null;
+    p.teammatesOut = (outByTeam[p.team] || []).filter(n => norm(n) !== norm(p.player));
+    const nm = norm(p.player);
+    p.news = arts.filter(a => a.ath.includes(nm) || a.t.includes(nm)).slice(0, 3)
+      .map(a => ({h: a.h, tone: NEWS_BAD.test(a.t) ? "bad" : NEWS_GOOD.test(a.t) ? "good" : "neutral"}));
+  }
+  const key = $("#oddsKey").value.trim();
+  let note = "", booksUsed = false;
+  if (key && $("#useBooks").checked) {
+    setStatus("Pulling sportsbook odds…", 0.7);
+    const m = await market(key, picks);
+    if (m.error) note = " · ⚠ " + m.error;
+    else {
+      const i = m.__info;
+      note = i.lines ? ` · sportsbooks: ${i.lines} lines from ${i.games} game${i.games === 1 ? "" : "s"}${i.left != null ? ` (${i.left} credits left)` : ""}`
+        : ` · ⚠ sportsbooks returned no player lines${i.err ? " (" + i.err + ")" : i.games ? "" : ": no matching games in the next 36h"}`;
+    }
+    booksUsed = !m.error && m.__info.lines > 0;
+    if (!m.error) for (const p of picks) { const b = m[`${norm(p.player)}|${p.stat}|${p.line}`];
+      if (b) { const mp = marketProbs(b); p.mMore = mp.more; p.mLess = mp.less; p.books = mp.n; } }
+  }
+  const noStats = players.filter(nm => { const r = logs[nm]; return !r || !r.logs || !r.logs.flat().length; }).length;
+  if (noStats) note += ` · ⚠ no game stats for ${noStats}/${players.length} players${errSummary("ESPN game logs") ? ` (ESPN: ${errSummary("ESPN game logs")}` + (errSummary("NBA.com") ? `; NBA.com: ${errSummary("NBA.com")})` : ")") : ""}. Tap "Having trouble?" at the bottom`;
+  return {note, booksUsed};
+}
+
+// PrizePicks sends pick counts separately from the board: /trending/<league> lists its most-picked projections
+async function addTrending(picks, sport){
+  try {
+    const d = (await getJSON(`https://api.prizepicks.com/trending/${SPORTS[sport].league}`)).data || {};
+    let n = 0;
+    for (const p of picks) { p.trendKnown = true; const v = d[p.id]; if (typeof v === "number") { p.trending = v; n++; } }
+    return n;
+  } catch (e) { noteErr("PrizePicks pick counts", e); return 0; }
+}
+async function analyze(picks, sport = SPORT){
+  const sp = SPORTS[sport];
+  if (!picks.length) { setStatus(`No ${sp.name} picks on the board right now. (If PrizePicks has some, the board may not have loaded; try Refresh.)`, 0); return; }
+  for (const k in ERRS) delete ERRS[k];
+  setStatus(`Found ${picks.length} ${sp.name} picks…`, 0.03);
+  await addTrending(picks, sport);
+  const r = (sport === "tennis" ? await analyzeTennis(picks) : sport === "nfl" ? await analyzeNFL(picks) : sport === "cfb" ? await analyzeCFB(picks) : await analyzeNBA(picks)) || {};
+  enrich(picks);
+  if ($("#useReddit").checked) { setStatus("Reading what people are saying on Reddit…", 0.88); scoreBuzz(picks, await reddit(sport)); }
+  finalize(picks);
+  trackUpdate(sport, picks);
+  DATA[sport] = {picks, note: r.note || "", booksUsed: !!r.booksUsed, time: new Date(), redditBlocked: !!ERRS["Reddit"]};
+  if (SPORT === sport) showSport();
+}
+function showSport(){
+  const d = DATA[SPORT], sp = SPORTS[SPORT];
+  $("#ppLink").href = ppUrl();
+  if (!d) {
+    ALL = [];
+    $("#tabs").classList.toggle("hide", !Object.keys(DATA).length); $("#coachView").innerHTML = `<p class="note">No ${sp.name} board loaded yet. Click Refresh. (🧾 My lineup still works with the sports you've loaded.)</p>`; $("#out").innerHTML = "";
+    if (!$("#mineView").classList.contains("hide")) renderMine();
+    setStatus(`Click Refresh to load today's ${sp.name} board.`, 0);
+    return;
+  }
+  ALL = d.picks;
+  const picks = d.picks, unit = sp.unitGame;
+  const startOf = {};
+  for (const p of picks) { const g = gameOf(p); if (p.start && (!startOf[g] || p.start < startOf[g])) startOf[g] = p.start; }
+  const games = Object.keys(startOf).concat([...new Set(picks.map(gameOf))].filter(g => !startOf[g]))
+    .sort((a, b) => (startOf[a] || "9") < (startOf[b] || "9") ? -1 : (startOf[a] || "9") > (startOf[b] || "9") ? 1 : a.localeCompare(b));
+  const stats = [...new Set(picks.map(p => p.stat))].sort();
+  const when = st => st ? new Date(st).toLocaleString([], {weekday: "short", hour: "numeric", minute: "2-digit"}) : "";
+  $("#gameSel").innerHTML = `<option value="">All ${unit}s</option>` + games.map(x => `<option value="${esc(x)}">${esc(x)}${startOf[x] ? " · " + esc(when(startOf[x])) : ""}</option>`).join("");
+  $("#statSel").innerHTML = `<option value="">All stats</option>` + stats.map(x => `<option>${esc(x)}</option>`).join("");
+  $("#playerList").innerHTML = [...new Set(picks.map(p => p.player))].sort().map(x => `<option value="${esc(x)}">`).join("");
+  $("#tabs").classList.remove("hide"); $("#howto").classList.remove("hide");
+  renderCoach(); render();
+  if (!$("#mineView").classList.contains("hide")) renderMine();
+  const n = t => picks.filter(p => p.type === t).length;
+  setStatus(`${sp.label} · updated ${d.time.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})} · ${picks.length.toLocaleString()} picks checked${d.note}`, 1);
+}
+
+let busy = false;
+$("#runBtn").onclick = async () => {
+  if (busy) return; busy = true; $("#runBtn").disabled = true;
+  try {
+    setStatus(`Loading the PrizePicks ${SPORTS[SPORT].name} board…`, 0.02);
+    const js = await fetchBoard();
+    if (js.error !== undefined) { $("#pastePanel").classList.remove("hide"); setStatus(`PrizePicks wouldn't send today's picks automatically. Use the 2 steps below.`, 0); $("#pastePanel").scrollIntoView({behavior: "smooth"}); return; }
+    $("#pastePanel").classList.add("hide");
+    await analyze(parseBoard(js));
+  } catch (e) { setStatus("Error: " + e.message); console.error(e); }
+  finally { busy = false; $("#runBtn").disabled = false; }
+};
+$("#diagBtn").onclick = dataCheck;
+if (window.EXT_FETCH && window.chrome?.runtime?.sendMessage) {
+  $("#feedBtn").classList.remove("hide");
+  $("#feedBtn").onclick = async () => {
+    const out = $("#diag"); out.innerHTML = `<p class="note">Looking at your open PrizePicks tab…</p>`;
+    let r; try { r = await chrome.runtime.sendMessage({type: "feedScan"}); } catch (e) { r = {error: e.message}; }
+    if (!r || r.error) { out.innerHTML = `<p style="color:var(--mid)">${esc(r ? r.error : "No answer from the extension.")}</p>`; return; }
+    const okN = r.items.filter(x => x.skel).length, text = "PickPrizer feed scan " + new Date().toISOString() + "\n" + JSON.stringify(r.items);
+    out.innerHTML = `<p>Found ${r.items.length} PrizePicks data requests on that tab (${okN} readable). This report has the data's layout only: names, numbers of other users and long text are blanked out.</p><button type="button" id="copyFeed">Copy feed report</button> <span class="note">Paste it to Claude so the top-players ranking can be built.</span>`;
+    $("#copyFeed").onclick = async () => { try { await navigator.clipboard.writeText(text); $("#copyFeed").textContent = "Copied ✓"; } catch { $("#copyFeed").textContent = "Copy failed"; } };
+  };
+}
+if (window.EXT_CLEAR) { $("#clearBtn").classList.remove("hide"); $("#clearBtn").onclick = async () => { await window.EXT_CLEAR(); $("#saveMsg").textContent = "Saved match/game history cleared. The next Refresh downloads it again."; }; }
+drawSportTabs(); showSport();
+$("#helpLink").onclick = e => { e.preventDefault(); $("#helpPanel").classList.remove("hide"); $("#helpPanel").scrollIntoView({behavior: "smooth"}); dataCheck(); };
+if (!DATA[SPORT]) $("#runBtn").click();   // load today's picks straight away
+$("#clipGo").onclick = async () => {
+  try {
+    const txt = await navigator.clipboard.readText();
+    const js = JSON.parse(txt.slice(txt.indexOf("{")));
+    $("#pastePanel").classList.add("hide"); shareBoard(js, SPORT); await analyze(parseBoard(js));
+  } catch (e) { setStatus("Couldn't read the PrizePicks data from your clipboard (" + e.message + "). Copy the whole page and try again, or paste into the box."); }
+};
+$("#pasteGo").onclick = async () => {
+  try { const js = JSON.parse($("#pasteBox").value); $("#pastePanel").classList.add("hide"); shareBoard(js, SPORT); await analyze(parseBoard(js)); }
+  catch (e) { setStatus("That didn't look like the PrizePicks data: " + e.message); }
+};
+</script>
+</body>
+</html>
