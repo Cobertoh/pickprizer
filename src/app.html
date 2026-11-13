@@ -632,7 +632,7 @@ function renderHome(){
     <p class="lead">Get started in just a few simple steps.</p>
     <ol class="tl">
       <li><span class="num">01</span><div><span class="kick">Select your sport</span><h3>Pick your board</h3><p>Choose from 11 sports, from the NBA and NFL to golf, soccer and the UFC. Today's board loads automatically.</p></div></li>
-      <li><span class="num">02</span><div><span class="kick">Build your lineup</span><h3>Choose your payout</h3><p>Enter a multiplier like 5x or 20x. Pick4Me builds a lineup using its strongest picks.</p></div></li>
+      <li><span class="num">02</span><div><span class="kick">Build your lineup</span><h3>Choose your payout</h3><p>Enter a multiplier like 5x or 20x. Pick4Me builds the lineup with the best chance of hitting.</p></div></li>
       <li><span class="num">03</span><div><span class="kick">Understand your picks</span><h3>See the reasoning</h3><p>Explore recent performance, matchup history, injuries and other relevant information.</p></div></li>
     </ol>
   </section>
@@ -640,8 +640,8 @@ function renderHome(){
   <section class="hsect">
     <h2 class="mid">Understanding <span>the colors</span></h2>
     <div class="legend2">
-      <i class="dot g"></i><b>Strong</b><span>80%+ hit rate</span>
-      <i class="dot y"></i><b>Coin flip</b><span>Uncertain outcome</span>
+      <i class="dot g"></i><b>Strong</b><span>Hits about 3 in 4 times or better</span>
+      <i class="dot y"></i><b>Unsure</b><span>Could be good, less certain</span>
       <i class="dot r"></i><b>Avoid</b><span>Risky pick</span>
     </div>
   </section>
@@ -1065,19 +1065,19 @@ function calHTML(sport){
   return `<div class="panel"><b>🔬 Backtest on real games</b> <span class="note">every past game of the players on this board (${c.games.toLocaleString()} player-games), replayed one at a time using only what was known before each game</span>
     <table class="sumtab"><tr><td class="note">Line compared with his usual</td><td class="note">Went over</td><td></td></tr>
     ${row(0, "At his usual (like a standard line)")}${row(0.5, "A little below (shallow goblin)")}${row(1, "Well below (deep goblin)")}${row(1.5, "Far below")}${row(2, "Very far below")}${row(-0.75, "Above his usual (like a demon)")}</table>
-    <p class="note">These are measured, not guessed, and every rating now uses them. 🟢 needs a measured 80%+ and no warning flags.</p></div>`;
+    <p class="note">These are measured, not guessed, and every rating now uses them. 🟢 needs a measured 75%+ and nothing serious against it.</p></div>`;
 }
-const VLAB = {g: "Strong", y: "Coin flip", r: "Avoid", n: "Not rated"};
+const VLAB = {g: "Strong", y: "Unsure", r: "Avoid", n: "Not rated"};
 function verdictOf(p, side){
   const prob = side === "More" ? p.pMore : p.pLess;
   if (prob == null) return {c: "n", model: "n", crowd: null, flags: ["not rated"], prob: null};
   const h = p.hits ? p.hits(side) : null, rt = x => { const [a, b] = String(x || "").split("/").map(Number); return b >= 5 ? a / b : null; };
   const long = side === "More" ? p.longMore : p.longLess, l10 = h ? rt(h.l10) : null;
   const st = p.inj ? String(p.inj.status) : "", q = /question|day|doubt|out|suspen|reserve/i.test(st);
-  const flags = [];
-  if (q) flags.push("injury tag: " + st);
-  if (p.news?.some(n => n.tone === "bad")) flags.push("bad news");
-  if (p.trap) flags.push("line is far from his average");
+  const flags = [], hard = [];   // hard = something serious; the rest only lower confidence a little
+  if (q) hard.push("injury tag: " + st);
+  if (p.news?.some(n => n.tone === "bad")) hard.push("bad news");
+  if (p.trap) hard.push("line is far from his average");
   if (p.games < 10 && !p.lineOnly) flags.push("small sample");
   if (long != null && long < 0.5) flags.push("weak long-term rate");
   if (l10 != null && l10 < 0.5) flags.push("cold last 10");
@@ -1085,16 +1085,19 @@ function verdictOf(p, side){
   if (p.minCv != null && p.minCv > 0.22) flags.push("his minutes swing a lot");
   if (p.type !== "standard" && !(p.cal && p.cal.ownN >= 30)) flags.push("too little history to verify");
   if (UNVERIFIED.has(p.sport + "|" + p.stat)) flags.push("scoring unconfirmed");
-  if (p.lineOnly) flags.push("no game stats for this pick");
-  if (p.newsFlag) flags.push("major news: " + p.newsFlag);
+  if (p.lineOnly) hard.push("no game stats for this pick");
+  if (p.newsFlag) hard.push("major news: " + p.newsFlag);
   if (p.newsWarn) flags.push("news to check: " + p.newsWarn);
-  const model = prob >= 0.8 && !flags.length ? "g" : (prob < 0.47 || (p.newsFlag && side === "More") || /doubt|out|suspen|reserve/i.test(st) || (flags.length >= 2 && prob < 0.6)) ? "r" : "y";
+  const soft = flags.length;
+  flags.unshift(...hard);
+  const model = !hard.length && ((prob >= 0.75 && soft <= 1) || (prob >= 0.72 && !soft)) ? "g"
+    : (prob < 0.45 || (p.newsFlag && side === "More") || /doubt|out|suspen|reserve/i.test(st) || (hard.length && prob < 0.58) || (soft >= 3 && prob < 0.55)) ? "r" : "y";
   let crowd = null;
   if (p.buzz >= 3 && Math.abs(p.buzzSent) > 0.2) crowd = (p.buzzSent > 0) === (side === "More") ? "g" : "r";
   else if (p.popPct != null && p.popPct >= 0.9) crowd = side === "More" ? "g" : "y";
   let c = model;
   if (model === "g" && crowd === "r") c = "y";
-  if (model === "y" && crowd === "g" && prob >= 0.77 && !flags.length) c = "g";
+  if (model === "y" && crowd === "g" && prob >= 0.7 && !hard.length && soft <= 1) c = "g";
   if (model === "y" && crowd === "r" && prob < 0.55) c = "r";
   return {c, model, crowd, flags, prob};
 }
@@ -1395,7 +1398,6 @@ function betPanel(){
   return `<form class="betform" id="betForm">
     <div class="frow"><label class="fl">Payout<span class="xin"><input type="number" inputmode="decimal" id="multIn" min="1.5" step="any" value="${esc(m)}" placeholder="10"><i>×</i></span></label>
     <label class="fl">Entries<input type="number" inputmode="numeric" id="entriesIn" min="1" max="20" step="1" value="${esc(en)}"></label></div>
-    <label class="tog"><input type="checkbox" id="yellowIn" ${yl ? "checked" : ""}><span></span>Include coin-flip picks <small>bigger payouts, more risk</small></label>
     <button type="submit" class="pri wide">Build my lineup</button></form>`;
 }
 function bestSizeFor(M, legs, mustExtra, avoid){
@@ -1417,29 +1419,32 @@ function renderBet(){
   if (!BET) { box.innerHTML = ""; return; }
   const M = BET.M, entries = clip(Math.round(BET.entries || 1), 1, 20);
   if (!(M >= 1.5)) { box.innerHTML = `<p class="note">Type the payout you want, like 5 or 25.</p>`; return; }
-  if (SPORTS[SPORT].kind === "line") { box.innerHTML = `<p class="note">${SPORTS[SPORT].name} doesn't have game stats in PickPrizer yet, so Pick4Me can't stand behind a lineup here. Browse the picks in All picks instead.</p>`; return; }
-  const all = buildLegs(), legs = all.filter(l => l.v.c === "g" || (BET.yellow && l.v.c === "y"));
-  const nG = new Set(all.filter(l => l.v.c === "g").map(l => l.pk.player)).size;
+  if (false) { box.innerHTML = `<p class="note">${SPORTS[SPORT].name} doesn't have game stats in PickPrizer yet, so Pick4Me can't stand behind a lineup here. Browse the picks in All picks instead.</p>`; return; }
+  // every rated pick is fair game (Strong, Unsure, goblins, demons); the builder just finds the best chance of hitting
+  const legs = buildLegs().filter(l => l.v.c !== "r" || l.p >= 0.5);
   if (new Set(legs.map(l => l.pk.player)).size < 2) {
-    box.innerHTML = `<p class="note">Only ${nG} player${nG === 1 ? " has" : "s have"} a Strong pick${coachGame() ? " in this game" : ""} right now, not enough for a lineup. ${BET.yellow ? "Try another game or sport." : "Turn on coin-flip picks above, or try another game."}</p>`; return; }
-  const first = bestSizeFor(M, legs);
+    box.innerHTML = `<p class="note">There aren't enough rated picks${coachGame() ? " in this game" : ""} yet. Try all ${SPORTS[SPORT].unitGame === "match" ? "matches" : SPORTS[SPORT].unitGame + "s"} or another sport.</p>`; return; }
+  const pickOne = (r, n) => r.tries.find(x => x.n === n && x.ok) || r.best || r.tries.filter(t => t.L).sort((a, b) => b.pay - a.pay || b.hit - a.hit)[0];
+  const first = bestSizeFor(M, legs), t0 = pickOne(first);
   let h = "";
-  if (!first.best) {
-    const top = Math.max(0, ...first.tries.filter(t => t.L).map(t => t.pay));
-    box.innerHTML = `<p class="note">${BET.yellow ? "Today's rated picks" : "Strong picks alone"} can't reach ${M}×${top ? `. The most they reach is about ${top.toFixed(1)}×` : ""}. Bigger payouts need riskier picks: lower the payout${BET.yellow ? "" : " or include coin-flip picks"}.</p>`; return; }
-  const n = first.best.n, lineups = [first.best.L];
+  if (!t0) { box.innerHTML = `<p class="note">Couldn't put a lineup together from today's picks. Try another game or sport.</p>`; return; }
+  const short = !first.best;   // nothing reaches the payout: show the closest
+  const n = t0.n, lineups = [t0.L], SAFE = 0.85;
   while (lineups.length < entries) {
-    const prev = lineups.slice();
-    const distinct = L => prev.every(P => L.filter(l => P.some(q => q.key === l.key)).length <= 2);
-    const r = bestSizeFor(M, legs, distinct, new Set(prev.flat().map(l => l.key))), t = r.tries.find(x => x.n === n && x.ok) || r.best;
-    if (!t) break;
+    const used = new Set(lineups.flat().map(l => l.key)), usedP = new Set(lineups.flat().map(l => l.pk.player));
+    const keep = lineups[0].filter(l => l.p >= SAFE).sort((x, y) => y.p - x.p)[0];   // at most ONE pick repeats: the safest, and only if it's very safe
+    const fresh = legs.filter(l => (!used.has(l.key) && !usedP.has(l.pk.player)) || (keep && l.key === keep.key));
+    if (new Set(fresh.map(l => l.pk.player)).size < n) break;
+    const r = bestSizeFor(M, fresh), t = pickOne(r, n);
+    if (!t || !t.L) break;
     lineups.push(t.L);
   }
   const stats = lineups.map(L => { const raw = lineupStats(L, false); return {L, hit: raw.d[L.length], pay: raw.powerPay}; });
   if (entries > 1) {
     const anyHit = 1 - stats.reduce((a, s) => a * (1 - s.hit), 1);
-    h += `<p class="lsum">${lineups.length} different lineups · <b>${pct(anyHit)}</b> chance at least one wins${lineups.length < entries ? ` · only ${lineups.length} reach ${M}× today` : ""}</p>`;
+    h += `<p class="lsum">${lineups.length} different lineups · <b>${pct(anyHit)}</b> chance at least one wins${lineups.length < entries ? ` · only ${lineups.length} could be made without repeating picks` : ""}</p>`;
   }
+  if (short) h = `<p class="lsum">Today's picks can't safely reach ${M}×, so here's the closest: about ${stats[0].pay.toFixed(1)}×.</p>` + h;
   h += stats.map((s, i) => lineupCard({id: "bet" + i, title: `${entries > 1 ? `Lineup ${i + 1} · ` : ""}${s.L.length} picks`, sub: `Pays about ${s.pay.toFixed(1)}×`, mode: "power"}, s.L, i === 0).html).join("");
   h += `<p class="note fine">Payouts with goblins or demons are estimates. Check the number in PrizePicks before you submit.</p>`;
   box.innerHTML = h;
@@ -1458,8 +1463,8 @@ function bindCoach(){
   const gs = $("#coachGame");
   if (gs) gs.onchange = () => { store.set("cgame_" + SPORT, gs.value); renderCoach(); };
   const f = $("#betForm");
-  if (f) f.onsubmit = e => { e.preventDefault(); const M = +$("#multIn").value, entries = +$("#entriesIn").value || 1, yellow = $("#yellowIn").checked;
-    store.set("mult", $("#multIn").value); store.set("entries", String(entries)); store.set("useYellow", yellow ? "1" : "0"); BET = {M, entries, yellow}; renderBet();
+  if (f) f.onsubmit = e => { e.preventDefault(); const M = +$("#multIn").value, entries = +$("#entriesIn").value || 1;
+    store.set("mult", $("#multIn").value); store.set("entries", String(entries)); BET = {M, entries}; renderBet();
     $("#betOut").scrollIntoView({behavior: "smooth", block: "start"}); };
   document.querySelectorAll("[data-go]").forEach(r => r.onclick = () => document.getElementById(r.dataset.go)?.scrollIntoView({behavior: "smooth"}));
   document.querySelectorAll("[data-copy]").forEach(b => b.onclick = async e => { e.stopPropagation();
@@ -1496,15 +1501,16 @@ function openPick(p, side){
     <div style="margin:4px 0 8px">${sides.map(sd => `<button class="sidebtn ${sd === side ? "on" : ""}" data-mside="${sd}">${sd}</button>`).join(" ")} than <b>${p.line}</b> ${esc(p.stat)}${pickedTxt(p) ? ` · <span class="note">${esc(pickedTxt(p))}</span>` : ""}</div>
     <div class="mver"><div>${v ? `<span class="vd ${v.c} big"><i></i>${VLAB[v.c]}</span>` : ""} <b style="font-size:20px">${pct(prob)}</b> <span class="note">estimated chance</span></div>
       <div class="note">My read: ${cl(v && v.model)} · Community: ${cl(v && v.crowd)}${v && v.flags.length ? `<br>Flags: ${esc(v.flags.join(", "))}` : ""}</div></div>
-    <div class="tabs mtabs"><button data-mtab="l10" class="on">Last 10</button><button data-mtab="vs">vs ${esc(p.opp || "opponent")} (${Math.min(10, vs.length)})</button></div>
+    <div class="tabs mtabs"><button data-mtab="l10" class="on">Last 10</button>${p.sport === "mma" ? `<button data-mtab="vs">The matchup</button>` : `<button data-mtab="vs">vs ${esc(p.opp || "opponent")} (${Math.min(10, vs.length)})</button>`}</div>
     <div id="mChart"></div>
     ${r.why.length ? `<h4>Why it could hit</h4>${r.why.map(t => `<div class="why">${esc(t)}</div>`).join("")}` : ""}
     ${r.risk.length ? `<h4>What could go wrong</h4>${r.risk.map(t => `<div class="risk">${esc(t)}</div>`).join("")}` : ""}
     ${(p.gnews || []).length ? `<h4>Latest headlines</h4>${p.gnews.map(n => `<div class="snip ${n.tone === "bad" ? "dn" : ""}">${n.tone === "bad" ? "⚠" : "•"} <a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.t)}</a></div>`).join("")}` : ""}
-    <h4>What people are saying</h4>${snips || `<p class="note">${p.buzz ? `${p.buzz} Reddit mention${p.buzz === 1 ? "" : "s"} in the last 36 hours, none with a clear opinion.` : "No Reddit talk about him in the last 36 hours."}</p>`}
+    ${snips ? `<h4>What people are saying</h4>${snips}` : ""}
     <p class="note">${p.histMore != null ? `History alone says ${pct(side === "More" ? p.histMore : p.histLess)}; ` : ""}${p.stdLine != null ? `PrizePicks' standard line is ${p.stdLine}, which is treated as the 50/50 point.` : "No standard line on the board to anchor to."}</p>
   </div>`;
-  const draw = tab => { $("#mChart").innerHTML = tab === "vs" ? (vs.length ? chartHTML(vs, p, side) : `<p class="note">No past ${p.unit || "games"} against ${esc(p.opp || "this opponent")} in the history I have.</p>`) : chartHTML(all, p, side);
+  const mmaBox = () => p.mmaWhy ? `<div class="bignums"><div><b>${p.mmaExpect}</b><span>expected in this fight</span></div><div><b>${p.line}</b><span>the line</span></div></div><p class="body">${esc(p.mmaWhy)}.</p><p class="note">Fights aren't a season of games: strikes and takedowns depend on how long it lasts and who's across the cage, so this simulates the fight 4,000 times instead of just averaging his past fights.</p>` : `<p class="note">Not enough fight data for a matchup read.</p>`;
+  const draw = tab => { $("#mChart").innerHTML = tab === "vs" && p.sport === "mma" ? mmaBox() : tab === "vs" ? (vs.length ? chartHTML(vs, p, side) : `<p class="note">No past ${p.unit || "games"} against ${esc(p.opp || "this opponent")} in the history I have.</p>`) : chartHTML(all, p, side);
     document.querySelectorAll("[data-mtab]").forEach(b => b.classList.toggle("on", b.dataset.mtab === tab)); };
   draw("l10");
   document.querySelectorAll("[data-mtab]").forEach(b => b.onclick = () => draw(b.dataset.mtab));
@@ -1932,21 +1938,59 @@ async function analyzeUFC(picks){
     setStatus(`Fight histories ${++done} from UFC Stats…`, 0.82);
   });
   HIST.mma = {}; for (const nm of players) HIST.mma[nm] = logs[nm] || [];
-  for (const p of picks) {
-    const l = logs[p.player];
-    scoreSeries(p, l, 0.9, "fights");
-    // the other fighter matters: how many strikes / takedowns he usually gives up
-    const o = logs[players.find(nm => sameOpp({sport: "mma", opp: p.opp}, nm))];
-    if (p.sMore != null && o && o.length >= 3 && /signif/i.test(p.stat)) {
-      const given = o.slice(0, 8).map(g => g.SSA).filter(v => v != null);
-      if (given.length >= 3) { const avg = given.reduce((a, b) => a + b, 0) / given.length; p.oppAllows = +avg.toFixed(1);
-        const z = (avg - p.line) / Math.max(p.sd || 10, 8), w = 0.15; p.sMore = clip((1 - w) * p.sMore + w * phi(z), 0.02, 0.98); if (p.sLess != null) p.sLess = clip((1 - w) * p.sLess + w * (1 - phi(z)), 0.02, 0.98);
-        (p.extraWhy ||= []).push(`${p.opp} gives up ${p.oppAllows} significant strikes a fight (last ${given.length})`); }
-    }
-    (p.extraRisk ||= []).push("One punch or submission can end a fight early and sink every stat");
-  }
+  for (const p of picks) scoreSeries(p, logs[p.player], 0.9, "fights");
+  mmaModel(picks, logs);
+  for (const p of picks) (p.extraRisk ||= []).push("One punch or submission can end a fight early and sink every stat");
   const miss = players.filter(nm => !(logs[nm] || []).length).length, why = errSummary("ESPN UFC stats") || errSummary("ESPN UFC");
   return {note: miss ? ` · ${players.length - miss} of ${players.length} fighters have UFC fight stats${why ? " (" + why + ")" : ""}; the rest are rated from the lines` : ""};
+}
+
+
+// ---------- UFC matchup model: a fight isn't a season of games. Stats depend on HOW LONG the fight lasts and WHO you're
+// fighting, so every count is (his rate per minute, blended with what this opponent usually gives up) × (minutes this
+// fight is likely to last), simulated a few thousand times. How long it lasts comes from PrizePicks' own Fight Time line
+// when it's posted (the market's best guess), otherwise from both fighters' histories.
+function mmaModel(picks, logs){
+  const rnd = (() => { let x = 12345; return () => ((x = (x * 16807) % 2147483647) / 2147483647); })();
+  const gam = k => { let s = 0; for (let i = 0; i < k; i++) s -= Math.log(rnd() + 1e-12); return s / k; };   // mean-1 noise
+  const pois = m => { if (m > 30) return Math.max(0, Math.round(m + Math.sqrt(m) * (rnd() + rnd() + rnd() - 1.5) * 2)); let L = Math.exp(-m), k = 0, q = 1; do { k++; q *= rnd(); } while (q > L); return k - 1; };
+  const rate = (rows, key, minKey = "FT") => { const r = rows.filter(g => g[key] != null && g[minKey] > 0.5).slice(0, 8); if (r.length < 2) return null;
+    let a = 0, b = 0; r.forEach((g, i) => { const w = Math.pow(0.85, i); a += w * g[key]; b += w * g[minKey]; }); return {r: a / b, n: r.length}; };
+  const distShare = rows => { const r = rows.filter(g => g.FT != null).slice(0, 8); return r.length ? r.filter(g => g.FT >= (g.SCHED || 15) - 0.1).length / r.length : null; };
+  const names = Object.keys(logs);
+  for (const p of picks) {
+    const me = logs[p.player] || [], oppName = names.find(nm => nm !== p.player && sameOpp({sport: "mma", opp: p.opp}, nm)), op = oppName ? logs[oppName] || [] : [];
+    const fightPicks = picks.filter(q => (q.player === p.player || q.player === oppName) && /fight time/i.test(q.stat) && q.type === "standard");
+    const sched = Math.max(15, ...me.slice(0, 3).map(g => g.SCHED || 0), ...fightPicks.map(q => q.line > 15 ? 25 : 15));
+    // chance it goes the distance
+    let pd, ftSrc;
+    const dm = distShare(me), dop = distShare(op), hist = [dm, dop].filter(v => v != null), histPd = hist.length ? hist.reduce((a, b) => a + b, 0) / hist.length : 0.45;
+    if (fightPicks.length && !/fight time/i.test(p.stat)) { const m = fightPicks[0].line; pd = clip(1 - 0.5 * (sched - 0.5) / Math.max(1, m - 0.5), 0.08, 0.85); ftSrc = `PrizePicks expects about ${m} minutes`; }
+    else { pd = clip(0.6 * histPd + 0.4 * 0.45, 0.1, 0.85); ftSrc = `${Math.round(histPd * 100)}% of their recent fights went the distance`; }
+    const sampleT = () => rnd() < pd ? sched : 0.3 + Math.pow(rnd(), 0.9) * (sched - 0.3);
+    const key = /signif/i.test(p.stat) ? ["SS", "SSA"] : /total strikes|^strikes landed/i.test(p.stat) ? ["TS", "TSA"] : /takedown/i.test(p.stat) ? ["TD", "TDA"] : /fight time|time \(min/i.test(p.stat) ? ["FT"] : null;
+    if (!key) continue;
+    const N = 4000; let over = 0, under = 0, sum = 0, sq = 0;
+    let why = "";
+    if (key[0] === "FT") {
+      for (let i = 0; i < N; i++) { const t = sampleT(); sum += t; sq += t * t; if (t > p.line) over++; else if (t < p.line) under++; }
+      why = `${ftSrc}; about ${Math.round(pd * 100)}% chance this one goes the full ${sched} minutes`;
+    } else {
+      const mine = rate(me, key[0]), gives = rate(op, key[1]);
+      if (!mine) continue;
+      const r = gives ? 0.6 * mine.r + 0.4 * gives.r : mine.r;
+      for (let i = 0; i < N; i++) { const t = sampleT(), v = pois(r * t * gam(key[0] === "TD" ? 2 : 5)); sum += v; sq += v * v; if (v > p.line) over++; else if (v < p.line) under++; }
+      const per = x => (x * 5).toFixed(key[0] === "TD" ? 1 : 0);
+      why = `Lands ${per(mine.r)} ${key[0] === "TD" ? "takedowns" : "strikes"} per 5 minutes${gives ? `; ${oppName} gives up ${per(gives.r)}` : ""}. ${ftSrc} (${Math.round(pd * 100)}% chance it goes the distance)`;
+    }
+    const pm = over / N, pl = under / N;
+    // keep a little of the plain history in, so one odd input can't swing it wildly
+    p.sMore = p.sMore != null ? 0.75 * pm + 0.25 * p.sMore : pm;
+    if (p.type === "standard") p.sLess = p.sLess != null ? 0.75 * pl + 0.25 * p.sLess : pl;
+    p.mmaExpect = +(sum / N).toFixed(1); p.mmaWhy = why;
+    p.proj = p.mmaExpect; p.sd = Math.max(0.8, Math.sqrt(Math.max(0, sq / N - (sum / N) ** 2)));   // judge the line against THIS fight, not his average fight
+    (p.extraWhy ||= []).unshift(`Expected in this fight: about ${p.mmaExpect}. ${why}`);
+  }
 }
 
 // ---------- GOLF: ESPN leaderboards (every round of the last ~10 events on each tour)
@@ -2164,7 +2208,8 @@ async function espnUFC(picks){
         for (const me of c.competitors || []) {
           const nm = me.athlete?.displayName; if (!nm || !want.has(norm(nm))) continue;
           const op = (c.competitors || []).find(x => x !== me);
-          fights.push({nm, ev: ev.id, comp: c.id, aid: me.athlete?.id || me.id, date: c.date || ev.date, opp: op?.athlete?.displayName || "", won: !!me.winner,
+          fights.push({nm, ev: ev.id, comp: c.id, aid: me.athlete?.id || me.id, oid: op?.athlete?.id || op?.id, date: c.date || ev.date, opp: op?.athlete?.displayName || "", won: !!me.winner,
+            sched: toNum(c.format?.regulation?.periods) || null,
             rnd: toNum(c.status?.period), clock: toNum(c.status?.displayClock)});
         }
       }
@@ -2174,8 +2219,13 @@ async function espnUFC(picks){
   const by = {}; done = 0;
   await pool(fights, 4, async f => {
     const row = {date: f.date, opp: f.opp, home: true, won: f.won, FT: f.rnd != null && f.clock != null ? +((f.rnd - 1) * 5 + f.clock).toFixed(2) : null, TS: null, SS: null, TD: null, KD: null, SUB: null};
+    if (f.sched) row.SCHED = f.sched * 5;
+    const statsOf = async id => { const js = await getJSON(`https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/events/${f.ev}/competitions/${f.comp}/competitors/${id}/statistics`);
+      return (js.splits?.categories || []).flatMap(c => c.stats || []); };
+    if (f.oid) try { const st = await statsOf(f.oid), g = n => { const x = st.find(s => s.name === n); return x ? toNum(x.value) : null; };
+      row.SSA = g("sigStrikesLanded"); row.TSA = g("totalStrikesLanded"); row.TDA = g("takedownsLanded"); } catch {}
     try {
-      const js = await getJSON(`https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/events/${f.ev}/competitions/${f.comp}/competitors/${f.aid}/statistics`);
+      const js = {splits: {categories: [{stats: await statsOf(f.aid)}]}};
       const st = (js.splits?.categories || []).flatMap(c => c.stats || []), get = re => { const x = st.find(s => re.test(s.name || "") || re.test(s.displayName || "")); return x ? toNum(x.value ?? x.displayValue) : null; };
       row.SS = get(/^sig(nificant)?[ _]?strikes?[ _]?landed$|sigStrikesLanded/i); row.TD = get(/^takedowns?[ _]?landed$|takedownsLanded/i); row.KD = get(/knock ?downs?/i); row.TS = get(/^totalStrikesLanded$/i); row.SUB = get(/submission/i);
       if (row.FT == null) { const t = get(/time ?of ?fight|fightTime/i); if (t != null) row.FT = t > 30 ? +(t / 60).toFixed(2) : t; }
@@ -2228,7 +2278,7 @@ async function quickStart(force){
 
 // ---------- headline scan (Google News): trades, suspensions, legal trouble, personal matters, injuries
 const NEWS_DRASTIC = /\b(arrest\w*|suspend\w*|suspension|lawsuit|sued|charged|police|domestic|legal|personal reasons?|family (matter|emergency)|bereavement|away from the team|leave of absence|ruled out|out indefinitely|surgery|torn|fracture\w*|concussion|protocol|traded|trade request|waived|released|benched|demoted|feud|ejected|fined)\b/i;
-const NEWS_WARN = /\b(questionable|doubtful|day-to-day|game-time decision|illness|sick|flu|sore\w*|strain\w*|sprain\w*|limited|minutes restriction|rest(ing)?|load management|trade rumou?rs?|frustrat\w*|slump)\b/i;
+const NEWS_WARN = /\b(questionable|doubtful|day-to-day|game-time decision|illness|sick|flu|sore\w*|strain\w*|sprain\w*|limited|minutes restriction|rest(ing)?|load management|trade rumou?rs?|frustrat\w*|slump|missed weight|misses weight|weight cut|short notice|late replacement|staph|camp injury)\b/i;
 async function headlineScan(sport){
   const d = DATA[sport]; if (!d) return;
   const cand = [...new Set(d.picks.filter(p => p.verdict && (p.verdict.c === "g" || (p.verdict.c === "y" && p.verdict.prob >= 0.65))).sort((a, b) => b.verdict.prob - a.verdict.prob).map(p => p.player))].slice(0, 45);
@@ -2462,24 +2512,24 @@ function renderMine(){
   if (!all.length) { $("#mineView").innerHTML = `<p class="note">Loading today's boards so you can search every player…</p>`; return; }
   const rows = MINE.map((s, i) => {
     const pk = s.pk;
-    const props = pk ? all.filter(p => p.player === pk.player && p.sport === pk.sport) : [];
+    const bp = p => Math.max(p.pMore ?? -1, p.type === "standard" ? (p.pLess ?? -1) : -1);
+    const props = pk ? all.filter(p => p.player === pk.player && p.sport === pk.sport).sort((a, b) => bp(b) - bp(a)) : [];
     return `<div class="slot" data-i="${i}">
       <div class="slotn">${i + 1}</div>
       <div class="slotbody">
-        <div class="acwrap"><input class="acin" data-i="${i}" placeholder="Pick ${i + 1}: start typing a player…" value="${pk ? esc(pk.player) : ""}" autocomplete="off">
+        <div class="acwrap"><input class="acin" data-i="${i}" placeholder="Player ${i + 1}" value="${pk ? esc(pk.player) : ""}" autocomplete="off">
           <div class="acbox hide" data-i="${i}"></div></div>
         ${pk ? `<div class="slotopts">
-          <select class="propsel ${pk.type}" data-i="${i}">${props.map(p => `<option class="${p.type}" value="${esc(p.id)}" ${p.id === pk.id ? "selected" : ""}>${p.type === "demon" ? "😈 " : p.type === "goblin" ? "🟢 " : ""}${esc(p.stat)} ${p.line}${p.type !== "standard" ? ` (${p.type.toUpperCase()})` : ""}</option>`).join("")}</select>
+          <select class="propsel ${pk.type}" data-i="${i}">${props.map(p => `<option class="${p.type}" value="${esc(p.id)}" ${p.id === pk.id ? "selected" : ""}>${esc(p.stat)} ${p.line}${p.type !== "standard" ? ` · ${p.type}` : ""}${bp(p) >= 0 ? ` · ${pct(bp(p))}${p.type === "standard" ? (p.pLess > p.pMore ? " less" : " more") : ""}` : ""}</option>`).join("")}</select>
           <span class="tag ${pk.type}">${pk.type.toUpperCase()}</span>
           <span class="sidebtns">${(pk.type === "standard" ? ["More", "Less"] : ["More"]).map(sd => `<button type="button" class="sidebtn ${s.side === sd ? "on" : ""}" data-i="${i}" data-side="${sd}">${sd}</button>`).join("")}</span>
           <span class="slotp">${pk.pMore != null ? vdot(verdictOf(pk, s.side)) + " " : ""}${(() => { const pr = s.side === "More" ? pk.pMore : pk.pLess; return pr == null ? `<span class="note">not rated</span>` : `<b style="color:${pr >= .6 ? "var(--good)" : pr >= .45 ? "var(--mid)" : "var(--bad)"}">${pct(pr)}</b>`; })()}</span>
           <button type="button" class="slotx" data-i="${i}" title="Clear">✕</button></div>` : ""}
       </div></div>`;
   }).join("");
-  $("#mineView").innerHTML = `<form class="panel" id="mineForm"><b>🧾 Check a lineup you already made</b>
-    <p class="note">Fill 2–6 slots. Type a name and pick from the list (↑/↓ and Enter work too), choose the prop and More/Less, then press Enter or Check. Every sport's board is searchable (${Object.keys(SPORTS).map(s => `${SPORTS[s].label}${DATA[s] ? "" : BOARDS[s] ? " (not rated yet)" : " (loading…)"}`).join(", ")}). Sports that aren't rated yet get analyzed automatically when you check.</p>
+  $("#mineView").innerHTML = `<form class="panel" id="mineForm"><h2 class="mid ptitle">Check <span>my lineup</span></h2>
     ${rows}
-    <p style="display:flex;gap:8px;flex-wrap:wrap"><button type="submit" class="pri">Check lineup (Enter)</button><button type="button" id="mineClear">Clear all</button></p></form>
+    <p style="display:flex;gap:8px;flex-wrap:wrap"><button type="submit" class="pri">Check lineup</button><button type="button" id="mineClear">Clear</button></p></form>
     <div id="mineOut"></div>`;
   bindMine();
 }
@@ -2499,7 +2549,7 @@ function bindMine(){
       // default to the player's most-picked standard line; you then pick the exact prop you played
       const std = props.filter(p => p.type === "standard");
       const best = (std.length ? std : props).slice().sort((a, b) => (b.trending ?? 0) - (a.trending ?? 0))[0];
-      MINE[i].pk = best; MINE[i].side = "More"; delete MINE[i]._saved;
+      MINE[i].pk = best; MINE[i].side = best.type === "standard" && (best.pLess ?? 0) > (best.pMore ?? 0) ? "Less" : "More"; delete MINE[i]._saved;
       saveMine(); renderMine();
       const next = document.querySelector(`.acin[data-i="${i + 1}"]`); if (next && !MINE[i + 1].pk) next.focus();
     };
