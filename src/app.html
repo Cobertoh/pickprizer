@@ -394,7 +394,7 @@ body.isbusy #runBtn .rp{display:inline-flex}
       <select id="typeSel"><option value="">All types</option><option value="standard">Standard</option><option value="goblin">Goblins</option><option value="demon">Demons</option></select>
       <select id="gameSel"><option value="">All games</option></select>
       <select id="statSel"><option value="">All stats</option></select>
-      <select id="sortSel"><option value="">Sort: best chance</option><option value="proj">Sort: highest projected</option><option value="edge">Sort: biggest edge (%)</option><option value="picked">Sort: most picked</option></select>
+      <select id="sortSel"><option value="">Sort: best chance</option><option value="proj">Sort: highest projected</option><option value="picked">Sort: most picked</option></select>
       <select id="confSel"><option value="">Any rating</option><option value="g">🟢 Strong only</option><option value="gy">🟢 + 🟡</option></select>
       <input type="text" id="playerQ" list="playerList" placeholder="🔎 Type a player's name…" autocomplete="off" style="flex:1;min-width:180px"><datalist id="playerList"></datalist>
     </div>
@@ -1604,9 +1604,9 @@ function render(){
     (!cf || (cf === "g" ? vc(p) === "g" : vc(p) === "g" || vc(p) === "y"));
   const pb = p => (p.best === "More" ? p.pMore : p.pLess) ?? -1;
   const so = $("#sortSel").value;
-  const key = so === "proj" ? (p => gapOf(p) ?? -1e9) : so === "edge" ? (p => gapOf(p) == null ? -1e9 : gapOf(p) / Math.max(1, p.line)) : so === "picked" ? (p => p.trending ?? -1) : pb;
+  const key = so === "proj" ? (p => gapOf(p) ?? -1e9) : so === "picked" ? (p => p.trending ?? -1) : pb;
   const list = ALL.filter(ok), by = (a, b) => key(b) - key(a) || pb(b) - pb(a);
-  const sortTxt = {proj: "biggest gap between projection and line first", edge: "biggest gap as a % of the line first", picked: "most picked first"}[so] || "highest chance first";
+  const sortTxt = {proj: "biggest gap between projection and line first", picked: "most picked first"}[so] || "highest chance first";
   let h = "";
   if (!g) {
     $("#out").innerHTML = list.length ? `<h2>All games <small>${list.length} picks · ${sortTxt}</small></h2>` +
