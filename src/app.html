@@ -172,6 +172,10 @@ h2{font-size:15px;color:#cfe0ff}
 .livechip.ok i{background:var(--good)}.livechip.need i{background:var(--bad)}
 .hsec{margin:14px 0}.hsec h3{margin:0 0 8px;font-size:16px}.hsec p,.hsec li{color:#c7d4f0;font-size:14.5px;line-height:1.5}
 .steps{display:grid;gap:10px}
+#pastePanel code{background:rgba(255,255,255,.08);padding:1px 6px;border-radius:6px;font-size:12px;word-break:break-all;-webkit-user-select:all;user-select:all}
+#pastePanel code:not(.sel){white-space:nowrap}
+#pastePanel ol.steps{padding-left:20px;margin:10px 0;font-size:14px;line-height:1.5}
+#pastePanel details{margin-top:10px}
 .step{display:flex;gap:12px;align-items:flex-start}.step b.n{flex:none;width:30px;height:30px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:14px}
 .legend{display:grid;gap:8px}.legend div{display:flex;gap:10px;align-items:center;font-size:14.5px;color:#c7d4f0}
 .safe{border-color:rgba(251,191,36,.35)}.safe ul{margin:6px 0 0;padding-left:20px}
@@ -289,7 +293,7 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
 </header>
 <div id="menu" class="hide"><div class="msheet">
   <button data-mgo="home">Home</button><button data-mgo="coach">Pick4Me</button><button data-mgo="board">All picks</button><button data-mgo="mine">My lineup</button>
-  <button data-mgo="safe">Play it safe</button><button data-mgo="help">Having trouble? Run a check</button></div></div>
+  <button data-mgo="lines">Update PrizePicks lines</button><button data-mgo="safe">Play it safe</button><button data-mgo="help">Having trouble? Run a check</button></div></div>
 <main>
   <section id="homeView"></section>
   <div id="picksArea" class="hide">
@@ -313,14 +317,29 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
   </form>
 
   <div id="pastePanel" class="panel hide">
-    <b>PrizePicks needs one tap from you</b>
-    <p class="note">PrizePicks blocks websites from loading its picks, so grab them yourself. It takes 10 seconds and lasts 20 minutes for everyone using this site.</p>
-    <p><a id="ppLink" class="bigbtn" target="_blank" rel="noopener">1 · Open today's picks</a></p>
-    <p class="note">On the page that opens (lots of text): press and hold the text, tap <b>Select All</b>, then <b>Copy</b>. On a computer: Ctrl+A, then Ctrl+C. Then come back here.</p>
-    <p><button id="clipGo" class="pri bigbtn">2 · Paste &amp; show my picks</button></p>
-    <details><summary class="note">Paste button not working?</summary>
-      <textarea id="pasteBox" rows="4" placeholder="press and hold here, then Paste"></textarea>
-      <p><button id="pasteGo">Use what I pasted</button></p></details>
+    <b>Load today's PrizePicks lines</b>
+    <p class="note">PrizePicks blocks websites from loading its lines. When anyone loads them here, everyone using PickPrizer gets them.</p>
+    <div id="scBox" class="hide">
+      <p><a id="scRun" class="bigbtn pri">Update lines with one tap</a></p>
+      <details class="scsetup"><summary class="note">First time on this iPhone? Set up the free Shortcut (2 minutes, once)</summary>
+        <ol class="steps">
+          <li>Open the <b>Shortcuts</b> app → <b>+</b> → name it <b>PickPrizer</b>.</li>
+          <li>Add <b>List</b>. Make the items: <code>7</code> <code>9</code> <code>15</code> <code>20</code> <code>8</code> <code>5</code> <code>82</code> <code>1</code> <code>12</code></li>
+          <li>Add <b>Repeat with Each</b> (it uses the List).</li>
+          <li>Inside it, add <b>Get Contents of URL</b>: <code class="sel">https://api.prizepicks.com/projections?per_page=1000&amp;single_stat=true&amp;league_id=</code> then tap after <code>=</code> and insert <b>Repeat Item</b>.</li>
+          <li>Below it, add another <b>Get Contents of URL</b>: <code class="sel" id="scPost"></code> then insert <b>Repeat Item</b> at the end. Tap <b>Show More</b> → Method <b>POST</b> → Request Body <b>File</b> → File: <b>Contents of URL</b>.</li>
+          <li>Done. Come back and tap <b>Update lines with one tap</b>.</li>
+        </ol>
+        <p class="note">Want it hands-free? Shortcuts → Automation → <b>+</b> → Time of Day (make a few: noon, 4 PM, 7 PM) → Run Immediately → PickPrizer. Then the lines stay fresh for everyone without anyone tapping.</p>
+      </details>
+    </div>
+    <details id="copyWay"><summary class="note">Or copy them by hand</summary>
+      <p><a id="ppLink" class="bigbtn" target="_blank" rel="noopener">1 · Open today's picks</a></p>
+      <p class="note">On a computer: Ctrl+A, then Ctrl+C, then come back. On a phone: press and hold the text, tap <b>Select All</b>, then <b>Copy</b>.</p>
+      <p><button id="clipGo" class="pri bigbtn">2 · Paste &amp; show my picks</button></p>
+      <textarea id="pasteBox" rows="3" placeholder="…or press and hold here, then Paste"></textarea>
+      <p><button id="pasteGo">Use what I pasted</button></p>
+    </details>
   </div>
 
 
@@ -359,9 +378,9 @@ const SPORTS = {
   cbb:    {name: "College Basketball", label: "🏀 CBB", league: 20, leagueNames: ["CBB", "NCAAB"], unitGame: "game", kind: "espn", path: "basketball/mens-college-basketball", stats: "bball", groups: 50, seasons: 3},
   nhl:    {name: "NHL",    label: "🏒 NHL",    league: 8, leagueNames: ["NHL"],    unitGame: "game", kind: "espn", path: "hockey/nhl", stats: "nhl"},
   tennis: {name: "Tennis", label: "🎾 Tennis", league: 5, leagueNames: ["TENNIS"], unitGame: "match"},
-  soccer: {name: "Soccer", label: "⚽ Soccer", league: 82, leagueNames: ["SOCCER"], unitGame: "match", kind: "line"},
-  golf:   {name: "Golf",   label: "⛳ Golf",   league: 1, leagueNames: ["PGA", "GOLF", "LPGA", "LIVGOLF"], unitGame: "event", kind: "line"},
-  mma:    {name: "MMA",    label: "🥊 MMA",    league: 12, leagueNames: ["MMA", "UFC"], unitGame: "fight", kind: "line"},
+  soccer: {name: "Soccer", label: "⚽ Soccer", league: 82, leagueNames: ["SOCCER"], unitGame: "match", kind: "sofa"},
+  golf:   {name: "Golf",   label: "⛳ Golf",   league: 1, leagueNames: ["PGA", "GOLF", "LPGA", "LIVGOLF"], unitGame: "round", kind: "golf"},
+  mma:    {name: "MMA",    label: "🥊 MMA",    league: 12, leagueNames: ["MMA", "UFC"], unitGame: "fight", kind: "ufc"},
   wnba:   {name: "WNBA",   label: "🏀 WNBA",   league: 3, leagueNames: ["WNBA"],   unitGame: "game", kind: "espn", path: "basketball/wnba", stats: "bball", calYear: true},
   mlb:    {name: "MLB",    label: "⚾ MLB",    league: 2, leagueNames: ["MLB"],    unitGame: "game", kind: "espn", path: "baseball/mlb", stats: "mlb", calYear: true},
 };
@@ -380,22 +399,30 @@ async function fixLeagues(){
 let SPORT = (() => { try { return localStorage.getItem("pp_sport") || "nba"; } catch { return "nba"; } })();
 if (!SPORTS[SPORT]) SPORT = "nba";
 const ppUrl = (sport = SPORT) => `https://api.prizepicks.com/projections?league_id=${SPORTS[sport].league}&per_page=1000&single_stat=true`;
-const BOARDS = {};
+const BOARDS = {}, BOARD_AGE = {};
+const agoTxt = s => s < 90 ? "just now" : s < 3600 ? Math.round(s / 60) + " min ago" : s < 86400 ? (Math.round(s / 360) / 10) + " hours ago" : Math.round(s / 86400) + " days ago";
 const IS_WEB = !window.EXT_FETCH && !/^(127\.0\.0\.1|localhost)$/.test(location.hostname);
 // Getting the PrizePicks board: straight from your browser, then through our server, then PrizePicks' partner feed,
 // then a board someone pasted in the last 20 minutes (shared by the website).
 async function fetchBoard(sport = SPORT){
   const tries = [];
   const L = SPORTS[sport].league, quiet = sport !== SPORT;
-  if (IS_WEB) tries.push(() => tFetch(`/board/${L}`, {}, 8000));   // someone pasted it in the last 20 minutes: fastest
+  let stale = null;
+  if (IS_WEB) tries.push(async () => {   // the copy someone (or the iPhone Shortcut) sent in: fastest
+    const r = await tFetch(`/board/${L}`, {}, 8000); if (!r.ok) return r;
+    const age = +(r.headers.get("x-age") || 0), js = await r.json();
+    if (age > 3 * 3600) { stale = {js, age}; return {ok: false, status: "old"}; }
+    BOARD_AGE[sport] = age; return {ok: true, json: async () => js};
+  });
   if (IS_WEB) tries.push(() => tFetch(ppUrl(sport), {credentials: "omit"}, 10000));
   tries.push(() => rawFetch(ppUrl(sport), 14000));
   tries.push(() => rawFetch(`https://partner-api.prizepicks.com/projections?league_id=${L}&per_page=1000&single_stat=true`, 14000));
   let last = null, i = 0;
   for (const t of tries) {
     if (!quiet) setStatus(`Getting today's ${SPORTS[sport].name} picks (try ${++i} of ${tries.length})…`, 0.02);
-    try { const r = await t(); if (r.ok) { const js = await r.json(); if (Array.isArray(js.data) && js.data.length) return js; } last = r.status; } catch (e) { last = e.message; }
+    try { const r = await t(); if (r.ok) { const js = await r.json(); if (Array.isArray(js.data) && js.data.length) { const fromShared = IS_WEB && tries.indexOf(t) === 0; if (!fromShared) { BOARD_AGE[sport] = 0; shareBoard(js, sport); } return js; } } last = r.status; } catch (e) { last = e.message; }
   }
+  if (stale) { BOARD_AGE[sport] = stale.age; return stale.js; }
   return {error: last};
 }
 function shareBoard(js, sport){
@@ -451,11 +478,48 @@ function tFetch(u, o = {}, ms = 20000){
   return fetch(u, {...o, signal: c.signal}).catch(e => { throw new Error(e.name === "AbortError" ? "timed out" : e.message); }).finally(() => clearTimeout(t));
 }
 const rawFetch = (u, ms = 30000) => window.EXT_FETCH ? window.EXT_FETCH(u) : tFetch("/p?u=" + encodeURIComponent(u), {}, ms);
-async function getJSON(u){
-  const r = await rawFetch((u));
-  if (!r.ok) { let m = ""; try { const j = await r.json(); m = j.message || j.error || ""; } catch {} throw new Error(`HTTP ${r.status}${m ? " " + m : ""}`); }
-  return r.json();
+// ---------- saved downloads (IndexedDB on this device): past seasons never change, so they're downloaded once
+const IDB = (() => {
+  let dbp = null;
+  const open = () => dbp ||= new Promise((res, rej) => { const r = indexedDB.open("pickprizer", 1); r.onupgradeneeded = () => r.result.createObjectStore("c"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  return {
+    async get(k){ try { const db = await open(); return await new Promise(res => { const q = db.transaction("c").objectStore("c").get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); }); } catch { return undefined; } },
+    async set(k, v){ try { const db = await open(); const tx = db.transaction("c", "readwrite"); tx.objectStore("c").put(v, k); tx.onerror = () => { if (/quota/i.test(String(tx.error))) this.clear(); }; } catch {} },
+    async clear(){ try { const db = await open(); db.transaction("c", "readwrite").objectStore("c").clear(); } catch {} },
+  };
+})();
+const CMIN = 60, CHOUR = 3600, CDAY = 86400;
+function cttl(u){   // how long a download stays good on this device (seconds); 0 = always fresh
+  let x; try { x = new URL(u); } catch { return 0; }
+  const h = x.hostname, pth = x.pathname, q = x.searchParams, now = new Date();
+  if (h.endsWith("prizepicks.com") || h === "news.google.com" || h === "www.reddit.com" || h.includes("odds-api")) return 0;
+  if (pth.includes("/gamelog")) {
+    const sz = +q.get("season"), fb = pth.includes("/football/");
+    const cur = fb ? (now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1) : (now.getMonth() >= 9 ? now.getFullYear() + 1 : now.getFullYear());
+    return sz && sz < cur ? 60 * CDAY : 2 * CHOUR;
+  }
+  if (h === "stats.nba.com") return pth.includes("gamelog") && q.get("Season") !== nbaSeason(seasonYears()[0]) ? 60 * CDAY : pth.includes("gamelog") ? 2 * CHOUR : CDAY;
+  if (h === "site.api.espn.com") {
+    if (pth.endsWith("/teams")) return 7 * CDAY;
+    if (pth.includes("/roster")) return 12 * CHOUR;
+    if (pth.includes("/golf/")) return q.get("event") || q.get("dates") ? 3 * CHOUR : 10 * CMIN;
+    return 10 * CMIN;
+  }
+  if (h.endsWith("sofascore.com")) return pth.endsWith("/statistics") ? 60 * CDAY : pth.includes("/search/") ? 14 * CDAY : pth.includes("/events/") ? 3 * CHOUR : CDAY;
+  if (h.endsWith("ufcstats.com")) return pth.includes("/search") ? 30 * CDAY : 12 * CHOUR;
+  if (h.endsWith("nhle.com")) return 3 * CHOUR;
+  return 0;
 }
+async function getText(u){
+  const ttl = cttl(u);
+  if (ttl) { const c = await IDB.get(u); if (c && Date.now() - c.t < ttl * 1000) return c.v; }
+  const r = await rawFetch(u);
+  const v = await r.text();
+  if (!r.ok) { let m = ""; try { const j = JSON.parse(v); m = j.message || j.error || ""; } catch {} throw new Error(`HTTP ${r.status}${m ? " " + m : ""}`); }
+  if (ttl && v.length < 4e6) IDB.set(u, {t: Date.now(), v});
+  return v;
+}
+async function getJSON(u){ return JSON.parse(await getText(u)); }
 async function pool(items, n, fn){ let i = 0; const run = async () => { while (i < items.length) { const k = i++; await fn(items[k], k); } }; await Promise.all(Array.from({length: Math.min(n, items.length)}, run)); }
 
 // ---------- settings
@@ -489,7 +553,7 @@ function drawSportTabs(){
   document.querySelectorAll("[data-sport]").forEach(b => b.onclick = () => {
     if (busy) return;
     SPORT = b.dataset.sport; store.set("sport", SPORT); drawSportTabs(); $("#pastePanel").classList.toggle("hide", !NEEDPASTE[SPORT] || TAB === "mine"); showSport();
-    if (!DATA[SPORT]) $("#runBtn").click();
+    quickStart();
   });
   $("#ppLink").href = ppUrl();
 }
@@ -515,6 +579,7 @@ $("#menu").onclick = e => { if (e.target.id === "menu") $("#menu").classList.add
 document.querySelectorAll("[data-mgo]").forEach(b => b.onclick = () => {
   $("#menu").classList.add("hide"); const g = b.dataset.mgo;
   if (g === "safe") { goTab("home"); setTimeout(() => $("#safeSec").scrollIntoView({behavior: "smooth"}), 50); }
+  else if (g === "lines") { if (TAB === "home" || TAB === "mine") goTab("board"); $("#pastePanel").classList.remove("hide"); $("#pastePanel").scrollIntoView({behavior: "smooth"}); }
   else if (g === "help") { $("#helpPanel").classList.remove("hide"); $("#helpPanel").scrollIntoView({behavior: "smooth"}); dataCheck(); }
   else goTab(g);
 });
@@ -542,7 +607,7 @@ function renderHome(){
     <h2 class="big">How it <em>works</em></h2>
     <p class="lead">Get started in just a few simple steps.</p>
     <ol class="tl">
-      <li><span class="num">01</span><div><span class="kick">Select your sport</span><h3>Pick your board</h3><p>Choose NBA, NFL, college football or tennis. Today's board loads automatically.</p></div></li>
+      <li><span class="num">01</span><div><span class="kick">Select your sport</span><h3>Pick your board</h3><p>Choose from 11 sports, from the NBA and NFL to golf, soccer and the UFC. Today's board loads automatically.</p></div></li>
       <li><span class="num">02</span><div><span class="kick">Build your lineup</span><h3>Choose your payout</h3><p>Enter a multiplier like 5x or 20x. Pick4Me builds a lineup using its strongest picks.</p></div></li>
       <li><span class="num">03</span><div><span class="kick">Understand your picks</span><h3>See the reasoning</h3><p>Explore recent performance, matchup history, injuries and other relevant information.</p></div></li>
     </ol>
@@ -583,7 +648,7 @@ function renderHome(){
     <p class="body">Every rating pulls from all of these, every time you open the app.</p>
     <ul class="srcs">
       <li><b>PrizePicks' board</b><span>Every line, goblin and demon, plus the most-picked props</span></li>
-      <li><b>Years of game logs</b><span>Up to 5 seasons per player from ESPN and NBA.com, and Sofascore for tennis</span></li>
+      <li><b>Years of game logs</b><span>Up to 5 seasons per player from ESPN, NBA.com and NHL.com; Sofascore for tennis and soccer; UFC Stats for every UFC fight; ESPN leaderboards for every golf round</span></li>
       <li><b>Matchups</b><span>How each player has done against tonight's opponent</span></li>
       <li><b>Teammates</b><span>Who's out or returning, and what that did to his numbers before</span></li>
       <li><b>Injury reports</b><span>Official statuses, updated through the day</span></li>
@@ -637,7 +702,7 @@ function parseBoard(js, sport = SPORT){
     } else if (sp.kind) {
       team = String(pl.team || pl.team_name || "").toUpperCase();
       for (const tok of String(a.description || "").match(/[A-Za-z]{2,5}/g) || []) { const t = tok.toUpperCase(); if (t !== team && t !== "VS") { opp = t; break; } }
-      if (sp.kind === "line" || !opp) opp = String(a.description || "").replace(/^(vs\.?|@)\s*/i, "").trim();
+      if (["line", "sofa", "golf", "ufc"].includes(sp.kind) || !opp) opp = String(a.description || "").replace(/^(vs\.?|@)\s*/i, "").trim();
     } else {
       team = (pl.team || "").toUpperCase(); team = ALIASES[team] || team;
       for (const tok of (a.description || "").match(/[A-Za-z]{2,4}/g) || []) {
@@ -869,6 +934,7 @@ const statFn = (sport, stat) => {
   const k = SPORTS[sport] || {};
   if (sport === "tennis") return TENNIS_STATS[stat];
   if (sport === "nfl" || sport === "cfb") return NFL_STATS[stat];
+  if (RXSTATS[sport]) return rxStat(sport, stat);
   if (k.kind === "line") return null;
   if (k.kind === "espn" && k.stats !== "bball") return (GSTATFN[k.stats] || {})[stat] || null;
   return STATS[stat] ? g => val(g, STATS[stat]) : null;
@@ -880,7 +946,7 @@ function seriesFor(p){
 }
 function sameOpp(p, o){
   if (!p.opp || !o) return false;
-  if (p.sport === "tennis") { const a = norm(p.opp).split(" ").pop(), b = norm(o); return a.length > 2 && b.split(" ").includes(a); }
+  if (["tennis", "mma", "soccer", "golf"].includes(p.sport)) { const a = norm(p.opp).split(" ").pop(), b = norm(o); return a.length > 2 && b.split(" ").includes(a); }
   return String(o).toUpperCase() === String(p.opp).toUpperCase();
 }
 function enrich(picks){
@@ -1762,6 +1828,7 @@ async function analyzeESPN(picks, sport){
     } else logs[name] = null;
     setStatus(`Game logs ${++done}/${players.length} (first run downloads past seasons; later runs are faster)…`, 0.2 + 0.6 * done / players.length);
   });
+  if (sport === "nhl") await nhlExtras(picks, logs);
   HIST[sport] = {}; for (const nm of players) HIST[sport][nm] = (logs[nm] || []).flat();
   const outByTeam = {};
   for (const [n, v] of Object.entries(inj)) if (/^out$/i.test(v.status) && v.team) (outByTeam[v.team] ||= []).push(n.replace(/\b\w/g, c => c.toUpperCase()));
@@ -1784,6 +1851,222 @@ async function analyzeESPN(picks, sport){
 async function analyzeLineOnly(picks, sport){
   for (const p of picks) { p.games = 0; p.found = true; }
   return {note: ` · no game-stats source for ${SPORTS[sport].name} yet, so picks are rated from PrizePicks' lines and the community`, booksUsed: false};
+}
+
+// ---------- stat names for soccer, golf and MMA (PrizePicks words them a few different ways)
+const RXSTATS = {
+  mma: [[/signif/i, g => g.SS], [/takedown/i, g => g.TD], [/fight time|time \(min/i, g => g.FT], [/knockdown/i, g => g.KD], [/sub(mission)?s? ?att/i, g => g.SUB]],
+  golf: [[/birdie/i, g => g.BIRD], [/bogey/i, g => g.BOG], [/^pars?$/i, g => g.PAR], [/strokes|round score/i, g => g.ST]],
+  soccer: [[/shots on (target|goal)/i, g => g.SOT], [/^shots( attempted)?$/i, g => g.SH], [/pass(es)? attempted|^passes$/i, g => g.PA], [/goalie saves|^saves$/i, g => g.SV],
+    [/tackles/i, g => g.TK], [/clearances/i, g => g.CLR], [/goals? ?\+ ?assists?/i, g => nn(g.G, g.A)], [/^goals?$/i, g => g.G], [/^assists?$/i, g => g.A],
+    [/fouls/i, g => g.FL], [/crosses/i, g => g.CR], [/shots assisted|key pass/i, g => g.KP], [/dribble/i, g => g.DRB], [/goals? allowed|conceded/i, g => g.GC]],
+};
+const rxStat = (sport, stat) => { const row = (RXSTATS[sport] || []).find(([re]) => re.test(stat || "")); return row ? row[1] : null; };
+function scoreSeries(p, rows, decay, unit){
+  const f = statFn(p.sport, p.stat);
+  p.found = true; p.games = 0; p.unit = unit;
+  if (rows && rows.length && f) scoreNFL(p, [rows], 100, f, decay);
+  p.unit = unit;
+}
+
+// ---------- MMA: UFC Stats (every UFC fight: significant strikes, takedowns, knockdowns, how long it lasted)
+const UFC = "http://ufcstats.com";
+const ufcCell = td => [...td.querySelectorAll("p")].map(x => x.textContent.replace(/\s+/g, " ").trim());
+async function ufcFind(name){
+  const n = norm(name), last = n.split(" ").pop();
+  const doc = new DOMParser().parseFromString(await getText(`${UFC}/statistics/fighters/search?query=${encodeURIComponent(last)}`), "text/html"), rows = [];
+  for (const tr of doc.querySelectorAll("tr")) {
+    const a = tr.querySelector('a[href*="fighter-details"]'), td = tr.querySelectorAll("td");
+    if (a && td.length >= 2) rows.push({href: a.getAttribute("href"), nm: norm(td[0].textContent + " " + td[1].textContent)});
+  }
+  const hit = rows.find(r => r.nm === n) || rows.find(r => r.nm.endsWith(" " + last) && r.nm[0] === n[0]) || (new Set(rows.map(r => r.href)).size === 1 ? rows[0] : null);
+  return hit ? hit.href.replace(/^https?:\/\/(www\.)?ufcstats\.com/, UFC) : null;
+}
+function parseUfcFighter(html){
+  const doc = new DOMParser().parseFromString(html, "text/html"), out = [];
+  for (const tr of doc.querySelectorAll("tr.b-fight-details__table-row")) {
+    const td = tr.querySelectorAll("td"); if (td.length < 10) continue;
+    const wl = td[0].textContent.trim().toLowerCase(); if (!wl || wl === "next") continue;
+    const c = [...td].map(ufcCell), one = i => c[i][0] ?? td[i].textContent.trim();
+    const rnd = toNum(one(8)), tm = toNum(one(9)), dt = Date.parse(String(c[6][1] || "").replace(/\./g, ""));
+    out.push({date: isNaN(dt) ? "" : new Date(dt).toISOString(), opp: c[1][1] || "", home: true, won: wl === "win",
+      KD: toNum(c[2][0]), SS: toNum(c[3][0]), SSA: toNum(c[3][1]), TD: toNum(c[4][0]), SUB: toNum(c[5][0]),
+      FT: rnd != null && tm != null ? +((rnd - 1) * 5 + tm).toFixed(2) : null});
+  }
+  return out;   // newest first, the way UFC Stats lists them
+}
+async function analyzeUFC(picks){
+  const players = [...new Set(picks.map(p => p.player))], logs = {};
+  let done = 0;
+  await pool(players, 4, async name => {
+    try { const u = await ufcFind(name); logs[name] = u ? parseUfcFighter(await getText(u)) : null; }
+    catch (e) { noteErr("UFC Stats", e); logs[name] = null; }
+    setStatus(`Fight histories ${++done}/${players.length} from UFC Stats…`, 0.1 + 0.7 * done / players.length);
+  });
+  HIST.mma = {}; for (const nm of players) HIST.mma[nm] = logs[nm] || [];
+  for (const p of picks) {
+    const l = logs[p.player];
+    scoreSeries(p, l, 0.9, "fights");
+    // the other fighter matters: how many strikes / takedowns he usually gives up
+    const o = logs[players.find(nm => sameOpp({sport: "mma", opp: p.opp}, nm))];
+    if (p.sMore != null && o && o.length >= 3 && /signif/i.test(p.stat)) {
+      const given = o.slice(0, 8).map(g => g.SSA).filter(v => v != null);
+      if (given.length >= 3) { const avg = given.reduce((a, b) => a + b, 0) / given.length; p.oppAllows = +avg.toFixed(1);
+        const z = (avg - p.line) / Math.max(p.sd || 10, 8), w = 0.15; p.sMore = clip((1 - w) * p.sMore + w * phi(z), 0.02, 0.98); if (p.sLess != null) p.sLess = clip((1 - w) * p.sLess + w * (1 - phi(z)), 0.02, 0.98);
+        (p.extraWhy ||= []).push(`${p.opp} gives up ${p.oppAllows} significant strikes a fight (last ${given.length})`); }
+    }
+    (p.extraRisk ||= []).push("One punch or submission can end a fight early and sink every stat");
+  }
+  const miss = players.filter(nm => !(logs[nm] || []).length).length, why = errSummary("UFC Stats");
+  return {note: miss ? ` · ${players.length - miss} of ${players.length} fighters have UFC fight stats${why ? " (UFC Stats: " + why + ")" : ""}; the rest are rated from the lines` : ""};
+}
+
+// ---------- GOLF: ESPN leaderboards (every round of the last ~10 events on each tour)
+const GOLF_TOURS = ["pga", "lpga", "eur", "liv"];
+async function golfRounds(){
+  const by = {}, seen = new Set();
+  let events = 0, done = 0;
+  for (const tour of GOLF_TOURS) {
+    const base = `https://site.api.espn.com/apis/site/v2/sports/golf/${tour}/scoreboard`;
+    let cur; try { cur = await getJSON(base); } catch (e) { if (tour === "pga") noteErr("ESPN golf", e); continue; }
+    const cal = (cur.leagues?.[0]?.calendar || []).filter(c => c && typeof c === "object" && c.id);
+    const evs = [...(cur.events || [])], now = Date.now();
+    const past = cal.filter(c => Date.parse(c.endDate || c.startDate) < now && !evs.some(e => String(e.id) === String(c.id))).slice(-10);
+    await pool(past, 4, async c => {
+      try {
+        let js = await getJSON(`${base}?event=${c.id}`);
+        if (!(js.events || []).some(e => String(e.id) === String(c.id)) && c.startDate) js = await getJSON(`${base}?dates=${c.startDate.slice(0, 10).replace(/-/g, "")}`);
+        for (const e of js.events || []) if (!evs.some(x => String(x.id) === String(e.id))) evs.push(e);
+      } catch (e) { noteErr("ESPN golf", e); }
+      setStatus(`Golf leaderboards ${++done}…`, Math.min(0.8, 0.1 + done / 50));
+    });
+    for (const ev of evs) {
+      const comp = ev.competitions?.[0]; if (!comp) continue;
+      events++;
+      const start = Date.parse(ev.date || comp.date || "") || 0;
+      for (const c of comp.competitors || []) {
+        const nm = c.athlete?.displayName || c.athlete?.fullName; if (!nm) continue;
+        for (const ls of c.linescores || []) {
+          const st = toNum(ls.value), holes = ls.linescores || [], rd = ls.period || 1, key = ev.id + "|" + nm + "|" + rd;
+          if (st == null || st < 55 || st > 95 || (holes.length && holes.length < 18) || seen.has(key)) continue;
+          seen.add(key);
+          let BIRD = null, BOG = null, PAR = null;
+          if (holes.length >= 18) {
+            const ds = holes.map(h => { const dv = String(h.scoreType?.displayValue ?? ""); return dv === "E" ? 0 : toNum(dv); });
+            if (ds.every(d => d != null)) { BIRD = ds.filter(d => d < 0).length; BOG = ds.filter(d => d > 0).length; PAR = ds.filter(d => d === 0).length; }
+          }
+          (by[norm(nm)] ||= []).push({date: new Date(start + (rd - 1) * 86400e3).toISOString(), opp: ev.shortName || ev.name || "", home: true, ST: st, BIRD, BOG, PAR});
+        }
+      }
+    }
+  }
+  for (const k in by) by[k].sort((a, b) => (b.date > a.date ? 1 : -1));
+  return {by, events};
+}
+async function analyzeGolf(picks){
+  setStatus("Loading golf leaderboards from ESPN…", 0.08);
+  const {by, events} = await golfRounds(), players = [...new Set(picks.map(p => p.player))];
+  const find = name => { const n = norm(name); if (by[n]) return by[n]; const last = n.split(" ").pop(); const k = Object.keys(by).find(x => x.endsWith(" " + last) && x[0] === n[0]); return k ? by[k] : null; };
+  HIST.golf = {}; for (const nm of players) HIST.golf[nm] = find(nm) || [];
+  for (const p of picks) { scoreSeries(p, HIST.golf[p.player], 0.95, "rounds"); (p.extraRisk ||= []).push("Course and weather change scores a lot from week to week"); }
+  const miss = players.filter(nm => !HIST.golf[nm].length).length, why = errSummary("ESPN golf");
+  return {note: ` · ${events} recent events read${miss ? `, ${players.length - miss} of ${players.length} golfers matched` : ""}${why && !events ? " (ESPN: " + why + ")" : ""}`};
+}
+
+// ---------- SOCCER: Sofascore (shots, passes, tackles, saves... in each of his last 10 matches)
+async function soccerPlayer(name){
+  const id = await sofaFind(name, "football"); if (!id) return null;
+  const evs = ((await sofa(`/player/${id}/events/last/0`)).events || []).filter(e => e.status?.type === "finished").sort((a, b) => b.startTimestamp - a.startTimestamp).slice(0, 10);
+  const rows = [];
+  await pool(evs, 3, async ev => {
+    try {
+      const js = await sofa(`/event/${ev.id}/player/${id}/statistics`), s = js.statistics || {};
+      if (!s.minutesPlayed) return;
+      const n = k => s[k] ?? 0, tid = js.team?.id, home = tid ? ev.homeTeam?.id === tid : null;
+      rows.push({date: new Date(ev.startTimestamp * 1000).toISOString(), opp: home == null ? `${ev.homeTeam?.name} v ${ev.awayTeam?.name}` : (home ? ev.awayTeam : ev.homeTeam)?.name || "", home: home !== false, MIN: s.minutesPlayed,
+        SH: s.totalShots ?? (n("onTargetScoringAttempt") + n("shotOffTarget") + n("blockedScoringAttempt")), SOT: n("onTargetScoringAttempt"), PA: n("totalPass"),
+        SV: n("saves"), TK: n("totalTackle"), CLR: n("totalClearance"), G: n("goals"), A: n("goalAssist"), FL: n("fouls"), CR: n("totalCross"), KP: n("keyPass"),
+        DRB: n("totalContest"), GC: s.goalsConceded ?? null});
+    } catch (e) { if (!/404/.test(e.message)) noteErr("Sofascore", e); }
+  });
+  rows.sort((a, b) => (b.date > a.date ? 1 : -1));
+  const full = rows.filter(r => r.MIN >= 45);
+  return full.length >= 5 ? full : rows;   // judge starters on the matches they started
+}
+async function analyzeSoccer(picks){
+  const first = {}; for (const p of picks) if (!first[p.player] || (p.start && p.start < first[p.player])) first[p.player] = p.start || "9";
+  const players = Object.keys(first).sort((a, b) => first[a] < first[b] ? -1 : 1), cap = players.slice(0, 90), logs = {};
+  let done = 0;
+  await pool(cap, 3, async name => {
+    try { logs[name] = await soccerPlayer(name); } catch (e) { noteErr("Sofascore", e); logs[name] = null; }
+    setStatus(`Match stats ${++done}/${cap.length} from Sofascore (saved after the first time)…`, 0.08 + 0.75 * done / cap.length);
+  });
+  HIST.soccer = {}; for (const nm of players) HIST.soccer[nm] = logs[nm] || [];
+  for (const p of picks) scoreSeries(p, logs[p.player], 0.9, "matches");
+  const have = players.filter(nm => (logs[nm] || []).length).length, why = errSummary("Sofascore");
+  return {note: have < players.length ? ` · ${have} of ${players.length} players have match stats${why ? " (Sofascore: " + why + ")" : ""}; the rest are rated from the lines` : ""};
+}
+
+// ---------- NHL extras from NHL.com: hits, blocked shots and faceoffs (ESPN's game logs don't have them)
+async function nhlExtras(picks, logs){
+  const need = /^(Hits|Blocked Shots|Hits\+Blks|Faceoffs Won)$/;
+  const names = [...new Set(picks.filter(p => need.test(p.stat)).map(p => p.player))];
+  const d = new Date(), y = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1, from = `${y - 2}${y - 1}`;
+  let done = 0;
+  await pool(names, 4, async name => {
+    const q = rep => `https://api.nhle.com/stats/rest/en/skater/${rep}?isAggregate=false&isGame=true&limit=-1&cayenneExp=${encodeURIComponent(`gameTypeId=2 and seasonId>=${from} and skaterFullName="${name.replace(/"/g, "")}"`)}`;
+    try {
+      const [rt, fo] = await Promise.all([getJSON(q("realtime")), getJSON(q("faceoffwins")).catch(() => ({data: []}))]);
+      const foBy = {}; for (const r of fo.data || []) foBy[r.gameId] = r.totalFaceoffWins ?? r.faceoffWins ?? r.faceoffsWon ?? null;
+      const rows = (rt.data || []).map(r => ({date: String(r.gameDate).slice(0, 10) + "T23:00:00Z", opp: r.opponentTeamAbbrev || "", home: r.homeRoad === "H",
+        HIT: r.hits ?? null, BLK: r.blockedShots ?? null, FOW: foBy[r.gameId] ?? null})).sort((a, b) => (b.date > a.date ? 1 : -1));
+      if (!rows.length) return;
+      const l = (logs[name] || []).flat();
+      let matched = 0;
+      for (const g of l) { const t = Date.parse(g.date), m = rows.find(r => Math.abs(Date.parse(r.date) - t) < 30 * 3600e3); if (m) { matched++; g.HIT ??= m.HIT; g.BLK ??= m.BLK; g.FOW ??= m.FOW; } }
+      if (matched < Math.min(5, rows.length)) logs[name] = [rows];
+    } catch (e) { noteErr("NHL.com stats", e); }
+    setStatus(`Hits, blocks and faceoffs from NHL.com ${++done}/${names.length}…`, 0.82);
+  });
+}
+
+// ---------- shared ratings: the finished work is saved (on this device and on the website) so the app opens instantly
+const slimG = g => { const o = {}; for (const [k, v] of Object.entries(g)) if (v != null && typeof v !== "function") o[k] = v; return o; };
+function packRated(sport){
+  const d = DATA[sport]; if (!d) return null;
+  try {
+    const picks = d.picks.map(p => { const o = slimG(p); if (p.hits) { o._hM = p.hits("More"); o._hL = p.hits("Less"); } return o; });
+    const hist = {}, H = HIST[sport] || {};
+    for (const nm of new Set(d.picks.map(p => p.player))) {
+      const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
+      if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
+    }
+    return JSON.stringify({v: 2, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+  } catch (e) { console.warn("couldn't save ratings", e); return null; }
+}
+function unpackRated(js){
+  const picks = (js.picks || []).map(o => { const p = {...o}; if (o._hM) { const a = o._hM, b = o._hL; p.hits = s => s === "More" ? a : b; } delete p._hM; delete p._hL; return p; });
+  HIST[js.sport] = js.hist || {}; if (js.cal) CAL[js.sport] = js.cal;
+  DATA[js.sport] = {picks, note: js.note || "", booksUsed: false, time: new Date(js.t), shared: true, newsChecked: js.news || 0};
+}
+async function saveRated(sport){
+  const txt = packRated(sport); if (!txt) return;
+  IDB.set("rated:" + sport, {t: Date.now(), v: txt});
+  if (IS_WEB) fetch(`/rated/${sport}`, {method: "POST", body: txt, headers: {"content-type": "application/json"}}).catch(() => {});
+}
+async function loadRated(sport){
+  const got = [];
+  const mine = await IDB.get("rated:" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
+  if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
+  return got.filter(j => j && j.v === 2 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+}
+const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
+async function quickStart(force){
+  const sport = SPORT;
+  if (!DATA[sport]) { const js = await loadRated(sport); if (js && !DATA[sport]) { unpackRated(js); if (SPORT === sport) showSport(); } }
+  const d = DATA[sport];
+  if (d && d.shared && SPORT === sport) setStatus(`${SPORTS[sport].label} · ratings from ${agoTxt((Date.now() - d.time) / 1000)}${d.note}${!force && Date.now() - d.time < FRESH ? "" : " · updating in the background…"}`, 1);
+  if ((force || !d || Date.now() - d.time >= FRESH) && !busy && SPORT === sport) { await Promise.race([fixLeagues(), new Promise(r => setTimeout(r, 2500))]); if (!busy) $("#runBtn").click(); }
 }
 
 // ---------- headline scan (Google News): trades, suspensions, legal trouble, personal matters, injuries
@@ -1811,6 +2094,7 @@ async function headlineScan(sport){
   }
   d.newsChecked = Object.keys(found).length;
   if (SPORT === sport) { renderCoach(); render(); if (TAB === "home") renderHome(); }
+  saveRated(sport);
 }
 
 // ---------- TENNIS (Sofascore match history)
@@ -1837,11 +2121,11 @@ async function sofa(path){
   throw last;
 }
 
-async function sofaFind(name){
+async function sofaFind(name, sportSlug = "tennis"){
   const n = norm(name), last = n.split(" ").pop();
   try {
     const js = await sofa(`/search/all?q=${encodeURIComponent(name)}&page=0`);
-    const cands = (js.results || []).filter(r => r.entity && (r.entity.sport?.slug || r.entity.sport?.name || "").toLowerCase().includes("tennis"));
+    const cands = (js.results || []).filter(r => r.entity && (r.entity.sport?.slug || r.entity.sport?.name || r.entity.team?.sport?.slug || "").toLowerCase().includes(sportSlug) && (sportSlug === "tennis" || r.type === "player"));
     const ok = e => { const en = norm(`${e.name || ""} ${e.slug ? e.slug.replace(/-/g, " ") : ""}`); return en.includes(last) && !/\//.test(e.name || ""); };
     const hit = cands.find(r => ok(r.entity) && norm(r.entity.name) === n) || cands.find(r => ok(r.entity));
     return hit ? hit.entity.id : null;
@@ -2164,16 +2448,21 @@ async function dataCheck(){
     ["Sofascore player search (tennis, www)", `${SOFA_BASES[0]}/search/all?q=Sinner&page=0`, js => `${(js.results || []).length} results`],
     ["Sofascore match history (tennis, www)", `${SOFA_BASES[0]}/team/206570/events/last/0`, js => `${(js.events || []).length} matches`],
     ["Sofascore player search (tennis, backup)", `${SOFA_BASES[1]}/search/all?q=Sinner&page=0`, js => `${(js.results || []).length} results`],
+    ["UFC Stats fighter search (MMA)", "http://ufcstats.com/statistics/fighters/search?query=adesanya", txt => `${(txt.match(/fighter-details/g) || []).length} fighter links`, true],
+    ["NHL.com hits/blocks", `https://api.nhle.com/stats/rest/en/skater/realtime?isAggregate=false&isGame=true&limit=5&cayenneExp=${encodeURIComponent('gameTypeId=2 and skaterFullName="Connor McDavid"')}`, js => `${(js.data || []).length} games, hits field ${js.data?.[0] && "hits" in js.data[0] ? "present" : "missing"}`],
+    ["ESPN golf leaderboard", "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard", js => `${(js.events || []).length} events, ${(js.leagues?.[0]?.calendar || []).length} on calendar, round scores ${js.events?.[0]?.competitions?.[0]?.competitors?.[0]?.linescores?.length ?? 0}`],
+    ["Sofascore player search (soccer)", `${SOFA_BASES[0]}/search/all?q=Haaland&page=0`, js => `${(js.results || []).filter(r => r.type === "player").length} players`],
     ["Reddit (optional crowd buzz)", "https://www.reddit.com/r/PrizePicks/new.json?limit=5", js => `${js.data?.children?.length || 0} posts`],
   ];
   if (key) tests.push(["Odds API key", `https://api.the-odds-api.com/v4/sports?apiKey=${encodeURIComponent(key)}`, (js, r) => `key OK, ${r.headers.get("x-requests-remaining") ?? "?"} credits left`]);
   const rows = [];
-  for (const [name, u, f] of tests) {
+  for (const [name, u, f, isText] of tests) {
     const t0 = performance.now();
     try {
       const r = await rawFetch((u)), txt = await r.text();
       let js = null; try { js = JSON.parse(txt); } catch {}
       const ms = Math.round(performance.now() - t0);
+      if (isText) { rows.push([name, r.ok && !/^0 /.test(f(txt)), r.ok ? f(txt) : `HTTP ${r.status}`, ms]); out.innerHTML = `<p class="note">Checked ${rows.length}/${tests.length}…</p>`; continue; }
       if (!r.ok) rows.push([name, false, `HTTP ${r.status} ${(js?.message || txt).slice(0, 120)}`, ms]);
       else if (!js) rows.push([name, false, `not JSON: ${txt.slice(0, 120)}`, ms]);
       else { let d; try { d = f(js, r); } catch (e) { d = "unexpected format: " + JSON.stringify(js).slice(0, 160); } rows.push([name, !/^0 |unexpected/.test(d), d, ms]); }
@@ -2291,7 +2580,7 @@ async function analyze(picks, sport = SPORT){
   setStatus(`Found ${picks.length} ${sp.name} picks…`, 0.03);
   await addTrending(picks, sport);
   const kind = SPORTS[sport].kind;
-  const r = (kind === "espn" ? await analyzeESPN(picks, sport) : kind === "line" ? await analyzeLineOnly(picks, sport) : sport === "tennis" ? await analyzeTennis(picks) : sport === "nfl" ? await analyzeNFL(picks) : sport === "cfb" ? await analyzeCFB(picks) : await analyzeNBA(picks)) || {};
+  const r = (kind === "espn" ? await analyzeESPN(picks, sport) : kind === "ufc" ? await analyzeUFC(picks) : kind === "golf" ? await analyzeGolf(picks) : kind === "sofa" ? await analyzeSoccer(picks) : kind === "line" ? await analyzeLineOnly(picks, sport) : sport === "tennis" ? await analyzeTennis(picks) : sport === "nfl" ? await analyzeNFL(picks) : sport === "cfb" ? await analyzeCFB(picks) : await analyzeNBA(picks)) || {};
   enrich(picks);
   if ($("#useReddit").checked) { setStatus("Reading what people are saying on Reddit…", 0.88); scoreBuzz(picks, await reddit(sport)); }
   finalize(picks);
@@ -2318,7 +2607,7 @@ function showSport(){
     .sort((a, b) => (startOf[a] || "9") < (startOf[b] || "9") ? -1 : (startOf[a] || "9") > (startOf[b] || "9") ? 1 : a.localeCompare(b));
   const stats = [...new Set(picks.map(p => p.stat))].sort();
   const when = st => st ? new Date(st).toLocaleString([], {weekday: "short", hour: "numeric", minute: "2-digit"}) : "";
-  $("#gameSel").innerHTML = `<option value="">All ${unit}s</option>` + games.map(x => `<option value="${esc(x)}">${esc(x)}${startOf[x] ? " · " + esc(when(startOf[x])) : ""}</option>`).join("");
+  $("#gameSel").innerHTML = `<option value="">All ${unit === "match" ? "matches" : unit + "s"}</option>` + games.map(x => `<option value="${esc(x)}">${esc(x)}${startOf[x] ? " · " + esc(when(startOf[x])) : ""}</option>`).join("");
   $("#statSel").innerHTML = `<option value="">All stats</option>` + stats.map(x => `<option>${esc(x)}</option>`).join("");
   $("#playerList").innerHTML = [...new Set(picks.map(p => p.player))].sort().map(x => `<option value="${esc(x)}">`).join("");
   
@@ -2326,7 +2615,8 @@ function showSport(){
   if (!$("#mineView").classList.contains("hide")) renderMine();
   if (TAB === "home") renderHome();
   const n = t => picks.filter(p => p.type === t).length;
-  setStatus(`${sp.label} · updated ${d.time.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})} · ${picks.length.toLocaleString()} picks checked${d.note}`, 1);
+  const la = BOARD_AGE[SPORT];
+  setStatus(`${sp.label} · updated ${d.time.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"})} · ${picks.length.toLocaleString()} picks checked${la > 1800 && !d.shared ? ` · lines from ${agoTxt(la)}` : ""}${d.note}`, 1);
 }
 
 let busy = false;
@@ -2336,6 +2626,7 @@ $("#runBtn").onclick = async () => {
     setStatus(`Loading the PrizePicks ${SPORTS[SPORT].name} board…`, 0.02);
     const js = await fetchBoard();
     if (js.error !== undefined) {
+      if (DATA[SPORT]) { NEEDPASTE[SPORT] = true; setStatus(`${SPORTS[SPORT].label} · ratings from ${agoTxt((Date.now() - DATA[SPORT].time) / 1000)}${DATA[SPORT].note} · ☰ → Update PrizePicks lines for the newest lines`, 1); return; }
       NEEDPASTE[SPORT] = true; setStatus(`PrizePicks wouldn't send today's picks automatically. Use the 2 steps below.`, 0);
       if (TAB !== "home" && TAB !== "mine") { $("#pastePanel").classList.remove("hide"); $("#pastePanel").scrollIntoView({behavior: "smooth"}); }
       if (TAB === "home") renderHome();
@@ -2359,9 +2650,16 @@ if (window.EXT_FETCH && window.chrome?.runtime?.sendMessage) {
   };
 }
 if (window.EXT_CLEAR) { $("#clearBtn").classList.remove("hide"); $("#clearBtn").onclick = async () => { await window.EXT_CLEAR(); $("#saveMsg").textContent = "Saved match/game history cleared. The next Refresh downloads it again."; }; }
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+if (IS_WEB && IOS) {
+  $("#scBox").classList.remove("hide");
+  $("#scRun").href = `shortcuts://x-callback-url/run-shortcut?name=PickPrizer&x-success=${encodeURIComponent(location.origin + "/?fresh=1")}`;
+  $("#scPost").textContent = location.origin + "/board/";
+} else $("#copyWay").open = true;
 drawSportTabs(); showSport();
 goTab("home");
-fixLeagues().finally(() => { if (!DATA[SPORT] && !busy) $("#runBtn").click(); });   // start loading today's picks in the background while Home shows
+quickStart(/[?&]fresh=1/.test(location.search));   // show the last saved ratings instantly, then update in the background if they're old
+if (location.search) history.replaceState(null, "", location.pathname);
 $("#clipGo").onclick = async () => {
   try {
     const txt = await navigator.clipboard.readText();

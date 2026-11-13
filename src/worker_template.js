@@ -3,7 +3,9 @@
 // replace everything with this file -> Deploy. Your site is the *.workers.dev link it gives you.
 
 const ALLOW = new Set(["api.prizepicks.com", "partner-api.prizepicks.com", "site.api.espn.com", "site.web.api.espn.com", "stats.nba.com",
-  "www.sofascore.com", "api.sofascore.com", "www.reddit.com", "news.google.com"]);
+  "www.sofascore.com", "api.sofascore.com", "www.reddit.com", "news.google.com",
+  "ufcstats.com", "www.ufcstats.com", "api.nhle.com", "api-web.nhle.com", "statsapi.mlb.com"]);
+const HTTP_OK = new Set(["ufcstats.com", "www.ufcstats.com"]);   // UFC Stats only serves plain http
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 const MIN = 60, HOUR = 3600, DAY = 86400;
 
@@ -24,6 +26,8 @@ function ttl(u) {
   if (h.endsWith("sofascore.com")) return p.endsWith("/statistics") ? 30 * DAY : p.includes("/search/") ? 7 * DAY : HOUR;
   if (h === "www.reddit.com") return 15 * MIN;
   if (h === "news.google.com") return 30 * MIN;
+  if (h.endsWith("ufcstats.com")) return p.includes("/search") ? 7 * DAY : 6 * HOUR;
+  if (h.endsWith("nhle.com")) return 3 * HOUR;
   return MIN;
 }
 function headersFor(h) {
@@ -37,7 +41,7 @@ function headersFor(h) {
 async function proxy(req, ctx) {
   let t;
   try { t = new URL(new URL(req.url).searchParams.get("u")); } catch { return json({ message: "bad url" }, 400); }
-  if (t.protocol !== "https:" || !ALLOW.has(t.hostname)) return json({ message: "host not allowed" }, 403);
+  if (!(t.protocol === "https:" || (t.protocol === "http:" && HTTP_OK.has(t.hostname))) || !ALLOW.has(t.hostname)) return json({ message: "host not allowed" }, 403);
   const cache = caches.default, key = new Request("https://cache.pickprizer/" + encodeURIComponent(t.toString()));
   const hit = await cache.match(key);
   if (hit) return hit;
@@ -58,22 +62,42 @@ async function proxy(req, ctx) {
   if (r.status === 200) ctx.waitUntil(cache.put(key, out.clone()));
   return out;
 }
-// A board someone pasted in, shared with every visitor for 20 minutes (PrizePicks blocks this server from fetching it).
-const MEM = new Map();   // backup for hosts where the Cache API is a no-op (*.workers.dev)
-async function board(req, ctx, league) {
-  const key = new Request("https://cache.pickprizer/board/" + league);
-  if (req.method === "GET") {
-    const hit = await caches.default.match(key); if (hit) return hit;
-    const m = MEM.get(league);
-    return m && Date.now() - m.t < 1200e3 ? new Response(m.text, { headers: { "content-type": "application/json" } }) : json({ message: "no shared board" }, 404);
-  }
+// Shared storage (Cloudflare KV, binding "KV"): the PrizePicks board someone (or the iPhone Shortcut) sent in, and the
+// finished ratings, so the next visitor sees picks instantly instead of redoing minutes of work.
+// Falls back to memory + cache if KV isn't set up.
+const MEM = new Map();
+async function kvGet(env, k) {
+  if (env.KV) { try { const r = await env.KV.getWithMetadata(k); if (r && r.value) return { text: r.value, t: (r.metadata && r.metadata.t) || 0 }; } catch (e) {} }
+  const m = MEM.get(k); if (m) return m;
+  const hit = await caches.default.match(new Request("https://cache.pickprizer/" + k));
+  return hit ? { text: await hit.text(), t: +(hit.headers.get("x-t") || 0) } : null;
+}
+async function kvPut(env, ctx, k, text, ttlSec) {
+  const t = Date.now();
+  MEM.set(k, { text, t });
+  if (env.KV) { try { await env.KV.put(k, text, { expirationTtl: ttlSec, metadata: { t } }); } catch (e) {} }
+  ctx.waitUntil(caches.default.put(new Request("https://cache.pickprizer/" + k), new Response(text, { headers: { "content-type": "application/json", "x-t": String(t), "cache-control": "public, max-age=" + ttlSec } })));
+}
+const stored = (o) => new Response(o.text, { headers: { "content-type": "application/json", "cache-control": "no-store", "x-age": String(Math.round((Date.now() - o.t) / 1000)), "access-control-expose-headers": "x-age" } });
+async function board(req, env, ctx, league) {
+  const k = "board/" + league;
+  if (req.method === "GET") { const o = await kvGet(env, k); return o ? stored(o) : json({ message: "no shared board" }, 404); }
   if (req.method !== "POST") return json({ message: "method" }, 405);
   const text = await req.text();
-  if (text.length > 8e6) return json({ message: "too big" }, 413);
-  let js; try { js = JSON.parse(text); } catch { return json({ message: "not JSON" }, 400); }
-  if (!Array.isArray(js.data) || !js.data.length || !js.data.every(d => d && typeof d === "object" && d.attributes)) return json({ message: "not a PrizePicks board" }, 400);
-  MEM.set(league, { t: Date.now(), text });
-  ctx.waitUntil(caches.default.put(key, new Response(text, { headers: { "content-type": "application/json", "cache-control": "public, max-age=1200" } })));
+  if (text.length > 12e6) return json({ message: "too big" }, 413);
+  if (!/^\s*\{\s*"data"\s*:\s*\[\s*\{/.test(text.slice(0, 200)) || !text.includes('"projection"')) return json({ message: "not a PrizePicks board" }, 400);
+  await kvPut(env, ctx, k, text, 2 * DAY);
+  return json({ ok: true }, 200);
+}
+async function rated(req, env, ctx, sport) {
+  const k = "rated/" + sport;
+  if (req.method === "GET") { const o = await kvGet(env, k); return o ? stored(o) : json({ message: "none yet" }, 404); }
+  if (req.method !== "POST") return json({ message: "method" }, 405);
+  const text = await req.text();
+  if (text.length > 6e6 || !text.startsWith('{"v":2,')) return json({ message: "bad" }, 400);
+  const o = await kvGet(env, k);
+  if (o && Date.now() - o.t < 4 * MIN * 1000) return json({ ok: true, skipped: true }, 200);   // someone just saved one
+  await kvPut(env, ctx, k, text, 2 * DAY);
   return json({ ok: true }, 200);
 }
 const json = (o, status) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -89,8 +113,10 @@ export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
     if (url.pathname === "/p") return proxy(req, ctx);
-    const bm = url.pathname.match(/^\/board\/(\d{1,3})$/);
-    if (bm) return board(req, ctx, bm[1]);
+    const bm = url.pathname.match(/^\/board\/(\d{1,4})$/);
+    if (bm) return board(req, env, ctx, bm[1]);
+    const rm = url.pathname.match(/^\/rated\/([a-z]{2,8})$/);
+    if (rm) return rated(req, env, ctx, rm[1]);
     if (url.pathname === "/manifest.json") return new Response(MANIFEST, { headers: { "content-type": "application/manifest+json" } });
     if (url.pathname === "/icon.png" || url.pathname === "/apple-touch-icon.png" || url.pathname === "/favicon.ico")
       return new Response(b64(ICON), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });

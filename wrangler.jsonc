@@ -1,7 +1,8 @@
 // Lets the same code deploy as a Cloudflare Worker (Workers "Import a repository" runs `npx wrangler deploy`).
-// Cloudflare Pages ignores this file and uses the public/ folder instead.
+// KV "KV" stores the shared board and finished ratings; wrangler creates it automatically on first deploy.
 {
   "name": "pickprizer",
   "main": "public/_worker.js",
-  "compatibility_date": "2026-11-01"
+  "compatibility_date": "2026-11-01",
+  "kv_namespaces": [{ "binding": "KV" }]
 }
