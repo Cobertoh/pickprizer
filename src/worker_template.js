@@ -3,7 +3,7 @@
 // replace everything with this file -> Deploy. Your site is the *.workers.dev link it gives you.
 
 const ALLOW = new Set(["api.prizepicks.com", "partner-api.prizepicks.com", "site.api.espn.com", "site.web.api.espn.com", "stats.nba.com",
-  "www.sofascore.com", "api.sofascore.com", "www.reddit.com"]);
+  "www.sofascore.com", "api.sofascore.com", "www.reddit.com", "news.google.com"]);
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 const MIN = 60, HOUR = 3600, DAY = 86400;
 
@@ -23,6 +23,7 @@ function ttl(u) {
   if (h === "stats.nba.com") return 3 * HOUR;
   if (h.endsWith("sofascore.com")) return p.endsWith("/statistics") ? 30 * DAY : p.includes("/search/") ? 7 * DAY : HOUR;
   if (h === "www.reddit.com") return 15 * MIN;
+  if (h === "news.google.com") return 30 * MIN;
   return MIN;
 }
 function headersFor(h) {
