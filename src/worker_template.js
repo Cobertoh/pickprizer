@@ -2,7 +2,7 @@
 // Setup: dash.cloudflare.com -> Workers & Pages -> Create -> Worker -> Deploy -> Edit code ->
 // replace everything with this file -> Deploy. Your site is the *.workers.dev link it gives you.
 
-const ALLOW = new Set(["api.prizepicks.com", "partner-api.prizepicks.com", "site.api.espn.com", "site.web.api.espn.com", "stats.nba.com",
+const ALLOW = new Set(["api.prizepicks.com", "partner-api.prizepicks.com", "site.api.espn.com", "site.web.api.espn.com", "sports.core.api.espn.com", "stats.nba.com",
   "www.sofascore.com", "api.sofascore.com", "www.reddit.com", "news.google.com",
   "ufcstats.com", "www.ufcstats.com", "api.nhle.com", "api-web.nhle.com", "statsapi.mlb.com"]);
 const HTTP_OK = new Set(["ufcstats.com", "www.ufcstats.com"]);   // UFC Stats only serves plain http

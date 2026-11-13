@@ -524,11 +524,14 @@ function cttl(u){   // how long a download stays good on this device (seconds); 
     if (pth.endsWith("/teams")) return 7 * CDAY;
     if (pth.includes("/roster")) return 12 * CHOUR;
     if (pth.includes("/golf/")) return q.get("event") || q.get("dates") ? 3 * CHOUR : 10 * CMIN;
+    if (pth.endsWith("/scoreboard") && q.get("dates")) { const dd = q.get("dates"), today = ymd(new Date()); return dd.length === 8 && dd < today ? 30 * CDAY : dd.length === 6 && dd < today.slice(0, 6) ? 30 * CDAY : CHOUR; }
+    if (pth.endsWith("/summary")) return 30 * CDAY;
     return 10 * CMIN;
   }
   if (h.endsWith("sofascore.com")) return pth.endsWith("/statistics") ? 60 * CDAY : pth.includes("/search/") ? 14 * CDAY : pth.includes("/events/") ? 3 * CHOUR : CDAY;
   if (h.endsWith("ufcstats.com")) return pth.includes("/search") ? 30 * CDAY : 12 * CHOUR;
   if (h.endsWith("nhle.com")) return 3 * CHOUR;
+  if (h === "sports.core.api.espn.com") return /statistics/.test(pth) ? 60 * CDAY : CDAY;
   return 0;
 }
 async function getText(u){
@@ -1919,10 +1922,14 @@ function parseUfcFighter(html){
 async function analyzeUFC(picks){
   const players = [...new Set(picks.map(p => p.player))], logs = {};
   let done = 0;
-  await pool(players, 4, async name => {
-    try { const u = await ufcFind(name); logs[name] = u ? parseUfcFighter(await getText(u)) : null; }
-    catch (e) { noteErr("UFC Stats", e); logs[name] = null; }
-    setStatus(`Fight histories ${++done}/${players.length} from UFC Stats…`, 0.1 + 0.7 * done / players.length);
+  const E = await espnUFC(picks);
+  for (const name of players) logs[name] = findByName(E, name);
+  const blocked = () => (ERRS["UFC Stats"] && Object.values(ERRS["UFC Stats"]).reduce((a, b) => a + b, 0) >= 2);
+  await pool(players.filter(nm => !(logs[nm] || []).some(g => g.SS != null)), 2, async name => {   // backup: UFC Stats
+    if (blocked()) return;
+    try { const u = await ufcFind(name); const l = u ? parseUfcFighter(await getText(u)) : []; if (l.length) logs[name] = l; else noteErr("UFC Stats", "no results"); }
+    catch (e) { noteErr("UFC Stats", e); }
+    setStatus(`Fight histories ${++done} from UFC Stats…`, 0.82);
   });
   HIST.mma = {}; for (const nm of players) HIST.mma[nm] = logs[nm] || [];
   for (const p of picks) {
@@ -1938,8 +1945,8 @@ async function analyzeUFC(picks){
     }
     (p.extraRisk ||= []).push("One punch or submission can end a fight early and sink every stat");
   }
-  const miss = players.filter(nm => !(logs[nm] || []).length).length, why = errSummary("UFC Stats");
-  return {note: miss ? ` · ${players.length - miss} of ${players.length} fighters have UFC fight stats${why ? " (UFC Stats: " + why + ")" : ""}; the rest are rated from the lines` : ""};
+  const miss = players.filter(nm => !(logs[nm] || []).length).length, why = errSummary("ESPN UFC stats") || errSummary("ESPN UFC");
+  return {note: miss ? ` · ${players.length - miss} of ${players.length} fighters have UFC fight stats${why ? " (" + why + ")" : ""}; the rest are rated from the lines` : ""};
 }
 
 // ---------- GOLF: ESPN leaderboards (every round of the last ~10 events on each tour)
@@ -2018,14 +2025,16 @@ async function analyzeSoccer(picks){
   const first = {}; for (const p of picks) if (!first[p.player] || (p.start && p.start < first[p.player])) first[p.player] = p.start || "9";
   const players = Object.keys(first).sort((a, b) => first[a] < first[b] ? -1 : 1), cap = players.slice(0, 90), logs = {};
   let done = 0;
-  await pool(cap, 3, async name => {
+  const E = await espnSoccer(picks);
+  for (const name of players) logs[name] = findByName(E, name);
+  if (!Object.keys(E).length) await pool(cap, 3, async name => {   // backup: Sofascore
     try { logs[name] = await soccerPlayer(name); } catch (e) { noteErr("Sofascore", e); logs[name] = null; }
-    setStatus(`Match stats ${++done}/${cap.length} from Sofascore (saved after the first time)…`, 0.08 + 0.75 * done / cap.length);
+    setStatus(`Match stats ${++done}/${cap.length} from Sofascore…`, 0.08 + 0.75 * done / cap.length);
   });
   HIST.soccer = {}; for (const nm of players) HIST.soccer[nm] = logs[nm] || [];
   for (const p of picks) scoreSeries(p, logs[p.player], 0.9, "matches");
-  const have = players.filter(nm => (logs[nm] || []).length).length, why = errSummary("Sofascore");
-  return {note: have < players.length ? ` · ${have} of ${players.length} players have match stats${why ? " (Sofascore: " + why + ")" : ""}; the rest are rated from the lines` : ""};
+  const have = players.filter(nm => (logs[nm] || []).length).length, why = errSummary("ESPN soccer") || errSummary("Sofascore");
+  return {note: have < players.length ? ` · ${have} of ${players.length} players have match stats${why ? " (" + why + ")" : ""}; the rest are rated from the lines` : ""};
 }
 
 // ---------- NHL extras from NHL.com: hits, blocked shots and faceoffs (ESPN's game logs don't have them)
@@ -2049,6 +2058,133 @@ async function nhlExtras(picks, logs){
     } catch (e) { noteErr("NHL.com stats", e); }
     setStatus(`Hits, blocks and faceoffs from NHL.com ${++done}/${names.length}…`, 0.82);
   });
+}
+
+// ---------- ESPN backups for tennis, soccer and the UFC (Sofascore and UFC Stats block automated visits)
+const ymd = d => d.toISOString().slice(0, 10).replace(/-/g, "");
+const daysBack = (n, step) => Array.from({length: Math.floor(n / step) + 1}, (_, i) => ymd(new Date(Date.now() - i * step * 86400e3)));
+// TENNIS: a day's scoreboard holds every match of each tournament being played that day
+let ESPN_TENNIS = null;
+async function espnTennis(){
+  return ESPN_TENNIS ||= (async () => {
+    const by = {}, next = {}, seen = new Set(), dates = daysBack(84, 4);
+    let done = 0;
+    for (const tour of ["atp", "wta"]) {
+      await pool(dates, 4, async d => {
+        let js; try { js = await getJSON(`https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/scoreboard?dates=${d}`); } catch (e) { noteErr("ESPN tennis", e); return; }
+        setStatus(`Tennis results from ESPN ${++done}/${dates.length * 2}…`, 0.05 + 0.5 * done / (dates.length * 2));
+        for (const ev of js.events || []) for (const g of ev.groupings || []) {
+          if (!/singles/i.test(g.grouping?.slug || g.grouping?.displayName || "")) continue;
+          const slam = /australian open|roland|french open|wimbledon|us open/i.test(ev.name || "") && /men'?s singles/i.test(g.grouping?.displayName || "") && !/women/i.test(g.grouping?.displayName || "");
+          for (const c of g.competitions || []) {
+            const [a, b] = c.competitors || []; if (!a || !b) continue;
+            const na = a.athlete?.displayName, nb = b.athlete?.displayName; if (!na || !nb || /tbd/i.test(na + nb)) continue;
+            const st = c.status?.type || {};
+            if (!st.completed && !/final|retired/i.test(st.description || "")) {   // upcoming: who he plays next
+              if (/scheduled/i.test(st.description || st.name || "") || st.state === "pre")
+                for (const [me, op] of [[a, b], [b, a]]) next[norm(me.athlete.displayName)] ||= {opp: op.athlete.displayName, myRank: me.curatedRank?.current || null, oppRank: op.curatedRank?.current || null, bo: slam ? 5 : 3, surface: "", event: ev.name || ""};
+              continue;
+            }
+            if (seen.has(c.id)) continue; seen.add(c.id);
+            for (const [me, op] of [[a, b], [b, a]]) {
+              const ml = me.linescores || [], ol = op.linescores || [];
+              let GW = 0, GL = 0, SW = 0, SL = 0, TB = 0, SETS = 0, S1W = null, S1T = null;
+              for (let i = 0; i < Math.min(ml.length, ol.length); i++) {
+                const x = toNum(ml[i].value), y = toNum(ol[i].value); if (x == null || y == null) break;
+                SETS++; GW += x; GL += y; if (x > y) SW++; else if (y > x) SL++;
+                if ((x === 7 && y === 6) || (x === 6 && y === 7) || ml[i].tiebreak != null) TB++;
+                if (i === 0) { S1W = x; S1T = x + y; }
+              }
+              if (!SETS || GW + GL < 6) continue;
+              const date = c.date || ev.date || "";
+              (by[norm(me.athlete.displayName)] ||= []).push({id: c.id, date, year: new Date(date).getFullYear(), GW, GL, SW, SL, TB, SETS, S1W, S1T,
+                won: me.winner != null ? !!me.winner : SW > SL, home: true, bo: slam ? 5 : 3, surface: "", opp: op.athlete.displayName, oppRank: op.curatedRank?.current || null, ACE: null, DF: null, BPW: null});
+            }
+          }
+        }
+      });
+    }
+    for (const k in by) by[k].sort((x, y) => (y.date > x.date ? 1 : -1));
+    return {by, next};
+  })();
+}
+const findByName = (by, name) => { const n = norm(name); if (by[n]) return by[n]; const parts = n.split(" "), last = parts.pop(); const k = Object.keys(by).find(x => x.endsWith(" " + last) && x[0] === n[0]); return k ? by[k] : null; };
+
+// SOCCER: ESPN match summaries (shots, shots on target, saves, goals, assists, fouls for every player who played)
+const SOCCER_LEAGUES = ["eng.1", "esp.1", "ita.1", "ger.1", "fra.1", "usa.1", "uefa.champions", "uefa.europa", "mex.1", "ned.1", "por.1", "eng.2", "bra.1", "arg.1", "sau.1"];
+async function espnSoccer(picks){
+  const want = new Set(picks.flatMap(p => [p.team, p.opp]).filter(Boolean).map(x => String(x).toUpperCase()));
+  const months = [0, 1, 2].map(k => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - k); return d.toISOString().slice(0, 7).replace("-", ""); });
+  const evs = []; let done = 0;
+  await pool(SOCCER_LEAGUES.flatMap(l => months.map(m => [l, m])), 4, async ([lg, m]) => {
+    try {
+      const js = await getJSON(`https://site.api.espn.com/apis/site/v2/sports/soccer/${lg}/scoreboard?dates=${m}`);
+      for (const ev of js.events || []) {
+        const c = ev.competitions?.[0]; if (!c || !c.status?.type?.completed) continue;
+        const teams = (c.competitors || []).map(t => t.team || {});
+        if (want.size && !teams.some(t => want.has(String(t.abbreviation || "").toUpperCase()) || [...want].some(w => w.length > 3 && norm(t.displayName || "").includes(norm(w))))) continue;
+        evs.push({lg, id: ev.id, date: ev.date, teams});
+      }
+    } catch (e) { noteErr("ESPN soccer", e); }
+    setStatus(`Soccer schedules from ESPN ${++done}/${SOCCER_LEAGUES.length * 3}…`, 0.05 + 0.25 * done / (SOCCER_LEAGUES.length * 3));
+  });
+  const by = {}; done = 0;
+  const recent = evs.sort((a, b) => (b.date > a.date ? 1 : -1)).slice(0, 220);
+  await pool(recent, 4, async e => {
+    try {
+      const js = await getJSON(`https://site.api.espn.com/apis/site/v2/sports/soccer/${e.lg}/summary?event=${e.id}`);
+      for (const side of js.rosters || []) {
+        const myAb = side.team?.abbreviation || "", opp = e.teams.find(t => t.abbreviation !== myAb) || {};
+        for (const pl of side.roster || []) {
+          const nm = pl.athlete?.displayName; if (!nm) continue;
+          const s = {}; for (const x of pl.stats || []) s[x.name || x.abbreviation] = toNum(x.value ?? x.displayValue);
+          if (!pl.starter && !(s.subIns > 0) && !s.appearances) continue;   // didn't play
+          (by[norm(nm)] ||= []).push({date: e.date, opp: opp.abbreviation || opp.displayName || "", home: side.homeAway !== "away", MIN: pl.starter ? 90 : 25, starter: !!pl.starter,
+            SH: s.totalShots ?? null, SOT: s.shotsOnTarget ?? null, SV: s.saves ?? null, G: s.totalGoals ?? null, A: s.goalAssists ?? null, FL: s.foulsCommitted ?? null, GC: s.goalsConceded ?? null,
+            PA: s.totalPasses ?? s.passes ?? null, TK: s.totalTackles ?? s.tackles ?? null, CLR: s.totalClearance ?? s.clearances ?? null, CR: s.totalCrosses ?? null, KP: null, DRB: null});
+        }
+      }
+    } catch (er) { noteErr("ESPN soccer", er); }
+    setStatus(`Soccer match stats from ESPN ${++done}/${recent.length}…`, 0.3 + 0.5 * done / Math.max(1, recent.length));
+  });
+  for (const k in by) { by[k].sort((a, b) => (b.date > a.date ? 1 : -1)); const st = by[k].filter(r => r.starter); if (st.length >= 4) by[k] = st; }
+  return by;
+}
+
+// UFC: ESPN fight cards, then each fighter's numbers for each fight
+async function espnUFC(picks){
+  const want = new Set(picks.map(p => norm(p.player)));
+  const months = Array.from({length: 30}, (_, k) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - k); return d.toISOString().slice(0, 7).replace("-", ""); });
+  const fights = []; let done = 0;
+  await pool(months, 4, async m => {
+    try {
+      const js = await getJSON(`https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=${m}`);
+      for (const ev of js.events || []) for (const c of ev.competitions || []) {
+        if (!c.status?.type?.completed) continue;
+        for (const me of c.competitors || []) {
+          const nm = me.athlete?.displayName; if (!nm || !want.has(norm(nm))) continue;
+          const op = (c.competitors || []).find(x => x !== me);
+          fights.push({nm, ev: ev.id, comp: c.id, aid: me.athlete?.id || me.id, date: c.date || ev.date, opp: op?.athlete?.displayName || "", won: !!me.winner,
+            rnd: toNum(c.status?.period), clock: toNum(c.status?.displayClock)});
+        }
+      }
+    } catch (e) { noteErr("ESPN UFC", e); }
+    setStatus(`UFC fight cards from ESPN ${++done}/${months.length}…`, 0.05 + 0.35 * done / months.length);
+  });
+  const by = {}; done = 0;
+  await pool(fights, 4, async f => {
+    const row = {date: f.date, opp: f.opp, home: true, won: f.won, FT: f.rnd != null && f.clock != null ? +((f.rnd - 1) * 5 + f.clock).toFixed(2) : null, SS: null, TD: null, KD: null, SUB: null};
+    try {
+      const js = await getJSON(`https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/events/${f.ev}/competitions/${f.comp}/competitors/${f.aid}/statistics`);
+      const st = (js.splits?.categories || []).flatMap(c => c.stats || []), get = re => { const x = st.find(s => re.test(s.name || "") || re.test(s.displayName || "")); return x ? toNum(x.value ?? x.displayValue) : null; };
+      row.SS = get(/^sig(nificant)?[ _]?strikes?[ _]?landed$|sigStrikesLanded/i); row.TD = get(/^takedowns?[ _]?landed$|takedownsLanded/i); row.KD = get(/knock ?downs?/i); row.SUB = get(/submission/i);
+      if (row.FT == null) { const t = get(/time ?of ?fight|fightTime/i); if (t != null) row.FT = t > 30 ? +(t / 60).toFixed(2) : t; }
+    } catch (e) { noteErr("ESPN UFC stats", e); }
+    (by[norm(f.nm)] ||= []).push(row);
+    setStatus(`Fight stats from ESPN ${++done}/${fights.length}…`, 0.4 + 0.4 * done / Math.max(1, fights.length));
+  });
+  for (const k in by) by[k].sort((a, b) => (b.date > a.date ? 1 : -1));
+  return by;
 }
 
 // ---------- shared ratings: the finished work is saved (on this device and on the website) so the app opens instantly
@@ -2188,8 +2324,10 @@ async function sofaStats(row){
   } catch (e) { noteErr("Sofascore match stats", e); }
 }
 async function tennisPlayer(name, needStats){
+  const E = await espnTennis(), er = findByName(E.by, name) || [];
+  if (er.length >= 5 || ERRS["Sofascore"]) return er.length ? {id: null, rows: er, next: E.next[norm(name)] || null} : null;
   const id = await sofaFind(name);
-  if (!id) return null;
+  if (!id) return er.length ? {id: null, rows: er, next: E.next[norm(name)] || null} : null;
   const evs = [];
   for (const pg of [0, 1, 2]) {   // ~90 most recent matches (usually 2-3 seasons)
     try { const js = await sofa(`/team/${id}/events/last/${pg}`); evs.push(...(js.events || [])); if (!js.hasNextPage) break; }
@@ -2277,7 +2415,7 @@ async function analyzeTennis(picks){
   }
   const miss = players.filter(nm => !info[nm] || !info[nm].rows.length).length;
   let note = "";
-  if (miss) note = ` · ⚠ no match history for ${miss}/${players.length} players${errSummary("Sofascore") ? ` (Sofascore: ${errSummary("Sofascore")})` : ""}. Tap “Having trouble?” at the bottom`;
+  if (miss) note = ` · no match history for ${miss}/${players.length} players${errSummary("ESPN tennis") ? ` (ESPN: ${errSummary("ESPN tennis")})` : ""}; aces and double faults are rated from the lines`;
   return {note, booksUsed: false};
 }
 
@@ -2465,7 +2603,7 @@ async function dataCheck(){
     ["ESPN NFL game log (last season)", `${NFL_LOG}/3139477/gamelog?season=${nflSeasons()[1]}`, js => `${parseNflGamelog(js).length} games, ${parseNflGamelog(js).reduce((s, g) => s + g.passYds, 0)} pass yds`],
     ["ESPN college teams (FBS)", `${CFB_BASE}/teams?groups=80&limit=1000`, js => `${(js.sports?.[0]?.leagues?.[0]?.teams || []).length} teams`],
     ["ESPN college roster (Texas)", `${CFB_BASE}/teams/251/roster`, js => { let a = js.athletes || []; if (a[0]?.items) a = a.flatMap(g => g.items); return `${a.length} players`; }],
-    ["ESPN player search (backup only)", `${ESPN_SEARCH}?query=Arch%20Manning&limit=10&mode=prefix&lang=en&region=us`, js => { const n = (JSON.stringify(js).match(/~l:23~a:\d+/g) || []).length; return n ? `${n} college matches` : "0 matches (fine) · sample: " + JSON.stringify(js).slice(0, 160); }],
+    ["ESPN player search (backup only)", `${ESPN_SEARCH}?query=Arch%20Manning&limit=10&mode=prefix&lang=en&region=us`, js => { const n = (JSON.stringify(js).match(/~l:23~a:\d+/g) || []).length; return n ? `${n} college matches` : "no matches, fine (backup only) · sample: " + JSON.stringify(js).slice(0, 160); }],
     ["Sofascore player search (tennis, www)", `${SOFA_BASES[0]}/search/all?q=Sinner&page=0`, js => `${(js.results || []).length} results`],
     ["Sofascore match history (tennis, www)", `${SOFA_BASES[0]}/team/206570/events/last/0`, js => `${(js.events || []).length} matches`],
     ["Sofascore player search (tennis, backup)", `${SOFA_BASES[1]}/search/all?q=Sinner&page=0`, js => `${(js.results || []).length} results`],
@@ -2473,11 +2611,23 @@ async function dataCheck(){
     ["NHL.com hits/blocks", `https://api.nhle.com/stats/rest/en/skater/realtime?isAggregate=false&isGame=true&limit=5&cayenneExp=${encodeURIComponent('gameTypeId=2 and skaterFullName="Connor McDavid"')}`, js => `${(js.data || []).length} games, hits field ${js.data?.[0] && "hits" in js.data[0] ? "present" : "missing"}`],
     ["ESPN golf leaderboard", "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard", js => `${(js.events || []).length} events, ${(js.leagues?.[0]?.calendar || []).length} on calendar, round scores ${js.events?.[0]?.competitions?.[0]?.competitors?.[0]?.linescores?.length ?? 0}`],
     ["Sofascore player search (soccer)", `${SOFA_BASES[0]}/search/all?q=Haaland&page=0`, js => `${(js.results || []).filter(r => r.type === "player").length} players`],
+    ["ESPN tennis (ATP, a recent day)", `https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=${ymd(new Date(Date.now() - 3 * 864e5))}`, js => { const cs = (js.events || []).flatMap(e => (e.groupings || []).filter(g => /singles/i.test(g.grouping?.slug || "")).flatMap(g => g.competitions || [])); const done = cs.filter(c => c.status?.type?.completed); return `${cs.length} singles matches, ${done.length} finished · sample: ${JSON.stringify(done[0]?.competitors?.[0]?.linescores || []).slice(0, 80)} winner=${done[0]?.competitors?.[0]?.winner}`; }],
+    ["ESPN soccer (Premier League, this month)", `https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard?dates=${new Date().toISOString().slice(0, 7).replace("-", "")}`, js => `${(js.events || []).length} matches, ${(js.events || []).filter(e => e.competitions?.[0]?.status?.type?.completed).length} finished, first id ${(js.events || []).find(e => e.competitions?.[0]?.status?.type?.completed)?.id}`],
+    ["ESPN soccer match stats", null, null, "soccer"],
+    ["ESPN UFC cards (last month)", `https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=${(() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7).replace("-", ""); })()}`, js => { const c = (js.events || []).flatMap(e => e.competitions || []); const f = c.find(x => x.status?.type?.completed); return `${(js.events || []).length} cards, ${c.length} fights · status sample: period=${f?.status?.period} clock=${f?.status?.displayClock} · ev=${(js.events || []).find(e => (e.competitions || []).includes(f))?.id} comp=${f?.id} ath=${f?.competitors?.[0]?.athlete?.id || f?.competitors?.[0]?.id}`; }],
+    ["ESPN UFC fight stats", null, null, "ufc"],
     ["Reddit (optional crowd buzz)", "https://www.reddit.com/r/PrizePicks/new.json?limit=5", js => `${js.data?.children?.length || 0} posts`],
   ];
   if (key) tests.push(["Odds API key", `https://api.the-odds-api.com/v4/sports?apiKey=${encodeURIComponent(key)}`, (js, r) => `key OK, ${r.headers.get("x-requests-remaining") ?? "?"} credits left`]);
   const rows = [];
-  for (const [name, u, f, isText] of tests) {
+  const prev = {};
+  for (let [name, u, f, isText] of tests) {
+    if (isText === "soccer") { const id = (prev["ESPN soccer (Premier League, this month)"] || "").match(/first id (\d+)/)?.[1]; if (!id) { rows.push([name, false, "no finished match to test", 0]); continue; }
+      u = `https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=${id}`; isText = false;
+      f = js => { const pl = (js.rosters || []).flatMap(r => r.roster || []), s = pl.find(x => x.starter)?.stats || []; return `${pl.length} players · stat names: ${s.map(x => x.name).join(",").slice(0, 300)}`; }; }
+    if (isText === "ufc") { const m = (prev["ESPN UFC cards (last month)"] || "").match(/ev=(\d+) comp=(\d+) ath=(\d+)/); if (!m) { rows.push([name, false, "no finished fight to test", 0]); continue; }
+      u = `https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/events/${m[1]}/competitions/${m[2]}/competitors/${m[3]}/statistics`; isText = false;
+      f = js => { const st = (js.splits?.categories || []).flatMap(c => c.stats || []); return `${st.length} stats · ${st.map(x => x.name + "=" + x.value).join(",").slice(0, 400)}`; }; }
     const t0 = performance.now();
     try {
       const r = await rawFetch((u)), txt = await r.text();
@@ -2486,7 +2636,7 @@ async function dataCheck(){
       if (isText) { rows.push([name, r.ok && !/^0 /.test(f(txt)), r.ok ? f(txt) : `HTTP ${r.status}`, ms]); out.innerHTML = `<p class="note">Checked ${rows.length}/${tests.length}…</p>`; continue; }
       if (!r.ok) rows.push([name, false, `HTTP ${r.status} ${(js?.message || txt).slice(0, 120)}`, ms]);
       else if (!js) rows.push([name, false, `not JSON: ${txt.slice(0, 120)}`, ms]);
-      else { let d; try { d = f(js, r); } catch (e) { d = "unexpected format: " + JSON.stringify(js).slice(0, 160); } rows.push([name, !/^0 |unexpected/.test(d), d, ms]); }
+      else { let d; try { d = f(js, r); } catch (e) { d = "unexpected format: " + JSON.stringify(js).slice(0, 160); } prev[name] = d; rows.push([name, !/^0 |unexpected/.test(d), d, ms]); }
     } catch (e) { rows.push([name, false, e.message, 0]); }
     out.innerHTML = `<p class="note">Checked ${rows.length}/${tests.length}…</p>`;
   }
