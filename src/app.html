@@ -323,13 +323,15 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
       <p><a id="scRun" class="bigbtn pri">Update lines with one tap</a></p>
       <details class="scsetup"><summary class="note">First time on this iPhone? Set up the free Shortcut (2 minutes, once)</summary>
         <ol class="steps">
-          <li>Open the <b>Shortcuts</b> app → <b>+</b> → name it <b>PickPrizer</b>.</li>
-          <li>Add <b>List</b>. Make the items: <code>7</code> <code>9</code> <code>15</code> <code>20</code> <code>8</code> <code>5</code> <code>82</code> <code>1</code> <code>12</code></li>
-          <li>Add <b>Repeat with Each</b> (it uses the List).</li>
-          <li>Inside it, add <b>Get Contents of URL</b>: <code class="sel">https://api.prizepicks.com/projections?per_page=1000&amp;single_stat=true&amp;league_id=</code> then tap after <code>=</code> and insert <b>Repeat Item</b>.</li>
-          <li>Below it, add another <b>Get Contents of URL</b>: <code class="sel" id="scPost"></code> then insert <b>Repeat Item</b> at the end. Tap <b>Show More</b> → Method <b>POST</b> → Request Body <b>File</b> → File: <b>Contents of URL</b>.</li>
-          <li>Done. Come back and tap <b>Update lines with one tap</b>.</li>
+          <li>Open the <b>Shortcuts</b> app → <b>+</b> → name it <b>PickPrizer</b>. (Already made one? Delete it and start fresh.)</li>
+          <li>Add <b>Get Contents of URL</b>. Tap the URL and paste: <code class="sel" id="scList"></code></li>
+          <li>Add <b>Split Text</b>. Set it to split by <b>New Lines</b>.</li>
+          <li>Add <b>Repeat with Each</b>.</li>
+          <li>Inside the repeat, add <b>Get Contents of URL</b>. Leave its URL as <b>Repeat Item</b>.</li>
+          <li>Below it (still inside), add another <b>Get Contents of URL</b>. Tap its URL, delete what's there, and paste: <code class="sel" id="scPost"></code> Then tap <b>Show More</b> → Method <b>POST</b> → Request Body <b>File</b> → File: <b>Contents of URL</b>.</li>
+          <li>Done. Come back here and tap <b>Update lines with one tap</b>.</li>
         </ol>
+        <p class="note">Tap a gray link to copy it.</p>
         <p class="note">Want it hands-free? Shortcuts → Automation → <b>+</b> → Time of Day (make a few: noon, 4 PM, 7 PM) → Run Immediately → PickPrizer. Then the lines stay fresh for everyone without anyone tapping.</p>
       </details>
     </div>
@@ -2654,7 +2656,8 @@ const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform 
 if (IS_WEB && IOS) {
   $("#scBox").classList.remove("hide");
   $("#scRun").href = `shortcuts://x-callback-url/run-shortcut?name=PickPrizer&x-success=${encodeURIComponent(location.origin + "/?fresh=1")}`;
-  $("#scPost").textContent = location.origin + "/board/";
+  $("#scPost").textContent = location.origin + "/board"; $("#scList").textContent = location.origin + "/sc";
+  document.querySelectorAll("#pastePanel code.sel").forEach(c => c.onclick = async () => { try { await navigator.clipboard.writeText(c.textContent); const t = c.textContent; c.textContent = "Copied ✓"; setTimeout(() => c.textContent = t, 1200); } catch {} });
 } else $("#copyWay").open = true;
 drawSportTabs(); showSport();
 goTab("home");

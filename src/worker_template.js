@@ -79,7 +79,16 @@ async function kvPut(env, ctx, k, text, ttlSec) {
   ctx.waitUntil(caches.default.put(new Request("https://cache.pickprizer/" + k), new Response(text, { headers: { "content-type": "application/json", "x-t": String(t), "cache-control": "public, max-age=" + ttlSec } })));
 }
 const stored = (o) => new Response(o.text, { headers: { "content-type": "application/json", "cache-control": "no-store", "x-age": String(Math.round((Date.now() - o.t) / 1000)), "access-control-expose-headers": "x-age" } });
+// The list of PrizePicks links the iPhone Shortcut loads (one per line), so nobody has to type them.
+const SC_LEAGUES = [7, 9, 15, 20, 8, 5, 82, 1, 12, 2, 3];
+const scList = () => new Response(SC_LEAGUES.map(l => `https://api.prizepicks.com/projections?per_page=1000&single_stat=true&league_id=${l}`).join("\n"), { headers: { "content-type": "text/plain", "cache-control": "no-store" } });
 async function board(req, env, ctx, league) {
+  if (!league) {   // the Shortcut posts every board to /board: read which league it is from the board itself
+    if (req.method !== "POST") return json({ message: "method" }, 405);
+    const text = await req.text(), m = text.match(/"league"\s*:\s*\{\s*"data"\s*:\s*\{[^}]*"id"\s*:\s*"?(\d{1,4})/);
+    if (!m) return json({ message: "empty or not a PrizePicks board" }, 200);
+    return board(new Request(req.url, { method: "POST", body: text }), env, ctx, m[1]);
+  }
   const k = "board/" + league;
   if (req.method === "GET") { const o = await kvGet(env, k); return o ? stored(o) : json({ message: "no shared board" }, 404); }
   if (req.method !== "POST") return json({ message: "method" }, 405);
@@ -113,8 +122,9 @@ export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
     if (url.pathname === "/p") return proxy(req, ctx);
-    const bm = url.pathname.match(/^\/board\/(\d{1,4})$/);
+    const bm = url.pathname.match(/^\/board(?:\/(\d{1,4}))?\/?$/);
     if (bm) return board(req, env, ctx, bm[1]);
+    if (url.pathname === "/sc") return scList();
     const rm = url.pathname.match(/^\/rated\/([a-z]{2,8})$/);
     if (rm) return rated(req, env, ctx, rm[1]);
     if (url.pathname === "/manifest.json") return new Response(MANIFEST, { headers: { "content-type": "application/manifest+json" } });
