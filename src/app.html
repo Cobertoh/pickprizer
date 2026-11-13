@@ -394,6 +394,7 @@ body.isbusy #runBtn .rp{display:inline-flex}
       <select id="typeSel"><option value="">All types</option><option value="standard">Standard</option><option value="goblin">Goblins</option><option value="demon">Demons</option></select>
       <select id="gameSel"><option value="">All games</option></select>
       <select id="statSel"><option value="">All stats</option></select>
+      <select id="sortSel"><option value="">Sort: best chance</option><option value="proj">Sort: highest projected</option><option value="edge">Sort: biggest edge vs line</option><option value="line">Sort: highest line</option><option value="picked">Sort: most picked</option></select>
       <select id="confSel"><option value="">Any rating</option><option value="g">🟢 Strong only</option><option value="gy">🟢 + 🟡</option></select>
       <input type="text" id="playerQ" list="playerList" placeholder="🔎 Type a player's name…" autocomplete="off" style="flex:1;min-width:180px"><datalist id="playerList"></datalist>
     </div>
@@ -1599,10 +1600,14 @@ function render(){
   const ok = p => (!t || p.type === t) && (!g || gameOf(p) === g) && (!s || p.stat === s) && (!q || norm(p.player).includes(q)) &&
     (!cf || (cf === "g" ? vc(p) === "g" : vc(p) === "g" || vc(p) === "y"));
   const pb = p => (p.best === "More" ? p.pMore : p.pLess) ?? -1;
-  const list = ALL.filter(ok), by = (a, b) => pb(b) - pb(a);
+  const so = $("#sortSel").value;
+  const edge = p => p.proj == null || !p.line ? -1e9 : (p.best === "Less" ? p.line - p.proj : p.proj - p.line) / Math.max(1, p.line);
+  const key = so === "proj" ? (p => p.proj ?? -1e9) : so === "edge" ? edge : so === "line" ? (p => p.line ?? -1e9) : so === "picked" ? (p => p.trending ?? -1) : pb;
+  const list = ALL.filter(ok), by = (a, b) => key(b) - key(a) || pb(b) - pb(a);
+  const sortTxt = {proj: "highest projected first", edge: "biggest edge first", line: "highest line first", picked: "most picked first"}[so] || "highest chance first";
   let h = "";
   if (!g) {
-    $("#out").innerHTML = list.length ? `<h2>All games <small>${list.length} picks · highest chance first</small></h2>` +
+    $("#out").innerHTML = list.length ? `<h2>All games <small>${list.length} picks · ${sortTxt}</small></h2>` +
       list.sort(by).slice(0, 300).map((p, i) => card(p, i + 1)).join("") : `<p class="note">No picks match these filters.</p>`;
     return;
   }
@@ -1614,7 +1619,7 @@ function render(){
   }
   $("#out").innerHTML = h || `<p class="note">No picks match these filters.</p>`;
 }
-for (const id of ["#typeSel", "#gameSel", "#statSel", "#confSel"]) $(id).onchange = render;
+for (const id of ["#typeSel", "#gameSel", "#statSel", "#confSel", "#sortSel"]) $(id).onchange = render;
 $("#playerQ").oninput = render;
 
 // ---------- NFL (ESPN game logs)
