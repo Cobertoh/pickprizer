@@ -394,7 +394,7 @@ body.isbusy #runBtn .rp{display:inline-flex}
       <select id="typeSel"><option value="">All types</option><option value="standard">Standard</option><option value="goblin">Goblins</option><option value="demon">Demons</option></select>
       <select id="gameSel"><option value="">All games</option></select>
       <select id="statSel"><option value="">All stats</option></select>
-      <select id="sortSel"><option value="">Sort: best chance</option><option value="proj">Sort: highest projected</option><option value="edge">Sort: biggest edge vs line</option><option value="line">Sort: highest line</option><option value="picked">Sort: most picked</option></select>
+      <select id="sortSel"><option value="">Sort: best chance</option><option value="proj">Sort: highest projected</option><option value="edge">Sort: biggest edge (%)</option><option value="picked">Sort: most picked</option></select>
       <select id="confSel"><option value="">Any rating</option><option value="g">🟢 Strong only</option><option value="gy">🟢 + 🟡</option></select>
       <input type="text" id="playerQ" list="playerList" placeholder="🔎 Type a player's name…" autocomplete="off" style="flex:1;min-width:180px"><datalist id="playerList"></datalist>
     </div>
@@ -1581,7 +1581,8 @@ function card(p, i){
   const side = p.best, prob = side === "More" ? p.pMore : p.pLess, h = p.hits ? p.hits(side) : {};
   const c = prob >= 0.6 ? "var(--good)" : prob >= 0.45 ? "var(--mid)" : "var(--bad)";
   const m = side === "More" ? p.mMore : p.mLess, s = side === "More" ? p.sMore : p.sLess;
-  const chips = [p.proj != null ? `Usually around ${p.proj}` : null, h.l5 ? `Last 5: ${h.l5}` : null, h.l10 ? `Last 10: ${h.l10}` : null,
+  const gp = gapOf(p);
+  const chips = [p.proj != null ? `Projected ${p.proj}${gp ? ` (${gp > 0 ? "+" : ""}${gp} vs line)` : ""}` : null, h.l5 ? `Last 5: ${h.l5}` : null, h.l10 ? `Last 10: ${h.l10}` : null,
     p.vsN >= 3 ? `vs ${p.opp} ${Math.round((side === "More" ? p.vsMore : p.vsLess) * p.vsN)}/${p.vsN}` : null,
     pickedTxt(p)].filter(Boolean).map(t => `<span class="chip">${esc(t)}</span>`);
   if (p.buzz) chips.push(`<span class="chip ${p.buzzSent > 0.2 ? "up" : p.buzzSent < -0.2 ? "dn" : ""}">Reddit ${p.buzz}${p.buzzSent > 0.2 ? " ▲" : p.buzzSent < -0.2 ? " ▼" : ""}</span>`);
@@ -1594,6 +1595,8 @@ function card(p, i){
     ${p.lineOnly ? `<div class="note">Rated from PrizePicks' lines and the community (no game stats for this pick)</div>` : p.games < 3 ? `<div class="note">${p.found === false ? (p.sport === "tennis" ? "player not found on Sofascore" : "player not found on ESPN or NBA.com") : p.games ? `too few ${p.unit || "games"} to rate` : "no stats loaded (tap “Having trouble?” at the bottom)"}</div>` : ""}</div>
     <div class="pct" style="color:${prob != null ? c : "var(--mut)"}">${pct(prob)}<small>${side.toLowerCase()}</small></div></div>`;
 }
+// how far our projection is from the line, in the direction we recommend (e.g. +6.2 means 6.2 better than the line)
+const gapOf = p => p.proj == null || p.line == null ? null : +((p.best === "Less" ? p.line - p.proj : p.proj - p.line)).toFixed(1);
 function render(){
   const t = $("#typeSel").value, g = $("#gameSel").value, s = $("#statSel").value, cf = $("#confSel").value;
   const q = norm($("#playerQ").value), vc = p => p.verdict ? p.verdict.c : "n";
@@ -1601,10 +1604,9 @@ function render(){
     (!cf || (cf === "g" ? vc(p) === "g" : vc(p) === "g" || vc(p) === "y"));
   const pb = p => (p.best === "More" ? p.pMore : p.pLess) ?? -1;
   const so = $("#sortSel").value;
-  const edge = p => p.proj == null || !p.line ? -1e9 : (p.best === "Less" ? p.line - p.proj : p.proj - p.line) / Math.max(1, p.line);
-  const key = so === "proj" ? (p => p.proj ?? -1e9) : so === "edge" ? edge : so === "line" ? (p => p.line ?? -1e9) : so === "picked" ? (p => p.trending ?? -1) : pb;
+  const key = so === "proj" ? (p => gapOf(p) ?? -1e9) : so === "edge" ? (p => gapOf(p) == null ? -1e9 : gapOf(p) / Math.max(1, p.line)) : so === "picked" ? (p => p.trending ?? -1) : pb;
   const list = ALL.filter(ok), by = (a, b) => key(b) - key(a) || pb(b) - pb(a);
-  const sortTxt = {proj: "highest projected first", edge: "biggest edge first", line: "highest line first", picked: "most picked first"}[so] || "highest chance first";
+  const sortTxt = {proj: "biggest gap between projection and line first", edge: "biggest gap as a % of the line first", picked: "most picked first"}[so] || "highest chance first";
   let h = "";
   if (!g) {
     $("#out").innerHTML = list.length ? `<h2>All games <small>${list.length} picks · ${sortTxt}</small></h2>` +
