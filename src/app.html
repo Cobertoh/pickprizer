@@ -1879,7 +1879,7 @@ async function analyzeLineOnly(picks, sport){
 
 // ---------- stat names for soccer, golf and MMA (PrizePicks words them a few different ways)
 const RXSTATS = {
-  mma: [[/signif/i, g => g.SS], [/takedown/i, g => g.TD], [/fight time|time \(min/i, g => g.FT], [/knockdown/i, g => g.KD], [/sub(mission)?s? ?att/i, g => g.SUB]],
+  mma: [[/signif/i, g => g.SS], [/total strikes|^strikes landed/i, g => g.TS], [/takedown/i, g => g.TD], [/fight time|time \(min/i, g => g.FT], [/knockdown/i, g => g.KD], [/sub(mission)?s? ?att/i, g => g.SUB]],
   golf: [[/birdie/i, g => g.BIRD], [/bogey/i, g => g.BOG], [/^pars?$/i, g => g.PAR], [/strokes|round score/i, g => g.ST]],
   soccer: [[/shots on (target|goal)/i, g => g.SOT], [/^shots( attempted)?$/i, g => g.SH], [/pass(es)? attempted|^passes$/i, g => g.PA], [/goalie saves|^saves$/i, g => g.SV],
     [/tackles/i, g => g.TK], [/clearances/i, g => g.CLR], [/goals? ?\+ ?assists?/i, g => nn(g.G, g.A)], [/^goals?$/i, g => g.G], [/^assists?$/i, g => g.A],
@@ -2173,11 +2173,11 @@ async function espnUFC(picks){
   });
   const by = {}; done = 0;
   await pool(fights, 4, async f => {
-    const row = {date: f.date, opp: f.opp, home: true, won: f.won, FT: f.rnd != null && f.clock != null ? +((f.rnd - 1) * 5 + f.clock).toFixed(2) : null, SS: null, TD: null, KD: null, SUB: null};
+    const row = {date: f.date, opp: f.opp, home: true, won: f.won, FT: f.rnd != null && f.clock != null ? +((f.rnd - 1) * 5 + f.clock).toFixed(2) : null, TS: null, SS: null, TD: null, KD: null, SUB: null};
     try {
       const js = await getJSON(`https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/events/${f.ev}/competitions/${f.comp}/competitors/${f.aid}/statistics`);
       const st = (js.splits?.categories || []).flatMap(c => c.stats || []), get = re => { const x = st.find(s => re.test(s.name || "") || re.test(s.displayName || "")); return x ? toNum(x.value ?? x.displayValue) : null; };
-      row.SS = get(/^sig(nificant)?[ _]?strikes?[ _]?landed$|sigStrikesLanded/i); row.TD = get(/^takedowns?[ _]?landed$|takedownsLanded/i); row.KD = get(/knock ?downs?/i); row.SUB = get(/submission/i);
+      row.SS = get(/^sig(nificant)?[ _]?strikes?[ _]?landed$|sigStrikesLanded/i); row.TD = get(/^takedowns?[ _]?landed$|takedownsLanded/i); row.KD = get(/knock ?downs?/i); row.TS = get(/^totalStrikesLanded$/i); row.SUB = get(/submission/i);
       if (row.FT == null) { const t = get(/time ?of ?fight|fightTime/i); if (t != null) row.FT = t > 30 ? +(t / 60).toFixed(2) : t; }
     } catch (e) { noteErr("ESPN UFC stats", e); }
     (by[norm(f.nm)] ||= []).push(row);
@@ -2604,19 +2604,14 @@ async function dataCheck(){
     ["ESPN college teams (FBS)", `${CFB_BASE}/teams?groups=80&limit=1000`, js => `${(js.sports?.[0]?.leagues?.[0]?.teams || []).length} teams`],
     ["ESPN college roster (Texas)", `${CFB_BASE}/teams/251/roster`, js => { let a = js.athletes || []; if (a[0]?.items) a = a.flatMap(g => g.items); return `${a.length} players`; }],
     ["ESPN player search (backup only)", `${ESPN_SEARCH}?query=Arch%20Manning&limit=10&mode=prefix&lang=en&region=us`, js => { const n = (JSON.stringify(js).match(/~l:23~a:\d+/g) || []).length; return n ? `${n} college matches` : "no matches, fine (backup only) · sample: " + JSON.stringify(js).slice(0, 160); }],
-    ["Sofascore player search (tennis, www)", `${SOFA_BASES[0]}/search/all?q=Sinner&page=0`, js => `${(js.results || []).length} results`],
-    ["Sofascore match history (tennis, www)", `${SOFA_BASES[0]}/team/206570/events/last/0`, js => `${(js.events || []).length} matches`],
-    ["Sofascore player search (tennis, backup)", `${SOFA_BASES[1]}/search/all?q=Sinner&page=0`, js => `${(js.results || []).length} results`],
-    ["UFC Stats fighter search (MMA)", "http://ufcstats.com/statistics/fighters/search?query=adesanya", txt => { const n = (txt.match(/fighter-details/g) || []).length; return n ? `${n} fighter links` : `0 fighter links · got: ${txt.replace(/\s+/g, " ").slice(0, 200)}`; }, true],
     ["NHL.com hits/blocks", `https://api.nhle.com/stats/rest/en/skater/realtime?isAggregate=false&isGame=true&limit=5&cayenneExp=${encodeURIComponent('gameTypeId=2 and skaterFullName="Connor McDavid"')}`, js => `${(js.data || []).length} games, hits field ${js.data?.[0] && "hits" in js.data[0] ? "present" : "missing"}`],
     ["ESPN golf leaderboard", "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard", js => `${(js.events || []).length} events, ${(js.leagues?.[0]?.calendar || []).length} on calendar, round scores ${js.events?.[0]?.competitions?.[0]?.competitors?.[0]?.linescores?.length ?? 0}`],
-    ["Sofascore player search (soccer)", `${SOFA_BASES[0]}/search/all?q=Haaland&page=0`, js => `${(js.results || []).filter(r => r.type === "player").length} players`],
     ["ESPN tennis (ATP, a recent day)", `https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=${ymd(new Date(Date.now() - 3 * 864e5))}`, js => { const cs = (js.events || []).flatMap(e => (e.groupings || []).filter(g => /singles/i.test(g.grouping?.slug || "")).flatMap(g => g.competitions || [])); const done = cs.filter(c => c.status?.type?.completed); return `${cs.length} singles matches, ${done.length} finished · sample: ${JSON.stringify(done[0]?.competitors?.[0]?.linescores || []).slice(0, 80)} winner=${done[0]?.competitors?.[0]?.winner}`; }],
     ["ESPN soccer (Premier League, this month)", `https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard?dates=${new Date().toISOString().slice(0, 7).replace("-", "")}`, js => `${(js.events || []).length} matches, ${(js.events || []).filter(e => e.competitions?.[0]?.status?.type?.completed).length} finished, first id ${(js.events || []).find(e => e.competitions?.[0]?.status?.type?.completed)?.id}`],
     ["ESPN soccer match stats", null, null, "soccer"],
     ["ESPN UFC cards (last month)", `https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard?dates=${(() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return d.toISOString().slice(0, 7).replace("-", ""); })()}`, js => { const c = (js.events || []).flatMap(e => e.competitions || []); const f = c.find(x => x.status?.type?.completed); return `${(js.events || []).length} cards, ${c.length} fights · status sample: period=${f?.status?.period} clock=${f?.status?.displayClock} · ev=${(js.events || []).find(e => (e.competitions || []).includes(f))?.id} comp=${f?.id} ath=${f?.competitors?.[0]?.athlete?.id || f?.competitors?.[0]?.id}`; }],
     ["ESPN UFC fight stats", null, null, "ufc"],
-    ["Reddit (optional crowd buzz)", "https://www.reddit.com/r/PrizePicks/new.json?limit=5", js => `${js.data?.children?.length || 0} posts`],
+    ["Reddit (optional, often blocks; not needed)", "https://www.reddit.com/r/PrizePicks/new.json?limit=5", js => `${js.data?.children?.length || 0} posts`],
   ];
   if (key) tests.push(["Odds API key", `https://api.the-odds-api.com/v4/sports?apiKey=${encodeURIComponent(key)}`, (js, r) => `key OK, ${r.headers.get("x-requests-remaining") ?? "?"} credits left`]);
   const rows = [];
@@ -2641,6 +2636,7 @@ async function dataCheck(){
     out.innerHTML = `<p class="note">Checked ${rows.length}/${tests.length}…</p>`;
   }
   for (const r of rows) { try { const h = new URL(tests.find(t => t[0] === r[0])[1]).hostname; if (ROUTE[h]) r[2] += ` [${ROUTE[h] === "direct" ? "from your device" : "via server"}]`; } catch {} }
+  for (const r of rows) if (!r[1] && /^PrizePicks/.test(r[0]) && /403/.test(r[2])) { r[1] = true; r[2] = "blocked from our server, as expected; the iPhone Shortcut or pasting loads it"; }
   const report = "PickPrizer data check " + new Date().toISOString() + "\n" + rows.map(r => `${r[1] ? "OK  " : "FAIL"} ${r[0]}: ${r[2]} (${r[3]}ms)`).join("\n");
   out.innerHTML = `<table class="sumtab">${rows.map(r => `<tr><td>${r[1] ? "✅" : "❌"} ${esc(r[0])}</td><td class="note">${esc(r[2])}</td></tr>`).join("")}</table>
     <button type="button" id="copyDiag">Copy report</button> <span class="note">Paste this to Claude if something's failing.</span>`;
