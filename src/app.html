@@ -1264,7 +1264,24 @@ function finalize(picks){
 }
 
 // ---------- 6-pick coach
-const factorOf = type => type === "demon" ? +$("#demF").value || 1.6 : type === "goblin" ? +$("#gobF").value || 0.85 : 1;
+const factorOf = type => type === "demon" ? 1.25 : type === "goblin" ? 0.6 : 1;   // typical; legFactor prices each pick
+// PrizePicks prices each goblin/demon by how far its line is from the regular line: the further, the bigger the cut
+// (goblin) or boost (demon). Estimate PrizePicks' own chance for that line, then turn it into a payout factor.
+// PAYCAL lets the user correct it from what PrizePicks actually shows.
+let PAYCAL = +(localStorage.getItem("pp_paycal") || 1) || 1;
+const STDMAP = new WeakMap();
+function legFactor(p){
+  if (p.type === "standard") return 1;
+  const d = DATA[p.sport]; let m = d && STDMAP.get(d);
+  if (d && !m) { m = {}; for (const q of d.picks) if (q.type === "standard") m[q.player + "|" + q.stat] = q; STDMAP.set(d, m); }
+  const std = m && m[p.player + "|" + p.stat];
+  let f;
+  if (std && std.line != null && p.line != null) {
+    const sd = Math.max(0.8, std.sd || 0.28 * std.line), q = clip(phi((std.line - p.line) / sd), 0.03, 0.97);
+    f = p.type === "goblin" ? clip(Math.pow(0.5 / q, 1.15), 0.3, 0.95) : clip(Math.pow(0.5 / q, 0.55), 1.05, 2.2);
+  } else f = factorOf(p.type);
+  return Math.pow(f, PAYCAL);
+}
 // Coach game filter: "" = all games, otherwise one game (remembered per sport)
 const coachGame = () => { const g = store.get("cgame_" + SPORT, ""); return g && ALL.some(p => gameOf(p) === g) ? g : ""; };
 function buildLegs(){
@@ -1283,7 +1300,7 @@ function buildLegs(){
       const pen = (p.conf === "Low" ? 0.05 : p.conf === "Med" ? 0.015 : 0) + (p.inj && /question|day/i.test(p.inj.status) ? 0.12 : 0)
         + (p.news?.some(n => n.tone === "bad") ? 0.05 : 0) + fluke;
       const pe = clip(prob - pen, 0.01, 0.97);
-      legs.push({pk: p, side, p: prob, pe, f: factorOf(p.type), key: p.id + side, v: p.vd ? p.vd[side] : verdictOf(p, side)});
+      legs.push({pk: p, side, p: prob, pe, f: legFactor(p), key: p.id + side, v: p.vd ? p.vd[side] : verdictOf(p, side)});
     }
   }
   return legs;
@@ -1432,7 +1449,8 @@ function lineupCard(def, L, best){
   const html = `<div class="lineup${best ? " best" : ""}" id="lu-${def.id}">
     <div class="lhead"><div><h3>${title}</h3><div class="sub">${sub}</div></div>
       <button class="copy" data-copy="${esc(plain)}">Copy</button></div>
-    <div class="lbig"><div><b style="color:${hitCol}">${pct1(hit)}</b><span>chance it hits</span></div><div><b>${pay.toFixed(1)}×</b><span>${usePower ? "Power" : "Flex"} payout</span></div></div>
+    <div class="lbig"><div><b style="color:${hitCol}">${pct1(hit)}</b><span>chance it hits</span></div><div><b>${pay.toFixed(1)}×</b><span>${usePower ? "Power" : "Flex"} payout (est.)</span></div></div>
+    ${usePower && L.some(l => l.pk.type !== "standard") ? `<p class="note"><a href="#" class="payfix" data-n="${n}" data-ln="${L.reduce((t, l) => t + Math.log(l.f), 0)}">PrizePicks shows a different payout? Tap to correct</a></p>` : ""}
     ${legs}
     <div class="verdict">${keep.join("")}</div>
   </div>`;
@@ -1468,7 +1486,11 @@ function renderBet(){
   if (!(M >= 1.5)) { box.innerHTML = `<p class="note">Type the payout you want, like 5 or 25.</p>`; return; }
   if (false) { box.innerHTML = `<p class="note">${SPORTS[SPORT].name} doesn't have game stats in PickPrizer yet, so Pick4Me can't stand behind a lineup here. Browse the picks in All picks instead.</p>`; return; }
   // every rated pick is fair game (Strong, Unsure, goblins, demons); the builder just finds the best chance of hitting
-  const legs = buildLegs().filter(l => l.v.c !== "r" || l.p >= 0.5);
+  // safest picks first; riskier ones (most demons) only join when the payout can't be reached without them
+  const allLegs = buildLegs().filter(l => !l.pk.newsFlag && !/out|doubt|suspen/i.test(l.pk.inj?.status || ""));
+  const safeLegs = allLegs.filter(l => l.v.c !== "r" || l.p >= 0.5);
+  let legs = safeLegs;
+  if (!bestSizeFor(M, safeLegs).best) legs = allLegs;
   if (new Set(legs.map(l => l.pk.player)).size < 2) {
     box.innerHTML = `<p class="note">There aren't enough rated picks${coachGame() ? " in this game" : ""} yet. Try all ${SPORTS[SPORT].unitGame === "match" ? "matches" : SPORTS[SPORT].unitGame + "s"} or another sport.</p>`; return; }
   const pickOne = (r, n) => r.tries.find(x => x.n === n && x.ok) || r.best || r.tries.filter(t => t.L).sort((a, b) => b.pay - a.pay || b.hit - a.hit)[0];
@@ -1514,6 +1536,14 @@ function bindCoach(){
     store.set("mult", $("#multIn").value); store.set("entries", String(entries)); BET = {M, entries}; renderBet();
     $("#betOut").scrollIntoView({behavior: "smooth", block: "start"}); };
   document.querySelectorAll("[data-go]").forEach(r => r.onclick = () => document.getElementById(r.dataset.go)?.scrollIntoView({behavior: "smooth"}));
+  document.querySelectorAll(".payfix").forEach(a => a.onclick = e => {
+    e.preventDefault(); e.stopPropagation();
+    const v = parseFloat(String(prompt("What payout does PrizePicks show for this exact lineup? (for example 7.5)") || "").replace(/[^\d.]/g, ""));
+    const n = +a.dataset.n, ln = +a.dataset.ln / PAYCAL;
+    if (!(v > 1) || !POWER[n] || Math.abs(ln) < 1e-6) return;
+    PAYCAL = clip(Math.log(v / POWER[n]) / ln, 0.3, 4); localStorage.setItem("pp_paycal", String(PAYCAL));
+    renderBet();
+  });
   document.querySelectorAll("[data-copy]").forEach(b => b.onclick = async e => { e.stopPropagation();
     try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copied ✓"; } catch { b.textContent = "Copy failed"; }
   });
@@ -2556,7 +2586,7 @@ function legFor(pk, side){
   const prob = side === "More" ? pk.pMore : pk.pLess;
   const pen = (pk.conf === "Low" ? 0.05 : pk.conf === "Med" ? 0.015 : 0) + (pk.inj && /question|day/i.test(pk.inj.status) ? 0.12 : 0);
   const p = prob == null ? 0.5 : prob;
-  return {pk, side, p, pe: clip(p - pen, 0.01, 0.97), f: factorOf(pk.type), key: pk.id + side, unrated: prob == null, v: verdictOf(pk, side)};
+  return {pk, side, p, pe: clip(p - pen, 0.01, 0.97), f: legFactor(pk), key: pk.id + side, unrated: prob == null, v: verdictOf(pk, side)};
 }
 function renderMine(){
   restoreMine();
