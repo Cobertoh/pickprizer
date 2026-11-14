@@ -115,7 +115,7 @@ const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const MANIFEST = JSON.stringify({
   name: "PickPrizer", short_name: "PickPrizer", start_url: "/", display: "standalone",
   background_color: "#040823", theme_color: "#040823",
-  icons: [{ src: "/icon.png", sizes: "192x192", type: "image/png", purpose: "any" }],
+  icons: [{ src: "/icon.png", sizes: "512x512", type: "image/png", purpose: "any" }],
 });
 
 export default {
