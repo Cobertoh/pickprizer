@@ -103,7 +103,7 @@ async function rated(req, env, ctx, sport) {
   if (req.method === "GET") { const o = await kvGet(env, k); return o ? stored(o) : json({ message: "none yet" }, 404); }
   if (req.method !== "POST") return json({ message: "method" }, 405);
   const text = await req.text();
-  if (text.length > 6e6 || !text.startsWith('{"v":2,')) return json({ message: "bad" }, 400);
+  if (text.length > 6e6 || !text.startsWith('{"v":3,')) return json({ message: "bad" }, 400);
   const o = await kvGet(env, k);
   if (o && Date.now() - o.t < 4 * MIN * 1000) return json({ ok: true, skipped: true }, 200);   // someone just saved one
   await kvPut(env, ctx, k, text, 2 * DAY);

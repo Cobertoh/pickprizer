@@ -909,7 +909,7 @@ const val = (g, comps) => Object.entries(comps).reduce((s, [k, w]) => s + w * (g
 
 function scoreStats(p, seasons, depth, factor = 1){
   const cur = seasons[0] || [];
-  const comps0 = STATS[p.stat], comps = Object.fromEntries(Object.entries(comps0).map(([k, w]) => [k, w * factor]));
+  const comps = STATS[p.stat];   // past games are counted exactly as they happened; `factor` (teammates out) only moves the projection
   const games = seasons.flatMap((ss, i) => ss.map(g => [g, i === 0 ? 1 : 0.6])).filter(([g]) => g.MIN >= 5).slice(0, depth);
   if (games.length < 3) { p.games = games.length; return; }
   const w = games.map(([, sw], i) => sw * Math.pow(0.97, i)), W = w.reduce((a, b) => a + b, 0);
@@ -920,7 +920,7 @@ function scoreStats(p, seasons, depth, factor = 1){
   const mAvg = mins.reduce((s, m, i) => s + w[i] * m, 0) / W;
   const r5 = mins.slice(0, 5), mRecent = r5.reduce((a, b) => a + b, 0) / r5.length;
   const mt = mAvg ? clip(1 + 0.5 * (mRecent / mAvg - 1), 0.85, 1.15) : 1;
-  const proj = mu * mt, k = 6;
+  const proj = mu * mt * factor, k = 6 + 30 * Math.abs(factor - 1);   // a real lineup change leans a bit more on the projection
   const tMore = Math.floor(p.line) + 0.5, tLess = Math.ceil(p.line) - 0.5;
   const hitM = vals.reduce((s, v, i) => s + (v > tMore ? w[i] : 0), 0);
   const hitL = vals.reduce((s, v, i) => s + (v < tLess ? w[i] : 0), 0);
@@ -2301,7 +2301,7 @@ function packRated(sport){
       const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
       if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
     }
-    return JSON.stringify({v: 2, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+    return JSON.stringify({v: 3, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
   } catch (e) { console.warn("couldn't save ratings", e); return null; }
 }
 function unpackRated(js){
@@ -2318,7 +2318,7 @@ async function loadRated(sport){
   const got = [];
   const mine = await IDB.get("rated:" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
   if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
-  return got.filter(j => j && j.v === 2 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+  return got.filter(j => j && j.v === 3 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
 }
 const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
 async function quickStart(force){
@@ -2775,17 +2775,17 @@ async function analyzeNBA(picks){
     if (min >= 22) (outKey[v.team] ||= []).push({name: n.replace(/\b\w/g, c => c.toUpperCase()), eids: new Set(gl.map(g => g.eid)), min});
   });
   const ctxFor = (name, team, stat) => {
-    const comps = STATS[stat], A = flat[name] || [], notes = []; let f = 1;
+    const comps = STATS[stat], A = flat[name] || [], notes = [], ks = []; let f = 1;
     if (A.length < 8) return {f, notes};
     const mean = gs => gs.reduce((s, g) => s + val(g, comps), 0) / gs.length, base = mean(A.slice(0, 15));
     if (!(base > 0)) return {f, notes};
     for (const B of outKey[team] || []) {
       if (norm(B.name) === norm(name)) continue;
       const withB = A.filter(g => B.eids.has(g.eid)); if (withB.length < 5) continue;
-      const first = withB[withB.length - 1].date, wo = A.filter(g => !B.eids.has(g.eid) && g.date > first);
+      const first = withB[withB.length - 1].date, recent = new Date(Date.now() - 400 * 864e5).toISOString(), wo = A.filter(g => !B.eids.has(g.eid) && g.date > first && g.date > recent);
       if (wo.length < 3) { notes.push({dir: 0, t: `${B.name} (${Math.round(B.min)} min a game) is out and there are too few games without him to measure what that does`}); continue; }
-      const mO = mean(wo), k = clip(1 + (mO / base - 1) * wo.length / (wo.length + 4), 0.8, 1.4);
-      f *= k;
+      const mO = mean(wo), k = clip(1 + (mO / base - 1) * wo.length / (wo.length + 6), 0.85, 1.25);
+      ks.push(k);
       notes.push({dir: k > 1.03 ? 1 : k < 0.97 ? -1 : 0.5, t: `${B.name} is out: he averages ${mO.toFixed(1)} in ${wo.length} games without him vs ${mean(withB).toFixed(1)} with him`});
     }
     const last5 = A.slice(0, 5);
@@ -2796,11 +2796,14 @@ async function analyzeNBA(picks){
       const be = new Set(Bg.map(g => g.eid)), missed = last5.filter(g => !be.has(g.eid)).length; if (missed < 3) continue;
       const withB = A.filter(g => be.has(g.eid)); if (withB.length < 5) continue;
       const mR = mean(A.slice(0, 10)), mW = mean(withB); if (!(mR > 0)) continue;
-      const k = clip(1 + (mW / mR - 1) * 0.7, 0.7, 1.2);
-      f *= k;
+      const k = clip(1 + (mW / mR - 1) * 0.6, 0.8, 1.15);
+      ks.push(k);
       notes.push({dir: k > 1.03 ? 1 : k < 0.97 ? -1 : 0.5, t: `${bn} is back after missing ${missed} of the last 5: the recent ${mR.toFixed(1)} came without him, with him it's ${mW.toFixed(1)}`});
     }
-    return {f: clip(f, 0.7, 1.5), notes};
+    // teammates who are out usually missed the SAME games, so their effects overlap: count the biggest one fully, the rest a little
+    const d = ks.map(k => k - 1).sort((a, b) => Math.abs(b) - Math.abs(a));
+    f = 1 + (d[0] || 0) + 0.3 * (d[1] || 0) + 0.1 * (d[2] || 0);
+    return {f: clip(f, 0.85, 1.2), notes};
   };
   for (const p of picks) {
     p.games = 0;
