@@ -2557,6 +2557,15 @@ const MINE = Array.from({length: 6}, () => ({pk: null, side: "More"}));
 try { const saved = JSON.parse(localStorage.getItem("pp_mine") || "[]"); saved.forEach((s, i) => { if (s && MINE[i]) MINE[i]._saved = s; }); } catch {}
 const allLoaded = () => Object.keys(SPORTS).flatMap(s => DATA[s] ? DATA[s].picks : BOARDS[s] || []);
 let boardsLoading = null;
+// background updates must never redraw My lineup while someone is typing or has a dropdown open: wait until they're done
+let MINE_PENDING = false;
+function refreshMine(){
+  const v = $("#mineView"); if (!v || v.classList.contains("hide")) return;
+  const a = document.activeElement;
+  if (a && v.contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) { MINE_PENDING = true; return; }
+  MINE_PENDING = false; renderMine();
+}
+document.addEventListener("focusout", e => { if (MINE_PENDING && $("#mineView").contains(e.target)) setTimeout(() => { if (MINE_PENDING) refreshMine(); }, 400); });
 function loadAllBoards(){
   return boardsLoading ||= (async () => {
     for (const s of Object.keys(SPORTS)) {
@@ -2564,8 +2573,7 @@ function loadAllBoards(){
       try { const js = await fetchBoard(s); if (js.error === undefined) BOARDS[s] = parseBoard(js, s); } catch {}
     }
     boardsLoading = null;
-    const focused = document.activeElement && document.activeElement.classList.contains("acin");
-    if (!$("#mineView").classList.contains("hide") && !focused) renderMine();
+    refreshMine();
   })();
 }
 const SPORT_ICON = {nba: "🏀", nfl: "🏈", cfb: "🏟️", tennis: "🎾", cbb: "🏀", nhl: "🏒", soccer: "⚽", golf: "⛳", mma: "🥊", wnba: "🏀", mlb: "⚾"};
@@ -2624,7 +2632,7 @@ function bindMine(){
       if (!hits.length) { box.classList.add("hide"); return; }
       box.innerHTML = hits.map((h, k) => `<div class="acitem ${k === sel ? "on" : ""}" data-k="${k}">${SPORT_ICON[h.sport] || ""} <b>${esc(h.player)}</b> <small>${vsText(h)} · ${h.n} props</small></div>`).join("");
       box.classList.remove("hide");
-      box.querySelectorAll(".acitem").forEach(el => el.onmousedown = e => { e.preventDefault(); choose(+el.dataset.k); });
+      box.querySelectorAll(".acitem").forEach(el => { el.onmousedown = e => e.preventDefault(); el.onpointerup = e => { e.preventDefault(); choose(+el.dataset.k); }; });
     };
     const choose = k => {
       const h = hits[k]; if (!h) return;
@@ -2656,7 +2664,7 @@ function bindMine(){
       else if (e.key === "Enter" || e.key === "Tab") { if (hits.length) { e.preventDefault(); choose(sel); } }
       else if (e.key === "Escape") box.classList.add("hide");
     };
-    inp.onblur = () => setTimeout(() => box.classList.add("hide"), 150);
+    inp.onblur = () => setTimeout(() => box.classList.add("hide"), 350);
   });
   document.querySelectorAll(".propsel").forEach(s => s.onchange = () => {
     const i = +s.dataset.i, cur = MINE[i].pk, pk = allLoaded().find(p => p.id === s.value && (!cur || p.sport === cur.sport));
@@ -2899,7 +2907,7 @@ function showSport(){
   if (!d) {
     ALL = [];
     $("#tabs").classList.toggle("hide", !Object.keys(DATA).length); $("#coachView").innerHTML = loaderHTML(`Getting today's ${sp.name} picks…`); $("#out").innerHTML = loaderHTML(`Getting today's ${sp.name} picks…`);
-    if (!$("#mineView").classList.contains("hide")) renderMine();
+    refreshMine();
     setStatus(`Click Refresh to load today's ${sp.name} board.`, 0);
     return;
   }
@@ -2916,7 +2924,7 @@ function showSport(){
   $("#playerList").innerHTML = [...new Set(picks.map(p => p.player))].sort().map(x => `<option value="${esc(x)}">`).join("");
   
   renderCoach(); render();
-  if (!$("#mineView").classList.contains("hide")) renderMine();
+  refreshMine();
   if (TAB === "home") renderHome();
   const n = t => picks.filter(p => p.type === t).length;
   const la = BOARD_AGE[SPORT];
