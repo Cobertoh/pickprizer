@@ -1492,6 +1492,7 @@ function betPanel(){
     <div class="frow"><label class="fl">Payout<span class="xin"><input type="number" inputmode="decimal" id="multIn" min="1.5" step="any" value="${esc(m)}" placeholder="10"><i>×</i></span></label>
     <label class="fl">Picks<select id="npIn">${["", "2", "3", "4", "5", "6"].map(v => `<option value="${v}" ${store.get("npicks", "") === v ? "selected" : ""}>${v || "Best"}</option>`).join("")}</select></label>
     <label class="fl">Entries<input type="number" inputmode="numeric" id="entriesIn" min="1" max="20" step="1" value="${esc(en)}"></label></div>
+    <div class="frow"><label class="fl">Use only<select id="cconfIn">${[["", "Any rating"], ["g", "🟢 Strong only"], ["gy", "🟢 + 🟡"], ["top", "⭐ Top picks"], ["safe", "Safe picks"], ["value", "Value picks"]].map(([v, t]) => `<option value="${v}" ${store.get("cconf", "") === v ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
     <div class="tpills">${["goblin", "standard", "demon"].map(t => `<button type="button" class="tpill ${t} ${ptypeOn(t) ? "on" : ""}" data-pt="${t}" aria-pressed="${ptypeOn(t)}">${t === "goblin" ? "Goblins" : t === "demon" ? "Demons" : "Standard"}</button>`).join("")}</div>
     <button type="submit" class="pri wide">Build my lineup</button></form>`;
 }
@@ -1520,11 +1521,17 @@ function renderBet(){
   // every rated pick is fair game (Strong, Unsure, goblins, demons); the builder just finds the best chance of hitting
   // safest picks first; riskier ones (most demons) only join when the payout can't be reached without them
   if (!["goblin", "standard", "demon"].some(ptypeOn)) { box.innerHTML = `<p class="note">Turn on at least one pick type above.</p>`; return; }
-  const allLegs = buildLegs().filter(l => ptypeOn(l.pk.type)).filter(l => !l.pk.newsFlag && !/out|doubt|suspen/i.test(l.pk.inj?.status || ""));
+  const cf = store.get("cconf", ""), vc = l => (l.v || {}).c, best = l => l.side === l.pk.best;
+  const confOk = l => !cf || (cf === "g" ? vc(l) === "g" : cf === "gy" ? vc(l) === "g" || vc(l) === "y"
+    : best(l) && (cf === "top" ? l.pk.cls === "top" : cf === "safe" ? l.pk.cls === "safe" || (l.pk.cls === "top" && vc(l) === "g") : l.pk.cls === "value" || l.pk.cls === "top"));
+  const allLegs = buildLegs().filter(l => ptypeOn(l.pk.type)).filter(confOk).filter(l => !l.pk.newsFlag && !/out|doubt|suspen/i.test(l.pk.inj?.status || ""));
   const safeLegs = allLegs.filter(l => l.v.c !== "r" || l.p >= 0.5);
   let legs = safeLegs;
   const N = BET.N || 0, reaches = r => N ? r.tries.some(x => x.n === N && x.ok) : !!r.best;
   if (!reaches(bestSizeFor(M, safeLegs))) legs = allLegs;
+  if (cf && new Set(legs.map(l => l.pk.player)).size < Math.max(2, BET.N || 2)) {
+    const lab = {g: "Strong", gy: "Strong or Unsure", top: "Top", safe: "Safe", value: "Value"}[cf], n = new Set(legs.map(l => l.pk.player)).size;
+    box.innerHTML = `<p class="note">${n ? `Only ${n} player${n === 1 ? " has" : "s have"}` : "No players have"} ${lab} picks${coachGame() ? " in this game" : ""} right now${BET.N ? `, not enough for ${BET.N} picks` : ""}. Loosen "Use only" or pick another game.</p>`; return; }
   if (new Set(legs.map(l => l.pk.player)).size < 2) {
     box.innerHTML = `<p class="note">There aren't enough rated picks${coachGame() ? " in this game" : ""} yet. Try all ${SPORTS[SPORT].unitGame === "match" ? "matches" : SPORTS[SPORT].unitGame + "s"} or another sport.</p>`; return; }
   const pickOne = (r, n) => r.tries.find(x => x.n === n && x.ok) || r.best || r.tries.filter(t => t.L).sort((a, b) => b.pay - a.pay || b.hit - a.hit)[0];
@@ -1575,6 +1582,7 @@ function renderCoach(){
 function bindCoach(){
   const gs = $("#coachGame");
   if (gs) gs.onchange = () => { store.set("cgame_" + SPORT, gs.value); renderCoach(); };
+  const cc = $("#cconfIn"); if (cc) cc.onchange = () => { store.set("cconf", cc.value); if (BET) renderBet(); };
   const np = $("#npIn"); if (np) np.onchange = () => { store.set("npicks", np.value); if (BET) { BET.N = +np.value || 0; renderBet(); } };
   for (const [id, k] of [["multIn", "mult"], ["entriesIn", "entries"]]) { const el = $("#" + id); if (el) el.oninput = () => store.set(k, el.value); }
   const f = $("#betForm");
