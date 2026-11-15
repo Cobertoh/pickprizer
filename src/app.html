@@ -701,7 +701,7 @@ function renderHome(){
     <p class="lead">Get started in just a few simple steps.</p>
     <ol class="tl">
       <li><span class="num">01</span><div><span class="kick">Select your sport</span><h3>Pick your board</h3><p>Choose from 11 sports, from the NBA and NFL to golf, soccer and the UFC. Today's board loads automatically.</p></div></li>
-      <li><span class="num">02</span><div><span class="kick">Build your lineup</span><h3>Choose your payout</h3><p>Enter a multiplier like 5x or 20x. Pick4Me builds the lineup with the best chance of hitting.</p></div></li>
+      <li><span class="num">02</span><div><span class="kick">Build your lineup</span><h3>Choose your payout</h3><p>Enter a multiplier like 5x or 20x, and how many picks if you want. Pick4Me builds the lineup with the best chance of hitting.</p></div></li>
       <li><span class="num">03</span><div><span class="kick">Understand your picks</span><h3>See the reasoning</h3><p>Explore recent performance, matchup history, injuries and other relevant information.</p></div></li>
     </ol>
   </section>
@@ -1490,6 +1490,7 @@ function betPanel(){
   const m = store.get("mult", ""), en = store.get("entries", "1"), yl = store.get("useYellow", "0") === "1";
   return `<form class="betform" id="betForm">
     <div class="frow"><label class="fl">Payout<span class="xin"><input type="number" inputmode="decimal" id="multIn" min="1.5" step="any" value="${esc(m)}" placeholder="10"><i>×</i></span></label>
+    <label class="fl">Picks<select id="npIn">${["", "2", "3", "4", "5", "6"].map(v => `<option value="${v}" ${store.get("npicks", "") === v ? "selected" : ""}>${v || "Best"}</option>`).join("")}</select></label>
     <label class="fl">Entries<input type="number" inputmode="numeric" id="entriesIn" min="1" max="20" step="1" value="${esc(en)}"></label></div>
     <div class="tpills">${["goblin", "standard", "demon"].map(t => `<button type="button" class="tpill ${t} ${ptypeOn(t) ? "on" : ""}" data-pt="${t}" aria-pressed="${ptypeOn(t)}">${t === "goblin" ? "Goblins" : t === "demon" ? "Demons" : "Standard"}</button>`).join("")}</div>
     <button type="submit" class="pri wide">Build my lineup</button></form>`;
@@ -1522,21 +1523,24 @@ function renderBet(){
   const allLegs = buildLegs().filter(l => ptypeOn(l.pk.type)).filter(l => !l.pk.newsFlag && !/out|doubt|suspen/i.test(l.pk.inj?.status || ""));
   const safeLegs = allLegs.filter(l => l.v.c !== "r" || l.p >= 0.5);
   let legs = safeLegs;
-  if (!bestSizeFor(M, safeLegs).best) legs = allLegs;
+  const N = BET.N || 0, reaches = r => N ? r.tries.some(x => x.n === N && x.ok) : !!r.best;
+  if (!reaches(bestSizeFor(M, safeLegs))) legs = allLegs;
   if (new Set(legs.map(l => l.pk.player)).size < 2) {
     box.innerHTML = `<p class="note">There aren't enough rated picks${coachGame() ? " in this game" : ""} yet. Try all ${SPORTS[SPORT].unitGame === "match" ? "matches" : SPORTS[SPORT].unitGame + "s"} or another sport.</p>`; return; }
   const pickOne = (r, n) => r.tries.find(x => x.n === n && x.ok) || r.best || r.tries.filter(t => t.L).sort((a, b) => b.pay - a.pay || b.hit - a.hit)[0];
-  const first = bestSizeFor(M, legs), t0 = pickOne(first);
+  // a chosen size: best lineup of exactly that many picks (or the closest it can get to the payout)
+  const pickN = (r, n) => r.tries.find(x => x.n === n && x.ok) || r.tries.filter(x => x.n === n && x.L).sort((a, b) => b.pay - a.pay || b.hit - a.hit)[0];
+  const first = bestSizeFor(M, legs), t0 = N ? pickN(first, N) : pickOne(first);
   let h = "";
-  if (!t0) { box.innerHTML = `<p class="note">Couldn't put a lineup together from today's picks. Try another game or sport.</p>`; return; }
-  const short = !first.best;   // nothing reaches the payout: show the closest
+  if (!t0) { box.innerHTML = `<p class="note">${N ? `There aren't ${N} different players with rated picks${coachGame() ? " in this game" : ""} right now. Try fewer picks or all games.` : "Couldn't put a lineup together from today's picks. Try another game or sport."}</p>`; return; }
+  const short = N ? !t0.ok : !first.best;   // nothing reaches the payout: show the closest
   const n = t0.n, lineups = [t0.L], SAFE = 0.85;
   while (lineups.length < entries) {
     const used = new Set(lineups.flat().map(l => l.key)), usedP = new Set(lineups.flat().map(l => l.pk.player));
     const keep = lineups[0].filter(l => l.p >= SAFE).sort((x, y) => y.p - x.p)[0];   // at most ONE pick repeats: the safest, and only if it's very safe
     const fresh = legs.filter(l => (!used.has(l.key) && !usedP.has(l.pk.player)) || (keep && l.key === keep.key));
     if (new Set(fresh.map(l => l.pk.player)).size < n) break;
-    const r = bestSizeFor(M, fresh), t = pickOne(r, n);
+    const r = bestSizeFor(M, fresh), t = N ? pickN(r, n) : pickOne(r, n);
     if (!t || !t.L) break;
     lineups.push(t.L);
   }
@@ -1545,8 +1549,12 @@ function renderBet(){
     const anyHit = 1 - stats.reduce((a, s) => a * (1 - s.hit), 1);
     h += `<p class="lsum">${lineups.length} different lineups · <b>${pct(anyHit)}</b> chance at least one wins${lineups.length < entries ? ` · only ${lineups.length} could be made without repeating picks` : ""}</p>`;
   }
-  if (short) h = `<p class="lsum">Today's picks can't safely reach ${M}×, so here's the closest: about ${stats[0].pay.toFixed(1)}×.</p>` + h;
-  h += stats.map((s, i) => lineupCard({id: "bet" + i, title: `${entries > 1 ? `Lineup ${i + 1} · ` : ""}${s.L.length} picks`, sub: `Pays about ${s.pay.toFixed(1)}×`, mode: "power"}, s.L, i === 0).html).join("");
+  if (short) h = `<p class="lsum">${N ? `${N} picks` : "Today's picks"} can't safely reach ${M}×, so here's the closest: about ${stats[0].pay.toFixed(1)}×.</p>` + h;
+  const cards = stats.map((s, i) => lineupCard({id: "bet" + i, title: `${entries > 1 ? `Lineup ${i + 1} · ` : ""}${s.L.length} picks`, sub: `Pays about ${s.pay.toFixed(1)}×`, mode: "power"}, s.L, i === 0));
+  h += cards.map(c => c.html).join("");
+  // they picked a size: if a different size reaches the same payout with a clearly better chance, show it too
+  const alt = N && first.best && first.best.n !== N ? first.best : null, altCard = alt && lineupCard({id: "betalt", title: `Safer option · ${alt.n} picks`, sub: `Pays about ${alt.pay.toFixed(1)}×`, mode: "power"}, alt.L, false);
+  if (altCard && altCard.hit >= cards[0].hit + 0.03) h += `<p class="lsum">A safer way to get ${M}×: <b>${alt.n} picks</b> hits <b>${pct(altCard.hit)}</b> of the time vs ${pct(cards[0].hit)} with ${N}.</p>` + altCard.html;
   h += `<p class="note fine">Payouts with goblins or demons are estimates. Check the number in PrizePicks before you submit.</p>`;
   box.innerHTML = h;
   bindCoach();
@@ -1567,10 +1575,12 @@ function renderCoach(){
 function bindCoach(){
   const gs = $("#coachGame");
   if (gs) gs.onchange = () => { store.set("cgame_" + SPORT, gs.value); renderCoach(); };
+  const np = $("#npIn"); if (np) np.onchange = () => { store.set("npicks", np.value); if (BET) { BET.N = +np.value || 0; renderBet(); } };
   for (const [id, k] of [["multIn", "mult"], ["entriesIn", "entries"]]) { const el = $("#" + id); if (el) el.oninput = () => store.set(k, el.value); }
   const f = $("#betForm");
   if (f) f.onsubmit = e => { e.preventDefault(); const M = +$("#multIn").value, entries = +$("#entriesIn").value || 1;
-    store.set("mult", $("#multIn").value); store.set("entries", String(entries)); BET = {M, entries}; renderBet();
+    const N = +$("#npIn").value || 0; store.set("npicks", N ? String(N) : "");
+    store.set("mult", $("#multIn").value); store.set("entries", String(entries)); BET = {M, entries, N}; renderBet();
     $("#betOut").scrollIntoView({behavior: "smooth", block: "start"}); };
   document.querySelectorAll("[data-go]").forEach(r => r.onclick = () => document.getElementById(r.dataset.go)?.scrollIntoView({behavior: "smooth"}));
   document.querySelectorAll(".tpill").forEach(b => b.onclick = () => {
