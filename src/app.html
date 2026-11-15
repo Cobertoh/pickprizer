@@ -256,6 +256,13 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
 .frow{display:flex;gap:14px;margin:0 0 16px}.frow .fl{flex:1;display:flex;flex-direction:column;gap:8px;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#8ea3cc;font-weight:700}
 .frow .fl select,.frow .fl input{width:100%;font-size:17px;text-transform:none;letter-spacing:0;color:#fff;min-height:52px;padding:0 14px}
 .xin{position:relative;display:block}.xin i{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-style:normal;color:#8ea3cc;font-size:17px}
+.cls{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.4px;padding:2px 8px;border-radius:7px;margin-right:6px;vertical-align:2px}
+.cls.top{background:rgba(251,191,36,.16);color:#fcd34d}.cls.safe{background:rgba(52,211,153,.14);color:#6ee7b7}.cls.value{background:rgba(96,165,250,.16);color:#93c5fd}
+.evid{margin:10px 0 12px;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.evtop{display:flex;align-items:center;gap:10px;margin-bottom:8px}.evtop b{font-size:30px;font-weight:800}.evtop span{font-size:13px;color:#cfe3ff;line-height:1.25}.evtop small{color:var(--mut)}
+.evrow{display:grid;grid-template-columns:96px 1fr 42px;gap:4px 8px;align-items:center;font-size:13px;margin:6px 0}
+.evrow i{height:6px;border-radius:3px;background:linear-gradient(90deg,#3b82f6 var(--w),rgba(148,163,184,.18) var(--w))}.evrow b{text-align:right}.evrow small{grid-column:1/-1;color:var(--mut);margin-top:-2px}
+.trk2{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0 12px}.trk2 td,.trk2 th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}.trk2 td:last-child,.trk2 th:last-child{text-align:right}
 .tpills{display:flex;gap:8px;margin:2px 0 16px}
 .tpill{flex:1;min-height:44px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:transparent;color:#8ea3cc;font-weight:700;font-size:15px;transition:.15s}
 .tpill.on{color:#fff;border-color:transparent}
@@ -339,7 +346,7 @@ body.isbusy #runBtn .rp{display:inline-flex}
 </header>
 <div id="menu" class="hide"><div class="msheet">
   <button data-mgo="home">Home</button><button data-mgo="coach">Pick4Me</button><button data-mgo="board">All picks</button><button data-mgo="mine">My lineup</button>
-  <button data-mgo="lines">Update PrizePicks lines</button><button data-mgo="safe">Play it safe</button><button data-mgo="help">Having trouble? Run a check</button></div></div>
+  <button data-mgo="track">Track record</button><button data-mgo="lines">Update PrizePicks lines</button><button data-mgo="safe">Play it safe</button><button data-mgo="help">Having trouble? Run a check</button></div></div>
 <main>
   <section id="homeView"></section>
   <div id="picksArea" class="hide">
@@ -401,7 +408,7 @@ body.isbusy #runBtn .rp{display:inline-flex}
       <select id="gameSel"><option value="">All games</option></select>
       <select id="statSel"><option value="">All stats</option></select>
       <select id="sortSel"><option value="">Sort: best chance</option><option value="proj">Sort: highest projected</option><option value="picked">Sort: most picked</option></select>
-      <select id="confSel"><option value="">Any rating</option><option value="g">🟢 Strong only</option><option value="gy">🟢 + 🟡</option></select>
+      <select id="confSel"><option value="">Any rating</option><option value="g">🟢 Strong only</option><option value="gy">🟢 + 🟡</option><option value="top">⭐ Top picks</option><option value="safe">Safe picks</option><option value="value">Value picks</option></select>
       <input type="text" id="playerQ" list="playerList" placeholder="🔎 Type a player's name…" autocomplete="off" style="flex:1;min-width:180px"><datalist id="playerList"></datalist>
     </div>
     <div id="out"></div>
@@ -652,6 +659,10 @@ $("#menu").onclick = e => { if (e.target.id === "menu") $("#menu").classList.add
 document.querySelectorAll("[data-mgo]").forEach(b => b.onclick = () => {
   $("#menu").classList.add("hide"); const g = b.dataset.mgo;
   if (g === "safe") { goTab("home"); setTimeout(() => $("#safeSec").scrollIntoView({behavior: "smooth"}), 50); }
+  else if (g === "track") {
+    $("#modal").innerHTML = `<div class="mbox" role="dialog" aria-modal="true"><button class="mclose" id="mClose" aria-label="Close">✕</button><h3 style="margin:0 0 10px">Track record</h3>${trackDashboard()}</div>`;
+    $("#mClose").onclick = closePick; $("#modal").classList.remove("hide");
+  }
   else if (g === "lines") { if (TAB === "home" || TAB === "mine") goTab("board"); $("#pastePanel").classList.remove("hide"); $("#pastePanel").scrollIntoView({behavior: "smooth"}); }
   else if (g === "help") { $("#helpPanel").classList.remove("hide"); $("#helpPanel").scrollIntoView({behavior: "smooth"}); dataCheck(); }
   else goTab(g);
@@ -724,6 +735,7 @@ function renderHome(){
     <p class="body">Every rating pulls from all of these, every time you open the app.</p>
     <ul class="srcs">
       <li><b>PrizePicks' board</b><span>Every line, goblin and demon, plus the most-picked props</span></li>
+      <li><b>Game odds</b><span>ESPN's point spread and total for every game: blowout risk and pace</span></li>
       <li><b>Years of game logs</b><span>Up to 5 seasons per player from ESPN, NBA.com and NHL.com; Sofascore for tennis and soccer; UFC Stats for every UFC fight; ESPN leaderboards for every golf round</span></li>
       <li><b>Matchups</b><span>How each player has done against tonight's opponent</span></li>
       <li><b>Teammates</b><span>Who's out or returning, and what that did to his numbers before</span></li>
@@ -1161,14 +1173,14 @@ const pickedTxt = p => p.trending != null ? `🔥 Picked ${p.trending.toLocaleSt
 function trackLoad(sport){ try { return JSON.parse(localStorage.getItem("pp_track_" + sport) || "[]"); } catch { return []; } }
 function trackSave(sport, rows){ try { localStorage.setItem("pp_track_" + sport, JSON.stringify(rows)); } catch {} }
 function trackUpdate(sport, picks){
-  const now = Date.now(), rows = trackLoad(sport).filter(r => now - Date.parse(r[5]) < 21 * 864e5);
+  const now = Date.now(), rows = trackLoad(sport).filter(r => now - Date.parse(r[5]) < TRACK_DAYS * 864e5);
   // grade finished games
   for (const r of rows) {
     if (r[6] != null || !(now - Date.parse(r[5]) > 5 * 3600e3)) continue;
     const f = statFn(sport, r[1]), g = ((HIST[sport] || {})[r[0]] || []).find(g => g.date && Math.abs(Date.parse(g.date) - Date.parse(r[5])) < 18 * 3600e3 && (sport !== "nba" || g.MIN >= 1));
     if (!f || !g) continue;
     const v = f(g); if (v == null || v === r[2]) continue;
-    r[6] = (r[3] === "M" ? v > r[2] : v < r[2]) ? 1 : 0;
+    r[6] = (r[3] === "M" ? v > r[2] : v < r[2]) ? 1 : 0; r[12] = v;
   }
   // remember today's ratings (top 80 per colour)
   const have = new Set(rows.map(r => r.slice(0, 4).join("|") + r[5])), add = {g: [], y: [], r: []};
@@ -1177,7 +1189,7 @@ function trackUpdate(sport, picks){
     add[p.verdict.c].push(p);
   }
   for (const c of ["g", "y", "r"]) for (const p of add[c].sort((a, b) => b.verdict.prob - a.verdict.prob).slice(0, 80)) {
-    const r = [p.player, p.stat, p.line, p.best === "More" ? "M" : "L", c, p.start, null, +p.verdict.prob.toFixed(2)];
+    const r = [p.player, p.stat, p.line, p.best === "More" ? "M" : "L", c, p.start, null, +p.verdict.prob.toFixed(2), p.cls || null, p.ev?.score ?? null, p.proj ?? null, p.type, null];
     const k = r.slice(0, 4).join("|") + r[5];
     if (!have.has(k)) { have.add(k); rows.push(r); }
   }
@@ -1275,10 +1287,10 @@ const factorOf = type => type === "demon" ? 1.25 : type === "goblin" ? 0.6 : 1; 
 // (goblin) or boost (demon). Estimate PrizePicks' own chance for that line, then turn it into a payout factor.
 // PAYCAL lets the user correct it from what PrizePicks actually shows.
 let PAYCAL = +(localStorage.getItem("pp_paycal") || 1) || 1;
-const STDMAP = new WeakMap();
+const STDMAP = new WeakMap(), CLASSIFY_PICKS = {};
 function legFactor(p){
   if (p.type === "standard") return 1;
-  const d = DATA[p.sport]; let m = d && STDMAP.get(d);
+  const d = DATA[p.sport] || CLASSIFY_PICKS[p.sport]; let m = d && STDMAP.get(d);
   if (d && !m) { m = {}; for (const q of d.picks) if (q.type === "standard") m[q.player + "|" + q.stat] = q; STDMAP.set(d, m); }
   const std = m && m[p.player + "|" + p.stat];
   let f;
@@ -1381,7 +1393,7 @@ function reasons(l){
     else if (long < 0.45) risk.push(`Long-term only ${pct(long)} over ${span}`);
   }
   for (const n of p.news || []) (n.tone === "bad" ? risk : n.tone === "good" ? why : risk).push(`In the news: "${n.h.slice(0, 90)}"`);
-  for (const n of (p.gnews || []).filter(x => x.tone)) risk.push(`${n.tone === "bad" ? "Major headline" : "Headline"}: "${n.t.slice(0, 110)}"`);
+  for (const n of (p.gnews || []).filter(x => x.tone && !x.superseded && (x.weight ?? 1) >= 0.15)) risk.push(`${n.tone === "bad" && !n.rumor ? "Major headline" : n.rumor ? "Unconfirmed report" : "Headline"}${n.src ? ` (${n.src}${n.n > 1 ? ` + ${n.n - 1} more` : ""})` : ""}: "${n.t.slice(0, 110)}"`);
   if (p.lineOnly) risk.push("No game stats for this pick yet. It's rated from how far its line sits from PrizePicks' main line, plus what the community is picking");
   const m = l.side === "More" ? p.mMore : p.mLess, s = l.side === "More" ? p.sMore : p.sLess;
   if (m != null) {
@@ -1395,6 +1407,13 @@ function reasons(l){
   if (!p.ctxNotes?.length && p.teammatesOut?.length && p.sport === "nfl") risk.push(`Teammate${p.teammatesOut.length > 1 ? "s" : ""} out: ${p.teammatesOut.slice(0, 3).join(", ")}. Roles may shift`);
   if (p.trap) risk.push(`PrizePicks' line (${p.stdLine}) is well ${p.trap === "high" ? "above" : "below"} his recent average (${p.proj}). They're pricing in something the stats don't show (role change, injury, matchup), so history can't be trusted here`);
   if (p.cal && l.side === "More") (p.cal.p >= 0.75 ? why : p.cal.p < 0.5 ? risk : why).push(`Measured: lines this far ${p.cal.z >= 0 ? "below" : "above"} a player's usual went over ${p.cal.league != null ? pct(p.cal.league) + ` of the time across ${p.cal.leagueN.toLocaleString()} past games` : ""}${p.cal.own != null ? `${p.cal.league != null ? "; for him it's " : ""}${pct(p.cal.own)} over his own ${p.cal.ownN} games` : ""}`);
+  for (const n of p.ctxNotes2 || []) ((n.dir > 0) === (l.side === "More") ? why : risk).push(n.t);
+  if (p.prof) { if (p.prof.label === "boom-or-bust") risk.push(`Boom-or-bust: his middle half of games runs ${p.prof.q1}–${p.prof.q3}, but 1 in 10 goes above ${p.prof.hi}, so the average flatters him`);
+    else if (p.prof.label === "steady") why.push(`Steady: half his recent games land between ${p.prof.q1} and ${p.prof.q3}`); }
+  if (p.outlier) risk.push(`His ${p.outlier.v} on ${String(p.outlier.date).slice(5, 10)} was unusually ${p.outlier.high ? "high" : "low"}; it isn't weighted extra`);
+  if (p.roleChange) (p.roleChange.to > p.roleChange.from === (l.side === "More") ? why : risk).push(`Role change: minutes went from ~${p.roleChange.from} to ~${p.roleChange.to} over the last 5`);
+  const sens = l.side === "More" ? p.sensMore : p.sensLess;
+  if (sens != null && l.p != null && l.p - sens >= 0.08) risk.push(`If he plays 15% fewer minutes, this drops to about ${pct(sens)}`);
   if (p.minCv != null && p.minCv > 0.22) risk.push("His minutes swing a lot from game to game, which is how safe-looking picks miss");
   if (p.vsN >= 3) { const r = l.side === "More" ? p.vsMore : p.vsLess; (r >= 0.6 ? why : r <= 0.4 ? risk : why).push(`vs ${p.opp}: cleared it in ${Math.round(r * p.vsN)} of his last ${p.vsN} meetings (avg ${p.vsAvg})`); }
   if (p.inj) risk.push(`Injury report: ${p.inj.status}${p.inj.comment ? ", " + p.inj.comment.slice(0, 90) : ""}. Check before lock`);
@@ -1420,7 +1439,8 @@ function lineupCard(def, L, best){
   const usePower = !ft ? true : def.mode ? def.mode === "power" : e.power >= e.flex, ev = usePower ? e.power : e.flex;
   const pay = usePower ? raw.powerPay : raw.flexPay;
   const profitTiers = ft ? ft.map((m, k) => m > 1 ? k : -1).filter(k => k >= 0) : [];
-  const hit = usePower ? raw.d[n] : profitTiers.reduce((s, k) => s + raw.d[k], 0);
+  const cs = n >= 2 ? corrSim(L) : null, dd = cs ? cs.d : raw.d;
+  const hit = usePower ? dd[n] : profitTiers.reduce((s, k) => s + dd[k], 0), hitInd = usePower ? raw.d[n] : profitTiers.reduce((s, k) => s + raw.d[k], 0);
   const hitLbl = usePower ? `chance all ${n} hit` : `chance of ${Math.min(...profitTiers)}+ of ${n} hitting (Flex profit)`;
   const hitCol = hit >= 0.3 ? "var(--good)" : hit >= 0.12 ? "var(--mid)" : "var(--bad)";
   const hitWord = hit >= 0.5 ? "Strong" : hit >= 0.3 ? "Solid" : hit >= 0.12 ? "Risky" : "Long shot";
@@ -1447,7 +1467,9 @@ function lineupCard(def, L, best){
     : `Flex still pays if you miss one, and with these picks that safety net is worth more than Power's bigger top prize.`}</p>`);
   verdict.push(`<p>Mix: ${n - nDem - nGob} standard, ${nGob} goblin${nGob === 1 ? "" : "s"}, ${nDem} demon${nDem === 1 ? "" : "s"}. ${nGob >= Math.ceil(n * 0.66) ? "Leans on safe legs, so a lower payout." : nDem >= Math.ceil(n / 2) ? "Swings big. Expect to lose most nights but win big when it hits." : "Balanced: safe anchors carry the riskier upside legs."}</p>`);
   verdict.push(`<p><b>Weakest link:</b> ${esc(weakest.pk.player)} ${weakest.side} ${weakest.pk.line} ${esc(weakest.pk.stat)} at ${pct(weakest.p)}. If you want to tweak one pick, tweak this one.</p>`);
-  if (stacks.length) verdict.push(`<p><b>Correlation:</b> ${stacks.map(([g, v]) => `${esc(v.join(" & "))} are in the same game (${esc(g)})`).join("; ")}. A blowout or slow pace can sink both together. PrizePicks may also adjust the payout for same-game picks.</p>`);
+  const strongPairs = cs ? cs.pairs.filter(x => Math.abs(x.rho) >= 0.1) : [];
+  if (cs) verdict.push(`<p><b>Correlation:</b> ${strongPairs.length ? strongPairs.map(x => `${esc(x.a.pk.player)} & ${esc(x.b.pk.player)} ${x.rho > 0 ? "tend to hit together" : "work against each other"} (${esc(x.src)})`).join("; ") + ". " : "No strong links between these picks. "}Simulated 10,000 times with these links: ${pct1(hit)} vs ${pct1(hitInd)} if they were independent.</p>`);
+  else if (stacks.length) verdict.push(`<p><b>Correlation:</b> ${stacks.map(([g, v]) => `${esc(v.join(" & "))} are in the same game (${esc(g)})`).join("; ")}. A blowout or slow pace can sink both together. PrizePicks may also adjust the payout for same-game picks.</p>`);
   verdict.push(`<p><b>Check the payout before you submit:</b> this only makes money long-term if PrizePicks shows <b>at least ${breakEven.toFixed(1)}×</b> for the Power Play (my projection is ${raw.powerPay.toFixed(1)}×${nDem + nGob ? "; goblins and demons make that a guess" : ""}).</p>`);
   if (ev < 1) verdict.push(`<p style="color:var(--mid)"><b>Honest take:</b> this one is estimated to return ${(ev * 10).toFixed(2)} for every $10, which is a loss on average. Skip it or play it very small.</p>`);
   verdict.push(`<p class="note">Before lock: check the injury report and starting lineups. A late scratch or a minutes limit changes everything.</p>`);
@@ -1598,11 +1620,12 @@ function openPick(p, side){
     <div style="margin:4px 0 8px">${sides.map(sd => `<button class="sidebtn ${sd === side ? "on" : ""}" data-mside="${sd}">${sd}</button>`).join(" ")} than <b>${p.line}</b> ${esc(p.stat)}${pickedTxt(p) ? ` · <span class="note">${esc(pickedTxt(p))}</span>` : ""}</div>
     <div class="mver"><div>${v ? `<span class="vd ${v.c} big"><i></i>${VLAB[v.c]}</span>` : ""} <b style="font-size:20px">${pct(prob)}</b> <span class="note">estimated chance</span></div>
       <div class="note">My read: ${cl(v && v.model)} · Community: ${cl(v && v.crowd)}${v && v.flags.length ? `<br>Flags: ${esc(v.flags.join(", "))}` : ""}</div></div>
+    ${evidenceHTML(p, side)}
     <div class="tabs mtabs"><button data-mtab="l10" class="on">Last 10</button>${p.sport === "mma" ? `<button data-mtab="vs">The matchup</button>` : `<button data-mtab="vs">vs ${esc(p.opp || "opponent")} (${Math.min(10, vs.length)})</button>`}</div>
     <div id="mChart"></div>
     ${r.why.length ? `<h4>Why it could hit</h4>${r.why.map(t => `<div class="why">${esc(t)}</div>`).join("")}` : ""}
     ${r.risk.length ? `<h4>What could go wrong</h4>${r.risk.map(t => `<div class="risk">${esc(t)}</div>`).join("")}` : ""}
-    ${(p.gnews || []).length ? `<h4>Latest headlines</h4>${p.gnews.map(n => `<div class="snip ${n.tone === "bad" ? "dn" : ""}">${n.tone === "bad" ? "⚠" : "•"} <a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.t)}</a></div>`).join("")}` : ""}
+    ${(p.gnews || []).length ? `<h4>Latest headlines</h4>${p.gnews.map(n => `<div class="snip ${n.tone === "bad" && !n.superseded ? "dn" : ""}">${n.tone === "bad" && !n.superseded ? "⚠" : "•"} <a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.t)}</a> <small class="note">${esc([n.src, n.ageH != null ? agoTxt(n.ageH * 3600) : "", n.n > 1 ? `${n.n} outlets` : "", n.rumor ? "unconfirmed" : "", n.superseded ? "outdated by newer news" : "", n.tier === 3 ? "official/major" : ""].filter(Boolean).join(" · "))}</small></div>`).join("")}` : p.newsChecked ? `<p class="note">Headlines checked: nothing found in the last 4 days.</p>` : ""}
     ${snips ? `<h4>What people are saying</h4>${snips}` : ""}
     <p class="note">${p.histMore != null ? `History alone says ${pct(side === "More" ? p.histMore : p.histLess)}; ` : ""}${p.stdLine != null ? `PrizePicks' standard line is ${p.stdLine}, which is treated as the 50/50 point.` : "No standard line on the board to anchor to."}</p>
   </div>`;
@@ -1614,6 +1637,16 @@ function openPick(p, side){
   document.querySelectorAll("[data-mside]").forEach(b => b.onclick = () => openPick(p, b.dataset.mside));
   $("#mClose").onclick = closePick;
   $("#modal").classList.remove("hide");
+}
+function evidenceHTML(p, side){
+  const ev = p.ev && p.best === side ? p.ev : (p.pMore != null ? evidence(p, side) : null);
+  if (!ev || ev.score == null) return "";
+  const prof = p.prof ? `<p class="note">Last ${p.prof.n}: usually ${p.prof.q1}–${p.prof.q3} (median ${p.prof.med}), 8 in 10 between ${p.prof.lo} and ${p.prof.hi} · ${p.prof.label}</p>` : "";
+  const gc = p.ctxTotal || p.ctxSpread != null ? `<p class="note">Game: ${p.ctxTotal ? `total ${p.ctxTotal}` : ""}${p.ctxSpread != null ? `${p.ctxTotal ? ", " : ""}spread ${p.ctxFav ? esc(p.ctxFav) + " -" : ""}${p.ctxSpread}` : ""}${p.pBlow != null ? `, blowout chance ${Math.round(p.pBlow * 100)}%` : ""} (ESPN)</p>` : "";
+  return `<div class="evid"><div class="evtop"><b>${ev.score}</b><span>evidence score / 100<br><small>how much independent evidence agrees. Not a win chance.</small></span>${p.cls && p.best === side ? `<span class="cls ${p.cls}">${p.cls === "top" ? "⭐ " : ""}${CLS_LAB[p.cls]}</span>` : ""}</div>
+    ${ev.parts.map(x => `<div class="evrow"><span>${esc(x.k)}</span><i style="--w:${Math.round(100 * x.pts / x.max)}%"></i><b>${x.pts}/${x.max}</b><small>${esc(x.why)}</small></div>`).join("")}
+    ${ev.na.length ? `<p class="note">Not available: ${esc(ev.na.join(", "))}.</p>` : ""}
+    <p class="note">Break-even for this leg in a 6-pick Power: ${pct(p.ev?.be ?? breakeven(p))}. ${(side === "More" ? p.sensMore : p.sensLess) != null ? `With 15% fewer minutes: ${pct(side === "More" ? p.sensMore : p.sensLess)}.` : ""}</p>${prof}${gc}</div>`;
 }
 function closePick(){ $("#modal").classList.add("hide"); $("#modal").innerHTML = ""; }
 document.addEventListener("click", e => {
@@ -1637,7 +1670,7 @@ function card(p, i){
     pickedTxt(p)].filter(Boolean).map(t => `<span class="chip">${esc(t)}</span>`);
   if (p.buzz) chips.push(`<span class="chip ${p.buzzSent > 0.2 ? "up" : p.buzzSent < -0.2 ? "dn" : ""}">Reddit ${p.buzz}${p.buzzSent > 0.2 ? " ▲" : p.buzzSent < -0.2 ? " ▼" : ""}</span>`);
   return `<div class="pick" data-pk="${esc(p.sport + "|" + p.id)}"><div class="rank">${i}</div><div class="info">
-    <div class="name">${vdot(p.verdict, true)} <span class="tag ${p.type}">${p.type.toUpperCase()}</span>${esc(p.player)} <small>${vsText(p)}</small></div>
+    <div class="name">${vdot(p.verdict, true)} <span class="tag ${p.type}">${p.type.toUpperCase()}</span>${p.cls ? `<span class="cls ${p.cls}">${p.cls === "top" ? "⭐ " : ""}${CLS_LAB[p.cls]}</span>` : ""}${esc(p.player)} <small>${vsText(p)}</small></div>
     <div><b>${side}</b> than <b>${p.line}</b> ${esc(p.stat)}</div>
     <div class="chips">${chips.join("")}</div>
     ${p.inj ? `<div class="inj">⚠ ${esc(p.inj.status)}${p.inj.comment ? ": " + esc(p.inj.comment.slice(0, 100)) : ""}</div>` : ""}
@@ -1651,7 +1684,7 @@ function render(){
   const t = $("#typeSel").value, g = $("#gameSel").value, s = $("#statSel").value, cf = $("#confSel").value;
   const q = norm($("#playerQ").value), vc = p => p.verdict ? p.verdict.c : "n";
   const ok = p => (!t || p.type === t) && (!g || gameOf(p) === g) && (!s || p.stat === s) && (!q || norm(p.player).includes(q)) &&
-    (!cf || (cf === "g" ? vc(p) === "g" : vc(p) === "g" || vc(p) === "y"));
+    (!cf || (cf === "g" ? vc(p) === "g" : cf === "gy" ? vc(p) === "g" || vc(p) === "y" : cf === "top" ? p.cls === "top" : cf === "safe" ? p.cls === "safe" || p.cls === "top" && p.verdict?.c === "g" : p.cls === "value" || p.cls === "top"));
   const pb = p => (p.best === "More" ? p.pMore : p.pLess) ?? -1;
   const so = $("#sortSel").value;
   const key = so === "proj" ? (p => gapOf(p) ?? -1e9) : so === "picked" ? (p => p.trending ?? -1) : pb;
@@ -1660,7 +1693,7 @@ function render(){
   let h = "";
   if (!g) {
     $("#out").innerHTML = list.length ? `<h2>All games <small>${list.length} picks · ${sortTxt}</small></h2>` +
-      list.sort(by).slice(0, 300).map((p, i) => card(p, i + 1)).join("") : `<p class="note">No picks match these filters.</p>`;
+      list.sort(by).slice(0, 300).map((p, i) => card(p, i + 1)).join("") : `<p class="note">${cf === "top" ? "No picks qualify as Top picks right now. The bar isn't lowered just to fill the list." : "No picks match these filters."}</p>`;
     return;
   }
   const games = {};
@@ -2340,6 +2373,303 @@ async function espnUFC(picks){
   return by;
 }
 
+// =====================================================================================================
+// ---------- INTELLIGENCE LAYER: game context, consistency & risk, evidence score, pick classes,
+//            correlation-aware lineups, track record. All local math; no AI service, no invented data.
+// =====================================================================================================
+function invPhi(p){
+  const a = [-39.6968302866538, 220.946098424521, -275.928510446969, 138.357751867269, -30.6647980661472, 2.50662827745924],
+    b = [-54.4760987982241, 161.585836858041, -155.698979859887, 66.8013118877197, -13.2806815528857],
+    c = [-0.00778489400243029, -0.322396458041136, -2.40075827716184, -2.54973253934373, 4.37466414146497, 2.93816398269878],
+    d = [0.00778469570904146, 0.32246712907004, 2.445134137143, 3.75440866190742], pl = 0.02425;
+  if (p < pl) { const q = Math.sqrt(-2 * Math.log(p)); return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+  if (p > 1 - pl) { const q = Math.sqrt(-2 * Math.log(1 - p)); return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1); }
+  const q = p - 0.5, r = q * q;
+  return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+}
+// move a probability as if the expected stat moved by z standard deviations
+const pShift = (p, z) => p == null ? p : clip(phi(invPhi(clip(p, 0.01, 0.99)) + z), 0.01, 0.99);
+const quant = (s, q) => { if (!s.length) return null; const i = (s.length - 1) * q, lo = Math.floor(i), hi = Math.ceil(i); return s[lo] + (s[hi] - s[lo]) * (i - lo); };
+
+// ---------- 1) GAME CONTEXT from ESPN's scoreboard: point spread -> blowout risk, total -> pace. Back-to-backs from game logs.
+const CTX = {
+  nba: {path: "basketball/nba", sd: 12, T: 20, base: 228, k: 0.6, starter: 26},
+  wnba: {path: "basketball/wnba", sd: 11, T: 18, base: 164, k: 0.6, starter: 25},
+  cbb: {path: "basketball/mens-college-basketball", q: "&groups=50&limit=400", sd: 11, T: 20, base: 145, k: 0.6, starter: 25},
+  nfl: {path: "football/nfl", sd: 13.5, T: 21, base: 44, k: 0.5},
+  cfb: {path: "football/college-football", q: "&groups=80&limit=400", sd: 16, T: 24, base: 55, k: 0.5},
+  nhl: {path: "hockey/nhl", base: 6.2, k: 0.5},
+};
+const TEAM_ALIAS = {WSH: "WAS", WAS: "WSH", PHX: "PHO", PHO: "PHX", UTAH: "UTA", UTA: "UTAH", NO: "NOP", NOP: "NO", GS: "GSW", GSW: "GS", SA: "SAS", SAS: "SA", NY: "NYK", NYK: "NY", BKN: "BK", LV: "LVR", JAX: "JAC", JAC: "JAX", TB: "TBL", TBL: "TB", NJ: "NJD", NJD: "NJ", LA: "LAK", SJ: "SJS", SJS: "SJ"};
+const sameTeam = (a, b) => { a = String(a || "").toUpperCase(); b = String(b || "").toUpperCase(); return !!a && !!b && (a === b || TEAM_ALIAS[a] === b || (a.length >= 2 && b.length >= 2 && (a.startsWith(b) || b.startsWith(a)))); };
+const etDate = iso => new Date(iso).toLocaleDateString("en-CA", {timeZone: "America/New_York"}).replace(/-/g, "");
+async function gameContext(picks, sport){
+  const C = CTX[sport]; if (!C) return {games: 0};
+  const dates = [...new Set(picks.filter(p => p.start).map(p => etDate(p.start)))].slice(0, 3);
+  const games = [];
+  for (const d of dates) {
+    try {
+      const js = await getJSON(`https://site.api.espn.com/apis/site/v2/sports/${C.path}/scoreboard?dates=${d}${C.q || ""}`);
+      for (const ev of js.events || []) {
+        const comp = ev.competitions?.[0]; if (!comp) continue;
+        const teams = (comp.competitors || []).map(c => ({ab: c.team?.abbreviation || "", home: c.homeAway === "home", fav: !!c.odds?.favorite}));
+        const o = (comp.odds || [])[0]; if (!o) { games.push({teams, total: null, spread: null}); continue; }
+        const total = toNum(o.overUnder), m = String(o.details || "").match(/^([A-Z.&]{2,6})\s+([-+]?\d+(\.\d+)?)/);
+        let spread = m ? Math.abs(+m[2]) : (o.spread != null ? Math.abs(+o.spread) : null), fav = m ? m[1] : null;
+        if (/^EVEN|PK/i.test(o.details || "")) spread = 0;
+        games.push({teams, total: total > 0 ? total : null, spread, fav, src: o.provider?.name || "ESPN"});
+      }
+    } catch (e) { noteErr("ESPN game odds", e); }
+  }
+  let used = 0;
+  for (const p of picks) {
+    if (p.sMore == null || p.lineOnly) continue;
+    const g = games.find(g => g.teams.some(t => sameTeam(t.ab, p.team)) && g.teams.some(t => sameTeam(t.ab, p.opp)));
+    const sd = p.sd || Math.max(0.8, 0.3 * p.line), proj = p.proj ?? p.line, notes = [];
+    let delta = 0;
+    if (g && (g.total != null || g.spread != null)) {
+      used++;
+      const goalie = /save|goals? against|goalie/i.test(p.stat);
+      if (g.total != null && !goalie) {
+        const pf = clip(Math.pow(g.total / C.base, C.k), 0.94, 1.06);
+        delta += proj * (pf - 1);
+        if (Math.abs(pf - 1) >= 0.02) notes.push({dir: pf > 1 ? 1 : -1, t: `${pf > 1 ? "High" : "Low"}-scoring game expected (total ${g.total} vs a usual ${C.base})`});
+        p.ctxTotal = g.total; p.ctxPace = +pf.toFixed(3);
+      }
+      if (g.spread != null && C.sd) {
+        const s = g.spread, pb = clip(1 - phi((C.T - s) / C.sd) + phi((-C.T - s) / C.sd), 0, 0.9);
+        p.ctxSpread = s; p.ctxFav = g.fav; p.pBlow = +pb.toFixed(2);
+        if (C.starter && (p.minAvg || 0) >= C.starter) {   // stars sit in blowouts, whichever side is winning
+          delta -= proj * 0.12 * pb;
+          if (pb >= 0.2) notes.push({dir: -1, t: `Blowout risk ${Math.round(pb * 100)}% (spread ${s}): starters can sit the 4th quarter`});
+        }
+      }
+    }
+    // back-to-back / 3 games in 4 nights (basketball and hockey)
+    if (["nba", "wnba", "cbb", "nhl"].includes(sport) && p.start) {
+      const gs = (HIST[sport] || {})[p.player] || [], t0 = Date.parse(p.start);
+      const recent = gs.filter(x => x.date && t0 - Date.parse(x.date) > 0 && t0 - Date.parse(x.date) < 4 * 864e5);
+      const last = recent[0] && t0 - Date.parse(recent[0].date);
+      if (last && last < 34 * 3600e3) { delta -= proj * 0.03; p.b2b = true; notes.push({dir: -1, t: "Second game in two nights (tired legs, sometimes fewer minutes)"}); }
+      else if (recent.length >= 2) { delta -= proj * 0.015; p.b2b = true; notes.push({dir: -1, t: "Third game in four nights"}); }
+    }
+    if (delta) {
+      p.ctxDelta = +delta.toFixed(2);
+      p.sMore = pShift(p.sMore, delta / sd); if (p.sLess != null) p.sLess = pShift(p.sLess, -delta / sd);
+      if (p.proj != null) p.proj = +(p.proj + delta).toFixed(1);
+    }
+    if (notes.length) p.ctxNotes2 = notes;
+  }
+  return {games: games.length, used};
+}
+
+// ---------- 2) CONSISTENCY & RISK: median, middle 50%, 80% range, boom/bust, role change, outliers, minutes sensitivity
+function profilePick(p){
+  const s = seriesFor(p).slice(0, 20), v = s.map(x => x.v);
+  if (v.length < 6) return;
+  const sorted = [...v].sort((a, b) => a - b), mean = v.reduce((a, b) => a + b, 0) / v.length;
+  const sd = Math.sqrt(v.reduce((a, b) => a + (b - mean) ** 2, 0) / v.length), med = quant(sorted, 0.5);
+  const q1 = quant(sorted, 0.25), q3 = quant(sorted, 0.75), lo = quant(sorted, 0.1), hi = quant(sorted, 0.9);
+  const cv = mean > 0 ? sd / mean : 1, tM = Math.floor(p.line) + 0.5, tL = Math.ceil(p.line) - 0.5;
+  const ext = v.filter(x => Math.abs(x - mean) > 2 * sd).length / v.length;
+  const label = cv <= 0.3 ? "steady" : (hi > 1.8 * Math.max(med, 0.5) || cv > 0.6) ? "boom-or-bust" : cv > 0.45 ? "swingy" : "fairly steady";
+  p.prof = {n: v.length, med: +med.toFixed(1), q1: +q1.toFixed(1), q3: +q3.toFixed(1), lo: +lo.toFixed(1), hi: +hi.toFixed(1), cv: +cv.toFixed(2), label,
+    overRate: +(v.filter(x => x > tM).length / v.length).toFixed(2), underRate: +(v.filter(x => x < tL).length / v.length).toFixed(2), ext: +ext.toFixed(2)};
+  // outlier in the last 3 games (robust: median and MAD)
+  const mad = quant([...v.map(x => Math.abs(x - med))].sort((a, b) => a - b), 0.5) || sd || 1;
+  const o = s.slice(0, 3).find(x => Math.abs(x.v - med) / (1.4826 * mad) > 3);
+  if (o) p.outlier = {v: o.v, date: o.date, high: o.v > med};
+  // role change: minutes over the last 5 vs the 15 before (sports that track minutes)
+  const mins = s.map(x => x.min).filter(m => m != null);
+  if (mins.length >= 12) {
+    const a = mins.slice(0, 5).reduce((x, y) => x + y, 0) / 5, b = mins.slice(5, 20).reduce((x, y) => x + y, 0) / Math.max(1, mins.slice(5, 20).length);
+    if (b > 5 && Math.abs(a / b - 1) >= 0.2) p.roleChange = {from: +b.toFixed(1), to: +a.toFixed(1)};
+  }
+}
+// what happens if he plays 15% less (foul trouble, blowout, minutes limit)
+function sensitivity(p){
+  const sd = p.sd || Math.max(0.8, 0.3 * p.line), proj = p.proj ?? p.line, z = -0.15 * proj / sd;
+  if (p.pMore != null) p.sensMore = +pShift(p.pMore, z).toFixed(3);
+  if (p.pLess != null) p.sensLess = +pShift(p.pLess, -z).toFixed(3);
+}
+
+// ---------- 3) EVIDENCE SCORE (0-100) and pick classes. The score is NOT a win chance: it measures how much independent
+//               evidence agrees. Categories with no data are left out (not guessed) and listed as unavailable.
+const breakeven = p => clip(1 / (Math.pow(POWER[6], 1 / 6) * legFactor(p)), 0.3, 0.95);   // per-leg break-even for a 6-pick Power
+function evidence(p, side){
+  const parts = [], na = [], more = side === "More", prob = more ? p.pMore : p.pLess;
+  const sd = p.sd || Math.max(0.8, 0.3 * p.line);
+  // Statistical projection
+  if (p.proj != null && !p.lineOnly) {
+    const z = (more ? p.proj - p.line : p.line - p.proj) / sd, long = more ? p.longMore : p.longLess;
+    let pts = clip(z * 12, 0, 12) + (p.games >= 20 ? 5 : p.games >= 10 ? 3 : 1) + (long != null ? (long >= 0.55 ? 3 : long >= 0.48 ? 1 : 0) : 0);
+    parts.push({k: "Stats", pts, max: 20, why: `projects ${p.proj} vs ${p.line}${long != null ? `, ${pct(long)} long-run` : ""}`});
+  } else na.push("Stats");
+  // Matchup & game script
+  const mParts = []; let mp = 0, mm = 0;
+  if (p.vsN >= 3) { const r = more ? p.vsMore : p.vsLess; mp += r >= 0.6 ? 8 : r >= 0.5 ? 5 : r >= 0.4 ? 2 : 0; mm += 8; mParts.push(`${Math.round(r * p.vsN)}/${p.vsN} vs ${p.opp}`); }
+  if (p.ctxPace != null || p.pBlow != null) {
+    const d = (p.ctxDelta || 0) * (more ? 1 : -1) / sd; mp += d > 0.08 ? 6 : d > -0.08 ? 3 : 0; mm += 6;
+    if (p.pBlow != null) { const risk = more ? p.pBlow : 0; mp += risk < 0.15 ? 6 : risk < 0.3 ? 3 : 0; mm += 6; }
+    mParts.push(p.ctxTotal ? `game total ${p.ctxTotal}` : "game script");
+  }
+  if (p.oppAllows != null) { mm += 6; mp += 3; mParts.push("opponent tendencies"); }
+  if (mm) parts.push({k: "Matchup", pts: mp * 20 / mm, max: 20, why: mParts.join(", ")}); else na.push("Matchup");
+  // News, injuries, lineup
+  {
+    let pts = 0; const w = [];
+    const q = p.inj && /question|day|doubt|out/i.test(p.inj.status || "");
+    pts += q ? 0 : 8; w.push(q ? `injury tag: ${p.inj.status}` : "no injury tag");
+    const bad = p.newsFlag || p.news?.some(n => n.tone === "bad"), warn = p.newsWarn;
+    pts += bad ? 0 : warn ? 3 : 6; w.push(bad ? "serious news" : warn ? "minor news" : p.newsChecked ? "news checked, nothing serious" : "no news found");
+    pts += p.ctxNotes?.length ? 3 : 2;
+    pts += p.minCv == null ? 2 : p.minCv < 0.15 ? 3 : p.minCv < 0.25 ? 2 : 0;
+    parts.push({k: "News & lineup", pts, max: 20, why: w.join(", ")});
+  }
+  // Market: only when a real sportsbook number exists for this prop
+  const m = more ? p.mMore : p.mLess;
+  if (m != null) parts.push({k: "Market", pts: clip((m - 0.4) / 0.25, 0, 1) * 20, max: 20, why: `books price it at ${pct(m)}`});
+  else na.push("Market (no sportsbook prop feed)");
+  // Consistency & model reliability
+  if (p.prof) {
+    const rate = more ? p.prof.overRate : p.prof.underRate;
+    let pts = (p.prof.cv <= 0.3 ? 8 : p.prof.cv <= 0.45 ? 5 : p.prof.cv <= 0.6 ? 2 : 0) + (rate >= 0.7 ? 6 : rate >= 0.55 ? 3 : 0);
+    const st = (CAL[p.sport]?.byStat || {})[p.stat], rel = trackStatRel(p.sport, p.stat);
+    pts += rel != null ? (rel <= 0.06 ? 6 : rel <= 0.12 ? 3 : 0) : st ? 4 : 2;
+    parts.push({k: "Consistency", pts, max: 20, why: `${p.prof.label}, cleared ${Math.round(rate * 100)}% of last ${p.prof.n}`});
+  } else na.push("Consistency");
+  const tot = parts.reduce((a, x) => a + x.pts, 0), max = parts.reduce((a, x) => a + x.max, 0);
+  return {score: max ? Math.round(100 * tot / max) : null, parts: parts.map(x => ({...x, pts: Math.round(x.pts)})), na, prob};
+}
+function classify(picks){
+  TRK_CACHE.clear();
+  for (const p of picks) {
+    p.cls = null; p.ev = null;
+    if (p.pMore == null || !p.verdict) continue;
+    sensitivity(p);
+    const side = p.best, prob = side === "More" ? p.pMore : p.pLess, sens = side === "More" ? p.sensMore : p.sensLess;
+    const ev = evidence(p, side), be = breakeven(p), hard = p.newsFlag || p.lineOnly || p.trap || (p.inj && /out|doubt|suspen/i.test(p.inj.status || ""));
+    p.ev = {...ev, be: +be.toFixed(3)};
+    const strongCats = ev.parts.filter(x => x.pts >= 0.6 * x.max).length;
+    const safe = p.verdict.c === "g" && sens != null && sens >= 0.65 && p.prof?.label !== "boom-or-bust";
+    const value = !hard && prob - be >= 0.06;
+    const top = !hard && ev.score >= 75 && prob - be >= 0.08 && strongCats >= 3 && sens != null && sens >= be && !p.outlier?.high;
+    p.cls = top ? "top" : safe ? "safe" : value ? "value" : null;
+  }
+}
+const CLS_LAB = {top: "Top pick", safe: "Safe", value: "Value"};
+
+// ---------- 4) NEWS INTELLIGENCE helpers: source credibility, duplicates, freshness, rumor vs confirmed
+const SRC_TIER = [[/nba\.com|nfl\.com|nhl\.com|mlb\.com|wnba\.com|ncaa\.com|ufc\.com|pgatour\.com|atptour\.com|wtatennis\.com|espn\.com|apnews\.com|reuters\.com/i, 3],
+  [/theathletic|nytimes|cbssports|si\.com|yahoo\.com|foxsports|nbcsports|usatoday|bleacherreport|sbnation|rotowire|rotoworld|underdog|actionnetwork|theringer|spotrac|hoopshype|profootballtalk|nhl|mlb/i, 2]];
+const srcTier = (url, name) => { const s = (url || "") + " " + (name || ""); for (const [re, t] of SRC_TIER) if (re.test(s)) return t; return 1; };
+const RUMOR = /\b(reportedly|rumou?r\w*|sources? say|could|might|may|expected to|considering|linked|speculat\w*|unconfirmed|per sources|eyeing|interest in)\b/i;
+const CLEARED = /\b(cleared|will play|returns?|back in (the )?lineup|upgraded|available|active|activated|off the injury report|no restrictions?|full participant)\b/i;
+function newsDigest(items, last){
+  // group stories about the same event (different outlets re-reporting one announcement count once)
+  const key = t => norm(t).replace(/[^a-z ]/g, " ").split(" ").filter(w => w.length > 3 && w !== last).sort().slice(0, 8).join(" ");
+  const groups = [];
+  for (const it of items) {
+    const k = new Set(key(it.t).split(" "));
+    const g = groups.find(g => { let s = 0; for (const w of k) if (g.k.has(w)) s++; return s >= Math.max(3, 0.6 * Math.min(k.size, g.k.size)); });
+    if (g) { g.items.push(it); g.tier = Math.max(g.tier, it.tier); g.date = Math.max(g.date, it.ts); } else groups.push({k, items: [it], tier: it.tier, date: it.ts});
+  }
+  for (const g of groups) {
+    const lead = g.items.sort((a, b) => b.tier - a.tier || b.ts - a.ts)[0];
+    Object.assign(g, {t: lead.t, link: lead.link, src: lead.src, tone: lead.tone, rumor: RUMOR.test(lead.t), cleared: CLEARED.test(lead.t), n: g.items.length,
+      ageH: (Date.now() - g.date) / 3600e3});
+    // freshness: news fades over ~2 days; confirmed reports from credible outlets count fully
+    g.weight = +(Math.exp(-g.ageH / 48) * (g.tier === 3 ? 1 : g.tier === 2 ? 0.8 : 0.5) * (g.rumor ? 0.4 : 1)).toFixed(2);
+  }
+  groups.sort((a, b) => b.date - a.date);
+  // a newer "cleared / will play" report overrides an older injury-type headline
+  const newestClear = groups.find(g => g.cleared && g.weight >= 0.3);
+  const INJ = /\b(out|ruled out|injur\w*|sprain\w*|strain\w*|questionable|doubtful|day-to-day|surgery|illness|sick|sore\w*|protocol|concussion|limited|rest(ing)?|game-time)\b/i;
+  for (const g of groups) if (newestClear && g !== newestClear && g.date < newestClear.date && g.tone && INJ.test(g.t)) { g.superseded = true; g.weight = 0; }
+  return groups;
+}
+
+// ---------- 5) CORRELATION-AWARE LINEUPS: measured from games both players played; joint odds simulated 10,000 times
+function legSeries(l){
+  const p = l.pk, t = l.side === "More" ? Math.floor(p.line) + 0.5 : Math.ceil(p.line) - 0.5, m = {};
+  for (const x of seriesFor(p).slice(0, 120)) if (x.date) m[String(x.date).slice(0, 10)] = (l.side === "More" ? x.v > t : x.v < t) ? 1 : 0;
+  return m;
+}
+function pairRho(a, b){
+  const A = legSeries(a), B = legSeries(b), ds = Object.keys(A).filter(d => d in B);
+  const sameTeamPair = sameTeam(a.pk.team, b.pk.team), sameGame = gameOf(a.pk) === gameOf(b.pk);
+  let rho = 0, src = "none";
+  if (ds.length >= 12 && sameTeamPair) {
+    const xs = ds.map(d => A[d]), ys = ds.map(d => B[d]), mx = xs.reduce((s, v) => s + v, 0) / xs.length, my = ys.reduce((s, v) => s + v, 0) / ys.length;
+    const cov = xs.reduce((s, v, i) => s + (v - mx) * (ys[i] - my), 0), vx = xs.reduce((s, v) => s + (v - mx) ** 2, 0), vy = ys.reduce((s, v) => s + (v - my) ** 2, 0);
+    if (vx > 0 && vy > 0) { rho = cov / Math.sqrt(vx * vy) * ds.length / (ds.length + 10); src = `${ds.length} shared games`; }   // shrunk toward 0 for small samples
+  } else if (sameGame) {
+    // no shared history: mild priors (same game pace moves everyone a little; teammates on the same stat compete)
+    const sameStat = a.pk.stat === b.pk.stat, sides = a.side === b.side;
+    rho = sameTeamPair ? (sameStat ? -0.08 : 0.04) : 0.05; if (!sides) rho = -rho; src = "same game";
+    if ((a.pk.sport === "nfl" || a.pk.sport === "cfb") && sameTeamPair && /pass/i.test(a.pk.stat + b.pk.stat) && /rec/i.test(a.pk.stat + b.pk.stat)) { rho = sides ? 0.3 : -0.3; src = "QB-receiver stack"; }
+  }
+  return {rho: clip(rho, -0.6, 0.6), src, n: ds.length};
+}
+function corrSim(L, N = 10000){
+  const n = L.length, R = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => i === j ? 1 : 0)), pairs = [];
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const r = pairRho(L[i], L[j]); R[i][j] = R[j][i] = r.rho; if (Math.abs(r.rho) >= 0.03) pairs.push({a: L[i], b: L[j], ...r}); }
+  // Cholesky (fall back to independent if the matrix isn't valid)
+  const Lc = Array.from({length: n}, () => Array(n).fill(0));
+  for (let i = 0; i < n; i++) for (let j = 0; j <= i; j++) {
+    let s = R[i][j]; for (let k = 0; k < j; k++) s -= Lc[i][k] * Lc[j][k];
+    if (i === j) { if (s <= 1e-9) return null; Lc[i][i] = Math.sqrt(s); } else Lc[i][j] = s / Lc[j][j];
+  }
+  const thr = L.map(l => invPhi(clip(l.p, 0.01, 0.99)));
+  let seed = 987654321; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const gauss = () => { let u = 0; while (!u) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd()); };
+  const counts = Array(n + 1).fill(0), z = Array(n);
+  for (let s = 0; s < N; s++) {
+    for (let i = 0; i < n; i++) z[i] = gauss();
+    let k = 0;
+    for (let i = 0; i < n; i++) { let x = 0; for (let j = 0; j <= i; j++) x += Lc[i][j] * z[j]; if (x < thr[i]) k++; }
+    counts[k]++;
+  }
+  return {d: counts.map(c => c / N), pairs};
+}
+
+// ---------- 6) TRACK RECORD: every rating is saved as it was made, graded later against the real stat line
+const TRACK_DAYS = 60;
+const TRK_CACHE = new Map();
+function trackStatRel(sport, stat){   // how far off this stat's predictions have been (|predicted - actual| hit rate), once there's enough
+  const key = sport + "|" + stat; if (TRK_CACHE.has(key)) return TRK_CACHE.get(key);
+  if (!TRK_CACHE.has(sport)) TRK_CACHE.set(sport, trackLoad(sport).filter(r => r[6] != null && r[7] != null));
+  const rows = TRK_CACHE.get(sport).filter(r => r[1] === stat);
+  if (rows.length < 25) { TRK_CACHE.set(key, null); return null; }
+  if (rows.length < 25) return null;
+  const pr = rows.reduce((s, r) => s + r[7], 0) / rows.length, ac = rows.reduce((s, r) => s + r[6], 0) / rows.length;
+  TRK_CACHE.set(key, Math.abs(pr - ac)); return Math.abs(pr - ac);
+}
+function trackDashboard(){
+  const all = Object.keys(SPORTS).flatMap(s => trackLoad(s).map(r => ({s, r}))), done = all.filter(x => x.r[6] != null);
+  const rate = xs => xs.length ? `${pct(xs.filter(x => x.r[6]).length / xs.length)} <small>(${xs.filter(x => x.r[6]).length}/${xs.length})</small>` : `<small>no results yet</small>`;
+  const row = (lab, xs) => `<tr><td>${lab}</td><td>${rate(xs)}</td></tr>`;
+  if (!done.length) return `<p class="body">Nothing graded yet. Every rating is saved the moment it's made (line, projection, chance, class, time), then graded against the real box score after the game, the next time the app loads that player.</p><p class="note">${all.length} ratings saved and waiting for their games to finish.</p>`;
+  const bySport = Object.keys(SPORTS).map(s => [SPORTS[s].label, done.filter(x => x.s === s)]).filter(([, xs]) => xs.length);
+  const bins = [[0.5, 0.6], [0.6, 0.7], [0.7, 0.8], [0.8, 0.91]].map(([a, b]) => { const xs = done.filter(x => x.r[7] >= a && x.r[7] < b); return {a, b, n: xs.length, pred: xs.length ? xs.reduce((s, x) => s + x.r[7], 0) / xs.length : null, act: xs.length ? xs.filter(x => x.r[6]).length / xs.length : null}; });
+  const errs = done.filter(x => x.r[10] != null && x.r[12] != null).map(x => Math.abs(x.r[12] - x.r[10]));
+  // weak spots: stat types where reality fell well short of the predictions
+  const byStat = {};
+  for (const x of done) (byStat[x.s + "|" + x.r[1]] ||= []).push(x);
+  const weak = Object.entries(byStat).filter(([, xs]) => xs.length >= 15).map(([k, xs]) => { const pr = xs.reduce((s, x) => s + (x.r[7] || 0), 0) / xs.length, ac = xs.filter(x => x.r[6]).length / xs.length; return {k, n: xs.length, gap: ac - pr, ac}; })
+    .sort((a, b) => a.gap - b.gap);
+  return `<table class="trk2">${row("All graded picks", done)}
+    ${row("Strong (green)", done.filter(x => x.r[4] === "g"))}${row("Unsure (yellow)", done.filter(x => x.r[4] === "y"))}${row("Avoid (red)", done.filter(x => x.r[4] === "r"))}
+    ${row("Top picks", done.filter(x => x.r[8] === "top"))}${row("Safe picks", done.filter(x => x.r[8] === "safe"))}${row("Value picks", done.filter(x => x.r[8] === "value"))}
+    ${row("More", done.filter(x => x.r[3] === "M"))}${row("Less", done.filter(x => x.r[3] === "L"))}
+    ${bySport.map(([l, xs]) => row(l, xs)).join("")}</table>
+    <h4>Calibration: when it says X%, does X% hit?</h4>
+    <table class="trk2"><tr><th>Said</th><th>Picks</th><th>Actually hit</th></tr>${bins.map(b => `<tr><td>${Math.round(b.a * 100)}–${Math.min(90, Math.round(b.b * 100))}%</td><td>${b.n}</td><td>${b.n ? pct(b.act) + (b.n >= 30 ? (Math.abs(b.act - b.pred) <= 0.07 ? " ✓" : b.act < b.pred ? " (lower than said)" : " (higher than said)") : " <small>(too few to judge)</small>") : "–"}</td></tr>`).join("")}</table>
+    ${errs.length ? `<p class="note">Projection error: off by ${(errs.reduce((a, b) => a + b, 0) / errs.length).toFixed(1)} on average across ${errs.length} graded picks.</p>` : ""}
+    ${weak.length ? `<h4>Where it's weakest</h4>${weak.slice(0, 3).map(w => `<p class="body">${esc(SPORTS[w.k.split("|")[0]]?.label || "")} ${esc(w.k.split("|")[1])}: hit ${pct(w.ac)} over ${w.n} picks, ${w.gap < 0 ? `${Math.round(-w.gap * 100)} points below what was predicted` : "on target"}</p>`).join("")}` : `<p class="note">Weak spots show up once a stat type has 15+ graded picks.</p>`}
+    <p class="note">Saved on this device for ${TRACK_DAYS} days. Ratings are stored exactly as made and never edited afterward, so later information can't flatter the record.</p>`;
+}
+
 // ---------- shared ratings: the finished work is saved (on this device and on the website) so the app opens instantly
 const slimG = g => { const o = {}; for (const [k, v] of Object.entries(g)) if (v != null && typeof v !== "function") o[k] = v; return o; };
 function packRated(sport){
@@ -2392,17 +2722,23 @@ async function headlineScan(sport){
       if (!r.ok) { noteErr("Google News", "HTTP " + r.status); return; }
       const xml = new DOMParser().parseFromString(await r.text(), "text/xml");
       const last = norm(name).split(" ").pop();
-      found[name] = [...xml.querySelectorAll("item")].slice(0, 12).map(it => ({t: it.querySelector("title")?.textContent || "", link: it.querySelector("link")?.textContent || "", date: it.querySelector("pubDate")?.textContent || ""}))
-        .filter(x => norm(x.t).includes(last)).map(x => ({...x, tone: NEWS_DRASTIC.test(x.t) ? "bad" : NEWS_WARN.test(x.t) ? "warn" : ""})).slice(0, 5);
+      const items = [...xml.querySelectorAll("item")].slice(0, 20).map(it => { const se = it.querySelector("source"), dt = it.querySelector("pubDate")?.textContent || "";
+          return {t: (it.querySelector("title")?.textContent || "").replace(/\s+-\s+[^-]+$/, ""), link: it.querySelector("link")?.textContent || "", date: dt, ts: Date.parse(dt) || Date.now(),
+            src: se?.textContent || "", tier: srcTier(se?.getAttribute("url"), se?.textContent)}; })
+        .filter(x => norm(x.t).includes(last)).map(x => ({...x, tone: NEWS_DRASTIC.test(x.t) ? "bad" : NEWS_WARN.test(x.t) ? "warn" : ""}));
+      found[name] = newsDigest(items, last).slice(0, 6);
     } catch (e) { noteErr("Google News", e); }
   });
   for (const p of d.picks) {
     const g = found[p.player]; if (!g) continue;
-    p.gnews = g; const bad = g.find(x => x.tone === "bad"), warn = g.find(x => x.tone === "warn");
-    p.newsFlag = bad ? bad.t : null; p.newsWarn = !bad && warn ? warn.t : null;
+    p.gnews = g;
+    // only confirmed, credible, current stories move a pick hard; rumors and stale or superseded items only caution
+    const bad = g.find(x => x.tone === "bad" && !x.superseded && !x.rumor && x.weight >= 0.35), soft = g.find(x => x.tone && !x.superseded && x.weight >= 0.15 && x !== bad);
+    p.newsFlag = bad ? bad.t : null; p.newsWarn = !bad && soft ? soft.t : null; p.newsChecked = true;
     if (p.pMore != null) { p.vd = {More: verdictOf(p, "More"), Less: p.pLess != null ? verdictOf(p, "Less") : null}; p.verdict = p.vd[p.best]; }
   }
   d.newsChecked = Object.keys(found).length;
+  classify(d.picks);
   if (SPORT === sport) { renderCoach(); render(); if (TAB === "home") renderHome(); }
   saveRated(sport);
 }
@@ -2768,6 +3104,7 @@ async function dataCheck(){
     ["ESPN player search (backup only)", `${ESPN_SEARCH}?query=Arch%20Manning&limit=10&mode=prefix&lang=en&region=us`, js => { const n = (JSON.stringify(js).match(/~l:23~a:\d+/g) || []).length; return n ? `${n} college matches` : "no matches, fine (backup only) · sample: " + JSON.stringify(js).slice(0, 160); }],
     ["NHL.com hits/blocks", `https://api.nhle.com/stats/rest/en/skater/realtime?isAggregate=false&isGame=true&limit=5&cayenneExp=${encodeURIComponent('gameTypeId=2 and skaterFullName="Connor McDavid"')}`, js => `${(js.data || []).length} games, hits field ${js.data?.[0] && "hits" in js.data[0] ? "present" : "missing"}`],
     ["ESPN golf leaderboard", "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard", js => `${(js.events || []).length} events, ${(js.leagues?.[0]?.calendar || []).length} on calendar, round scores ${js.events?.[0]?.competitions?.[0]?.competitors?.[0]?.linescores?.length ?? 0}`],
+    ["ESPN game odds (NBA, today)", `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${etDate(new Date().toISOString())}`, js => { const ev = js.events || [], o = ev.filter(e => e.competitions?.[0]?.odds?.[0]); return `${ev.length} games, ${o.length} with a spread/total${o[0] ? ` · e.g. ${o[0].competitions[0].odds[0].details} o/u ${o[0].competitions[0].odds[0].overUnder}` : ""}`; }],
     ["ESPN tennis (ATP, a recent day)", `https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=${ymd(new Date(Date.now() - 3 * 864e5))}`, js => { const cs = (js.events || []).flatMap(e => (e.groupings || []).filter(g => /singles/i.test(g.grouping?.slug || "")).flatMap(g => g.competitions || [])); const done = cs.filter(c => c.status?.type?.completed); return `${cs.length} singles matches, ${done.length} finished · sample: ${JSON.stringify(done[0]?.competitors?.[0]?.linescores || []).slice(0, 80)} winner=${done[0]?.competitors?.[0]?.winner}`; }],
     ["ESPN soccer (Premier League, this month)", `https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard?dates=${new Date().toISOString().slice(0, 7).replace("-", "")}`, js => `${(js.events || []).length} matches, ${(js.events || []).filter(e => e.competitions?.[0]?.status?.type?.completed).length} finished, first id ${(js.events || []).find(e => e.competitions?.[0]?.status?.type?.completed)?.id}`],
     ["ESPN soccer match stats", null, null, "soccer"],
@@ -2914,11 +3251,15 @@ async function analyze(picks, sport = SPORT){
   await addTrending(picks, sport);
   const kind = SPORTS[sport].kind;
   const r = (kind === "espn" ? await analyzeESPN(picks, sport) : kind === "ufc" ? await analyzeUFC(picks) : kind === "golf" ? await analyzeGolf(picks) : kind === "sofa" ? await analyzeSoccer(picks) : kind === "line" ? await analyzeLineOnly(picks, sport) : sport === "tennis" ? await analyzeTennis(picks) : sport === "nfl" ? await analyzeNFL(picks) : sport === "cfb" ? await analyzeCFB(picks) : await analyzeNBA(picks)) || {};
+  setStatus("Checking spreads, totals and rest days…", 0.86);
+  const gc = await gameContext(picks, sport);
+  for (const p of picks) profilePick(p);
   enrich(picks);
   if ($("#useReddit").checked) { setStatus("Reading what people are saying on Reddit…", 0.88); scoreBuzz(picks, await reddit(sport)); }
   finalize(picks);
+  CLASSIFY_PICKS[sport] = {picks}; classify(picks);
   trackUpdate(sport, picks);
-  DATA[sport] = {picks, note: r.note || "", booksUsed: !!r.booksUsed, time: new Date(), redditBlocked: !!ERRS["Reddit"]};
+  DATA[sport] = {picks, gameCtx: gc, note: r.note || "", booksUsed: !!r.booksUsed, time: new Date(), redditBlocked: !!ERRS["Reddit"]};
   setTimeout(() => headlineScan(sport), 50);
   if (SPORT === sport) showSport();
 }
