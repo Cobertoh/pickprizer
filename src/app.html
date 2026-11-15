@@ -256,6 +256,12 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
 .frow{display:flex;gap:14px;margin:0 0 16px}.frow .fl{flex:1;display:flex;flex-direction:column;gap:8px;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#8ea3cc;font-weight:700}
 .frow .fl select,.frow .fl input{width:100%;font-size:17px;text-transform:none;letter-spacing:0;color:#fff;min-height:52px;padding:0 14px}
 .xin{position:relative;display:block}.xin i{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-style:normal;color:#8ea3cc;font-size:17px}
+.tpills{display:flex;gap:8px;margin:2px 0 16px}
+.tpill{flex:1;min-height:44px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:transparent;color:#8ea3cc;font-weight:700;font-size:15px;transition:.15s}
+.tpill.on{color:#fff;border-color:transparent}
+.tpill.goblin.on{background:rgba(52,211,153,.18);box-shadow:inset 0 0 0 1.5px #34d399}
+.tpill.standard.on{background:rgba(59,130,246,.2);box-shadow:inset 0 0 0 1.5px #3b82f6}
+.tpill.demon.on{background:rgba(248,113,113,.18);box-shadow:inset 0 0 0 1.5px #f87171}
 .tog{display:flex;align-items:center;gap:12px;margin:4px 0 18px;font-size:15px;color:#dbe4f5;cursor:pointer}
 .tog small{color:#8ea3cc;margin-left:4px}
 .tog input{display:none}.tog span{flex:none;width:44px;height:26px;border-radius:13px;background:rgba(148,163,184,.25);position:relative;transition:.2s}
@@ -1463,8 +1469,11 @@ function betPanel(){
   return `<form class="betform" id="betForm">
     <div class="frow"><label class="fl">Payout<span class="xin"><input type="number" inputmode="decimal" id="multIn" min="1.5" step="any" value="${esc(m)}" placeholder="10"><i>×</i></span></label>
     <label class="fl">Entries<input type="number" inputmode="numeric" id="entriesIn" min="1" max="20" step="1" value="${esc(en)}"></label></div>
+    <div class="tpills">${["goblin", "standard", "demon"].map(t => `<button type="button" class="tpill ${t} ${ptypeOn(t) ? "on" : ""}" data-pt="${t}" aria-pressed="${ptypeOn(t)}">${t === "goblin" ? "Goblins" : t === "demon" ? "Demons" : "Standard"}</button>`).join("")}</div>
     <button type="submit" class="pri wide">Build my lineup</button></form>`;
 }
+// which pick types Pick4Me may use (all on by default)
+const ptypeOn = t => store.get("pt_" + t, "1") === "1";
 function bestSizeFor(M, legs, mustExtra, avoid){
   const S = L => lineupStats(L), tries = [];
   for (const n of [2, 3, 4, 5, 6]) {
@@ -1487,7 +1496,8 @@ function renderBet(){
   if (false) { box.innerHTML = `<p class="note">${SPORTS[SPORT].name} doesn't have game stats in PickPrizer yet, so Pick4Me can't stand behind a lineup here. Browse the picks in All picks instead.</p>`; return; }
   // every rated pick is fair game (Strong, Unsure, goblins, demons); the builder just finds the best chance of hitting
   // safest picks first; riskier ones (most demons) only join when the payout can't be reached without them
-  const allLegs = buildLegs().filter(l => !l.pk.newsFlag && !/out|doubt|suspen/i.test(l.pk.inj?.status || ""));
+  if (!["goblin", "standard", "demon"].some(ptypeOn)) { box.innerHTML = `<p class="note">Turn on at least one pick type above.</p>`; return; }
+  const allLegs = buildLegs().filter(l => ptypeOn(l.pk.type)).filter(l => !l.pk.newsFlag && !/out|doubt|suspen/i.test(l.pk.inj?.status || ""));
   const safeLegs = allLegs.filter(l => l.v.c !== "r" || l.p >= 0.5);
   let legs = safeLegs;
   if (!bestSizeFor(M, safeLegs).best) legs = allLegs;
@@ -1519,7 +1529,11 @@ function renderBet(){
   box.innerHTML = h;
   bindCoach();
 }
+let COACH_PENDING = false;
 function renderCoach(){
+  const a = document.activeElement, cv = $("#coachView");
+  if (a && cv && cv.contains(a) && /^(INPUT|SELECT)$/.test(a.tagName)) { COACH_PENDING = true; return; }   // don't wipe what they're typing
+  COACH_PENDING = false;
   const legs = buildLegs(), cg = coachGame(), unit = SPORTS[SPORT].unitGame;
   const gameList = [...new Set(ALL.map(gameOf))].map(g => ({g, start: (ALL.find(p => gameOf(p) === g) || {}).start || ""})).sort((a, b) => (a.start > b.start ? 1 : -1));
   const when = st => st ? new Date(st).toLocaleString([], {weekday: "short", hour: "numeric", minute: "2-digit"}) : "";
@@ -1531,11 +1545,17 @@ function renderCoach(){
 function bindCoach(){
   const gs = $("#coachGame");
   if (gs) gs.onchange = () => { store.set("cgame_" + SPORT, gs.value); renderCoach(); };
+  for (const [id, k] of [["multIn", "mult"], ["entriesIn", "entries"]]) { const el = $("#" + id); if (el) el.oninput = () => store.set(k, el.value); }
   const f = $("#betForm");
   if (f) f.onsubmit = e => { e.preventDefault(); const M = +$("#multIn").value, entries = +$("#entriesIn").value || 1;
     store.set("mult", $("#multIn").value); store.set("entries", String(entries)); BET = {M, entries}; renderBet();
     $("#betOut").scrollIntoView({behavior: "smooth", block: "start"}); };
   document.querySelectorAll("[data-go]").forEach(r => r.onclick = () => document.getElementById(r.dataset.go)?.scrollIntoView({behavior: "smooth"}));
+  document.querySelectorAll(".tpill").forEach(b => b.onclick = () => {
+    const t = b.dataset.pt, on = !ptypeOn(t); store.set("pt_" + t, on ? "1" : "0");
+    b.classList.toggle("on", on); b.setAttribute("aria-pressed", on);
+    if (BET) renderBet();
+  });
   document.querySelectorAll(".payfix").forEach(a => a.onclick = e => {
     e.preventDefault(); e.stopPropagation();
     const v = parseFloat(String(prompt("What payout does PrizePicks show for this exact lineup? (for example 7.5)") || "").replace(/[^\d.]/g, ""));
@@ -2565,6 +2585,7 @@ function refreshMine(){
   if (a && v.contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) { MINE_PENDING = true; return; }
   MINE_PENDING = false; renderMine();
 }
+document.addEventListener("focusout", e => { if (COACH_PENDING && $("#coachView").contains(e.target)) setTimeout(() => { if (COACH_PENDING) renderCoach(); }, 400); });
 document.addEventListener("focusout", e => { if (MINE_PENDING && $("#mineView").contains(e.target)) setTimeout(() => { if (MINE_PENDING) refreshMine(); }, 400); });
 function loadAllBoards(){
   return boardsLoading ||= (async () => {
