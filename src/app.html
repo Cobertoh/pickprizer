@@ -257,6 +257,7 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
 .frow .fl select,.frow .fl input{width:100%;font-size:17px;text-transform:none;letter-spacing:0;color:#fff;min-height:52px;padding:0 14px}
 .xin{position:relative;display:block}.xin i{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-style:normal;color:#8ea3cc;font-size:17px}
 .cls{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.4px;padding:2px 8px;border-radius:7px;margin-right:6px;vertical-align:2px}
+.cls.live{background:rgba(239,68,68,.18);color:#fca5a5;animation:livepulse 1.6s ease-in-out infinite}@keyframes livepulse{50%{opacity:.55}}
 .cls.top{background:rgba(251,191,36,.16);color:#fcd34d}.cls.safe{background:rgba(52,211,153,.14);color:#6ee7b7}.cls.value{background:rgba(96,165,250,.16);color:#93c5fd}
 .evid{margin:10px 0 12px;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .evtop{display:flex;align-items:center;gap:10px;margin-bottom:8px}.evtop b{font-size:30px;font-weight:800}.evtop span{font-size:13px;color:#cfe3ff;line-height:1.25}.evtop small{color:var(--mut)}
@@ -581,7 +582,7 @@ function cttl(u){   // how long a download stays good on this device (seconds); 
     if (pth.includes("/roster")) return 12 * CHOUR;
     if (pth.includes("/golf/")) return q.get("event") || q.get("dates") ? 3 * CHOUR : 10 * CMIN;
     if (pth.endsWith("/scoreboard") && q.get("dates")) { const dd = q.get("dates"), today = ymd(new Date()); return dd.length === 8 && dd < today ? 30 * CDAY : dd.length === 6 && dd < today.slice(0, 6) ? 30 * CDAY : CHOUR; }
-    if (pth.endsWith("/summary")) return 30 * CDAY;
+    if (pth.endsWith("/summary")) return q.get("live") ? 0 : 30 * CDAY;
     return 10 * CMIN;
   }
   if (h.endsWith("sofascore.com")) return pth.endsWith("/statistics") ? 60 * CDAY : pth.includes("/search/") ? 14 * CDAY : pth.includes("/events/") ? 3 * CHOUR : CDAY;
@@ -766,7 +767,8 @@ function parseBoard(js, sport = SPORT){
     if (lid != null && !leagues[lid] && String(lid) !== String(sp.league)) continue;
     const type = (a.odds_type || "standard").toLowerCase();
     if (!["standard","goblin","demon"].includes(type) || a.is_promo) continue;
-    if (a.status != null && a.status !== "pre_game") continue;
+    if (a.status != null && /final|complete|cancel|void|closed|settled|postpon/i.test(a.status)) continue;   // live lines stay
+    const live = (a.status != null && a.status !== "pre_game") || (a.start_time && Date.parse(a.start_time) < Date.now() - 60e3);
     const rel = p.relationships || {};
     const pid = ((rel.new_player || rel.player || {}).data || {}).id;
     const pl = people[pid] || {};
@@ -800,7 +802,7 @@ function parseBoard(js, sport = SPORT){
       }
       if (!STATS[a.stat_type]) continue;
     }
-    picks.push({id: p.id, sport, player:name, team, opp, stat:a.stat_type, line:+a.line_score, type, start:a.start_time || "",
+    picks.push({live, id: p.id, sport, player:name, team, opp, stat:a.stat_type, line:+a.line_score, type, start:a.start_time || "",
                 trending: typeof a.trending_count === "number" ? a.trending_count : null});
   }
   return picks;
@@ -1270,8 +1272,9 @@ function finalize(picks){
     }
     const blend = (m, s) => m != null && s != null ? 0.55 * m + 0.45 * s : (m ?? s);
     const bm = blend(p.mMore, p.sMore), bl = blend(p.mLess, p.sLess);
-    p.pMore = bm == null ? null : clip(bm + crowd + tr, 0.03, 0.9);   // never claim more than 90%: injuries, blowouts and foul trouble exist
-    p.pLess = p.type !== "standard" || bl == null ? null : clip(bl - crowd, 0.03, 0.9);
+    const done = p.liveCur != null && p.liveCur > p.line;   // live and already past the line
+    p.pMore = bm == null ? null : done ? 0.99 : clip(bm + crowd + tr, 0.03, 0.9);   // never claim more than 90%: injuries, blowouts and foul trouble exist
+    p.pLess = p.type !== "standard" || bl == null ? null : done ? 0.01 : clip(bl - crowd, 0.03, 0.9);
     let conf = p.mMore != null && p.games >= 15 ? "High" : (p.games >= 8 || p.mMore != null) ? "Med" : "Low";
     if (p.inj && /question|day|doubt/i.test(p.inj.status)) conf = "Low";
     p.conf = p.pMore == null ? "" : conf;
@@ -1407,6 +1410,7 @@ function reasons(l){
   if (!p.ctxNotes?.length && p.teammatesOut?.length && p.sport === "nfl") risk.push(`Teammate${p.teammatesOut.length > 1 ? "s" : ""} out: ${p.teammatesOut.slice(0, 3).join(", ")}. Roles may shift`);
   if (p.trap) risk.push(`PrizePicks' line (${p.stdLine}) is well ${p.trap === "high" ? "above" : "below"} his recent average (${p.proj}). They're pricing in something the stats don't show (role change, injury, matchup), so history can't be trusted here`);
   if (p.cal && l.side === "More") (p.cal.p >= 0.75 ? why : p.cal.p < 0.5 ? risk : why).push(`Measured: lines this far ${p.cal.z >= 0 ? "below" : "above"} a player's usual went over ${p.cal.league != null ? pct(p.cal.league) + ` of the time across ${p.cal.leagueN.toLocaleString()} past games` : ""}${p.cal.own != null ? `${p.cal.league != null ? "; for him it's " : ""}${pct(p.cal.own)} over his own ${p.cal.ownN} games` : ""}`);
+  if (p.liveNote) why.unshift(p.liveNote);
   for (const n of p.ctxNotes2 || []) ((n.dir > 0) === (l.side === "More") ? why : risk).push(n.t);
   if (p.prof) { if (p.prof.label === "boom-or-bust") risk.push(`Boom-or-bust: his middle half of games runs ${p.prof.q1}–${p.prof.q3}, but 1 in 10 goes above ${p.prof.hi}, so the average flatters him`);
     else if (p.prof.label === "steady") why.push(`Steady: half his recent games land between ${p.prof.q1} and ${p.prof.q3}`); }
@@ -1688,7 +1692,7 @@ function card(p, i){
     pickedTxt(p)].filter(Boolean).map(t => `<span class="chip">${esc(t)}</span>`);
   if (p.buzz) chips.push(`<span class="chip ${p.buzzSent > 0.2 ? "up" : p.buzzSent < -0.2 ? "dn" : ""}">Reddit ${p.buzz}${p.buzzSent > 0.2 ? " ▲" : p.buzzSent < -0.2 ? " ▼" : ""}</span>`);
   return `<div class="pick" data-pk="${esc(p.sport + "|" + p.id)}"><div class="rank">${i}</div><div class="info">
-    <div class="name">${vdot(p.verdict, true)} <span class="tag ${p.type}">${p.type.toUpperCase()}</span>${p.cls ? `<span class="cls ${p.cls}">${p.cls === "top" ? "⭐ " : ""}${CLS_LAB[p.cls]}</span>` : ""}${esc(p.player)} <small>${vsText(p)}</small></div>
+    <div class="name">${vdot(p.verdict, true)} <span class="tag ${p.type}">${p.type.toUpperCase()}</span>${p.live ? `<span class="cls live">LIVE</span>` : ""}${p.cls ? `<span class="cls ${p.cls}">${p.cls === "top" ? "⭐ " : ""}${CLS_LAB[p.cls]}</span>` : ""}${esc(p.player)} <small>${vsText(p)}</small></div>
     <div><b>${side}</b> than <b>${p.line}</b> ${esc(p.stat)}</div>
     <div class="chips">${chips.join("")}</div>
     ${p.inj ? `<div class="inj">⚠ ${esc(p.inj.status)}${p.inj.comment ? ": " + esc(p.inj.comment.slice(0, 100)) : ""}</div>` : ""}
@@ -2430,12 +2434,13 @@ async function gameContext(picks, sport){
       const js = await getJSON(`https://site.api.espn.com/apis/site/v2/sports/${C.path}/scoreboard?dates=${d}${C.q || ""}`);
       for (const ev of js.events || []) {
         const comp = ev.competitions?.[0]; if (!comp) continue;
-        const teams = (comp.competitors || []).map(c => ({ab: c.team?.abbreviation || "", home: c.homeAway === "home", fav: !!c.odds?.favorite}));
-        const o = (comp.odds || [])[0]; if (!o) { games.push({teams, total: null, spread: null}); continue; }
+        const teams = (comp.competitors || []).map(c => ({ab: c.team?.abbreviation || "", home: c.homeAway === "home", fav: !!c.odds?.favorite, score: toNum(c.score)}));
+        const stt = comp.status || ev.status || {}, liveInfo = {id: ev.id, state: stt.type?.state || "", period: toNum(stt.period), clock: toNum(stt.displayClock)};
+        const o = (comp.odds || [])[0]; if (!o) { games.push({teams, total: null, spread: null, ...liveInfo}); continue; }
         const total = toNum(o.overUnder), m = String(o.details || "").match(/^([A-Z.&]{2,6})\s+([-+]?\d+(\.\d+)?)/);
         let spread = m ? Math.abs(+m[2]) : (o.spread != null ? Math.abs(+o.spread) : null), fav = m ? m[1] : null;
         if (/^EVEN|PK/i.test(o.details || "")) spread = 0;
-        games.push({teams, total: total > 0 ? total : null, spread, fav, src: o.provider?.name || "ESPN"});
+        games.push({teams, total: total > 0 ? total : null, spread, fav, src: o.provider?.name || "ESPN", ...liveInfo});
       }
     } catch (e) { noteErr("ESPN game odds", e); }
   }
@@ -2445,6 +2450,7 @@ async function gameContext(picks, sport){
     const g = games.find(g => g.teams.some(t => sameTeam(t.ab, p.team)) && g.teams.some(t => sameTeam(t.ab, p.opp)));
     const sd = p.sd || Math.max(0.8, 0.3 * p.line), proj = p.proj ?? p.line, notes = [];
     let delta = 0;
+    if (g && g.state === "in") { p.liveGame = g; continue; }
     if (g && (g.total != null || g.spread != null)) {
       used++;
       const goalie = /save|goals? against|goalie/i.test(p.stat);
@@ -2478,7 +2484,45 @@ async function gameContext(picks, sport){
     }
     if (notes.length) p.ctxNotes2 = notes;
   }
-  return {games: games.length, used};
+  const live = await liveAdjust(picks, sport, games);
+  return {games: games.length, used, live};
+}
+// ---------- LIVE GAMES (basketball): what he has so far + his usual rate for the time that's left
+const LIVE_LEN = {nba: [4, 12], wnba: [4, 10], cbb: [2, 20]};
+async function liveAdjust(picks, sport, games){
+  const L = LIVE_LEN[sport], livePicks = picks.filter(p => p.liveGame && p.sMore != null);
+  if (!L || !livePicks.length) { for (const p of picks.filter(p => p.live)) p.liveNote = "Game in progress: rated from before the game (no live box score for this sport)"; return 0; }
+  const C = CTX[sport], byGame = {};
+  for (const p of livePicks) (byGame[p.liveGame.id] ||= []).push(p);
+  let n = 0;
+  await pool(Object.keys(byGame), 3, async id => {
+    let js; try { js = await getJSON(`https://site.api.espn.com/apis/site/v2/sports/${C.path}/summary?event=${id}&live=${Math.floor(Date.now() / 60e3)}`); } catch (e) { noteErr("ESPN live box score", e); return; }
+    const st = js.header?.competitions?.[0]?.status || {}, per = toNum(st.period) || byGame[id][0].liveGame.period || 1, clk = toNum(st.displayClock) ?? 0;
+    const total = L[0] * L[1], elapsed = clip((Math.min(per, L[0]) - 1) * L[1] + (L[1] - clk), 0, total), rem = per > L[0] ? 0.05 : Math.max(0.02, (total - elapsed) / total);
+    const box = {};
+    for (const side of js.boxscore?.players || []) for (const grp of side.statistics || []) {
+      const lab = grp.labels || [], ix = l => lab.indexOf(l);
+      for (const a of grp.athletes || []) {
+        const s = a.stats || [], num = l => { const v = parseFloat(s[ix(l)]); return isNaN(v) ? 0 : v; }, pair = l => { const [m, x] = String(s[ix(l)] || "0-0").split("-").map(Number); return [m || 0, x || 0]; };
+        const [fgm, fga] = pair("FG"), [f3m, f3a] = pair("3PT"), [ftm, fta] = pair("FT");
+        box[norm(a.athlete?.displayName || "")] = {played: !a.didNotPlay, MIN: num("MIN"), PTS: num("PTS"), REB: num("REB"), AST: num("AST"), STL: num("STL"), BLK: num("BLK"), TOV: num("TO"), PF: num("PF"), FGM: fgm, FGA: fga, FG3M: f3m, FG3A: f3a, FTM: ftm, FTA: fta, OREB: num("OREB"), DREB: num("DREB")};
+      }
+    }
+    for (const p of byGame[id]) {
+      const g = box[norm(p.player)], f = statFn(sport, p.stat);
+      if (!g || !f) { p.liveNote = "Game in progress: couldn't find him in the live box score, rated from before the game"; continue; }
+      const cur = f(g), full = p.proj ?? p.line, sd = p.sd || Math.max(0.8, 0.3 * p.line);
+      if (cur == null) continue;
+      const expFinal = cur + full * rem, sdr = Math.max(0.5, sd * Math.sqrt(rem));
+      const tM = Math.floor(p.line) + 0.5, tL = Math.ceil(p.line) - 0.5;
+      p.sMore = cur > p.line ? 0.99 : clip(1 - phi((tM - expFinal) / sdr), 0.01, 0.99);
+      if (p.type === "standard") p.sLess = cur > p.line ? 0.01 : clip(phi((tL - expFinal) / sdr), 0.01, 0.99);
+      p.liveMore = p.sMore; p.liveLess = p.sLess;
+      p.proj = +expFinal.toFixed(1); p.liveCur = cur; p.liveRem = Math.round(rem * total); p.live = true; n++;
+      p.liveNote = cur > p.line ? `Live: already at ${cur}, past the line` : `Live: ${cur} so far with about ${p.liveRem} min left, on pace for ${p.proj}`;
+    }
+  });
+  return n;
 }
 
 // ---------- 2) CONSISTENCY & RISK: median, middle 50%, 80% range, boom/bust, role change, outliers, minutes sensitivity
@@ -2723,8 +2767,9 @@ async function quickStart(force){
   const sport = SPORT;
   if (!DATA[sport]) { const js = await loadRated(sport); if (js && !DATA[sport]) { unpackRated(js); if (SPORT === sport) showSport(); } }
   const d = DATA[sport];
-  if (d && d.shared && SPORT === sport) setStatus(`${SPORTS[sport].label} · ratings from ${agoTxt((Date.now() - d.time) / 1000)}${d.note}${!force && Date.now() - d.time < FRESH ? "" : " · updating in the background…"}`, 1);
-  if ((force || !d || Date.now() - d.time >= FRESH) && !busy && SPORT === sport) { await Promise.race([fixLeagues(), new Promise(r => setTimeout(r, 2500))]); if (!busy) $("#runBtn").click(); }
+  if (d && d.shared && SPORT === sport) setStatus(`${SPORTS[sport].label} · ratings from ${agoTxt((Date.now() - d.time) / 1000)}${d.note}${!force && Date.now() - d.time < (d.picks.some(p => p.live) ? 3 * 60e3 : FRESH) ? "" : " · updating in the background…"}`, 1);
+  const fresh = d && d.picks.some(p => p.live) ? 3 * 60e3 : FRESH;   // live games move fast
+  if ((force || !d || Date.now() - d.time >= fresh) && !busy && SPORT === sport) { await Promise.race([fixLeagues(), new Promise(r => setTimeout(r, 2500))]); if (!busy) $("#runBtn").click(); }
 }
 
 // ---------- headline scan (Google News): trades, suspensions, legal trouble, personal matters, injuries
@@ -3273,6 +3318,12 @@ async function analyze(picks, sport = SPORT){
   const gc = await gameContext(picks, sport);
   for (const p of picks) profilePick(p);
   enrich(picks);
+  // live picks: what's already happened outweighs the pre-game blend (already past the line = done)
+  for (const p of picks) if (p.liveMore != null) {
+    const past = p.liveCur > p.line; p.trap = false;   // a big gap live is just what's already happened
+    if (p.sMore != null) p.sMore = past ? 0.99 : clip(0.75 * p.liveMore + 0.25 * p.sMore, 0.01, 0.99);
+    if (p.sLess != null && p.liveLess != null) p.sLess = past ? 0.01 : clip(0.75 * p.liveLess + 0.25 * p.sLess, 0.01, 0.99);
+  }
   if ($("#useReddit").checked) { setStatus("Reading what people are saying on Reddit…", 0.88); scoreBuzz(picks, await reddit(sport)); }
   finalize(picks);
   CLASSIFY_PICKS[sport] = {picks}; classify(picks);
