@@ -269,6 +269,8 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
 .tpill.on{color:#fff;border-color:transparent}
 .tpill.goblin.on{background:rgba(52,211,153,.18);box-shadow:inset 0 0 0 1.5px #34d399}
 .tpill.standard.on{background:rgba(59,130,246,.2);box-shadow:inset 0 0 0 1.5px #3b82f6}
+.tpill.gl.on{background:rgba(59,130,246,.2);box-shadow:inset 0 0 0 1.5px #60a5fa}
+.tpills.goal{margin:0 0 14px}
 .tpill.demon.on{background:rgba(248,113,113,.18);box-shadow:inset 0 0 0 1.5px #f87171}
 .tog{display:flex;align-items:center;gap:12px;margin:4px 0 18px;font-size:15px;color:#dbe4f5;cursor:pointer}
 .tog small{color:#8ea3cc;margin-left:4px}
@@ -1528,13 +1530,17 @@ let BET = null;   // {M, entries, yellow}
 function betPanel(){
   const m = store.get("mult", ""), en = store.get("entries", "1"), yl = store.get("useYellow", "0") === "1";
   return `<form class="betform" id="betForm">
-    <div class="frow"><label class="fl">Payout<span class="xin"><input type="number" inputmode="decimal" id="multIn" min="1.5" step="any" value="${esc(m)}" placeholder="10"><i>×</i></span></label>
+    <div class="tpills goal">${[["pay", "Aim for a payout"], ["safe", "Aim for a hit rate"]].map(([v, t]) => `<button type="button" class="tpill gl ${goalMode() === v ? "on" : ""}" data-goal="${v}">${t}</button>`).join("")}</div>
+    <div class="frow">${goalMode() === "safe"
+      ? `<label class="fl">Hit at least<span class="xin"><input type="number" inputmode="decimal" id="safeIn" min="20" max="90" step="1" value="${esc(store.get("safeTarget", "70"))}" placeholder="70"><i>%</i></span></label>`
+      : `<label class="fl">Payout<span class="xin"><input type="number" inputmode="decimal" id="multIn" min="1.5" step="any" value="${esc(m)}" placeholder="10"><i>×</i></span></label>`}
     <label class="fl">Picks<select id="npIn">${["", "2", "3", "4", "5", "6"].map(v => `<option value="${v}" ${store.get("npicks", "") === v ? "selected" : ""}>${v || "Best"}</option>`).join("")}</select></label>
     <label class="fl">Entries<input type="number" inputmode="numeric" id="entriesIn" min="1" max="20" step="1" value="${esc(en)}"></label></div>
     <div class="frow"><label class="fl">Use only<select id="cconfIn">${[["", "Any rating"], ["g", "🟢 Strong only"], ["gy", "🟢 + 🟡"], ["top", "⭐ Top picks"], ["safe", "Safe picks"], ["value", "Value picks"]].map(([v, t]) => `<option value="${v}" ${store.get("cconf", "") === v ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
     <div class="tpills">${["goblin", "standard", "demon"].map(t => `<button type="button" class="tpill ${t} ${ptypeOn(t) ? "on" : ""}" data-pt="${t}" aria-pressed="${ptypeOn(t)}">${t === "goblin" ? "Goblins" : t === "demon" ? "Demons" : "Standard"}</button>`).join("")}</div>
     <button type="submit" class="pri wide">Build my lineup</button></form>`;
 }
+const goalMode = () => store.get("goal", "pay");
 // which pick types Pick4Me may use (all on by default)
 const ptypeOn = t => store.get("pt_" + t, "1") === "1";
 // EXACT search: the lineup of exactly n picks with the highest chance that still pays at least M (Power).
@@ -1571,6 +1577,42 @@ function exactPower(legs, n, M, init, mustExtra, avoid, ms = 350){
   dfs(0, 0, 0);
   return {L: bestL, exact: !timedOut};
 }
+// SAFETY GOAL: the lineup of exactly n picks with the biggest payout whose chance of hitting is at least S.
+// Same exact depth-first search, mirrored: bound on payout, prune when even the safest remaining picks can't reach S.
+function exactSafe(legs, n, S, avoid, ms = 350){
+  const T = Math.log(S), xs = legs.filter(l => !avoid || !avoid.has(l.key)).slice().sort((a, b) => b.pe - a.pe);
+  const lp = xs.map(l => Math.log(Math.max(l.pe, 1e-9))), lf = xs.map(l => Math.log(l.f)), N = xs.length;
+  const topF = lf.slice().sort((a, b) => b - a), maxFk = Array.from({length: n + 1}, (_, k) => topF.slice(0, k).reduce((a, b) => a + b, 0));
+  let best = -Infinity, bestL = null, nodes = 0, timedOut = false;
+  const t0 = performance.now(), cur = [], players = new Set(), games = {};
+  const dfs = (i, sp, sf) => {
+    if (cur.length === n) { if (sp >= T && sf > best + 1e-12 && new Set(cur.map(l => l.pk.team)).size >= 2) { best = sf; bestL = cur.slice(); } return; }
+    const need = n - cur.length;
+    for (let j = i; j <= N - need; j++) {
+      if ((++nodes & 4095) === 0 && performance.now() - t0 > ms) { timedOut = true; return; }
+      let ubP = sp; for (let k = 0; k < need; k++) ubP += lp[j + k];
+      if (ubP < T) return;                                   // even the safest remaining picks can't reach the hit rate
+      if (sf + lf[j] + maxFk[need - 1] <= best + 1e-12) continue;   // can't beat the best payout found
+      const l = xs[j], g = gameOf(l.pk);
+      if (players.has(l.pk.player) || (games[g] || 0) >= GAME_CAP) continue;
+      players.add(l.pk.player); games[g] = (games[g] || 0) + 1; cur.push(l);
+      dfs(j + 1, sp + lp[j], sf + lf[j]);
+      cur.pop(); players.delete(l.pk.player); games[g]--;
+      if (timedOut) return;
+    }
+  };
+  dfs(0, 0, 0);
+  return bestL;
+}
+function safestFor(S, legs, N, avoid){
+  const out = [];
+  for (const n of N ? [N] : [2, 3, 4, 5, 6]) {
+    const L = exactSafe(legs, n, S, avoid); if (!L) continue;
+    const st = lineupStats(L, false); if (st.powerPay < 1.05) continue;   // pays back less than the entry: not a bet
+    out.push({n, L, hit: st.d[n], pay: st.powerPay});
+  }
+  return out.sort((a, b) => b.pay - a.pay || b.hit - a.hit);
+}
 function bestSizeFor(M, legs, mustExtra, avoid){
   const S = L => lineupStats(L), tries = [];
   for (const n of [2, 3, 4, 5, 6]) {
@@ -1588,11 +1630,40 @@ function bestSizeFor(M, legs, mustExtra, avoid){
   const good = tries.filter(t => t.ok).sort((a, b) => b.hit - a.hit);
   return {tries, best: good[0] || null};
 }
+function renderSafe(box, S, entries){
+  if (!["goblin", "standard", "demon"].some(ptypeOn)) { box.innerHTML = `<p class="note">Turn on at least one pick type above.</p>`; return; }
+  const cf = store.get("cconf", ""), vc = l => (l.v || {}).c, best = l => l.side === l.pk.best;
+  const confOk = l => !cf || (cf === "g" ? vc(l) === "g" : cf === "gy" ? vc(l) === "g" || vc(l) === "y"
+    : best(l) && (cf === "top" ? l.pk.cls === "top" : cf === "safe" ? l.pk.cls === "safe" || (l.pk.cls === "top" && vc(l) === "g") : l.pk.cls === "value" || l.pk.cls === "top"));
+  const legs = buildLegs().filter(l => ptypeOn(l.pk.type)).filter(confOk).filter(l => !l.pk.newsFlag && !/out|doubt|suspen/i.test(l.pk.inj?.status || ""));
+  const N = BET.N || 0, nG = new Set(legs.map(l => gameOf(l.pk))).size; GAME_CAP = nG >= 3 ? 2 : nG === 2 ? 3 : 6;
+  let opts = safestFor(S, legs, N);
+  let h = "";
+  if (!opts.length) {
+    // nothing reaches the hit rate: show the safest lineup that exists, and how safe it is
+    let top = null; for (let s = Math.min(S, 0.9) - 0.05; s >= 0.2 && !top; s -= 0.05) { const o = safestFor(s, legs, N); if (o.length) top = o.sort((a, b) => b.hit - a.hit)[0]; }
+    if (!top) { box.innerHTML = `<p class="note">There aren't enough rated picks${coachGame() ? " in this game" : ""} for a lineup right now.</p>`; return; }
+    opts = [top];
+    h += `<p class="lsum">No ${N ? `${N}-pick ` : ""}lineup today reaches ${Math.round(S * 100)}% and still pays more than you put in. The safest one hits about <b>${pct(lineupCard({id: "tmp"}, top.L, false).hit)}</b>.</p>`;
+  }
+  const lineups = [opts[0]];
+  while (lineups.length < entries) {
+    const used = new Set(lineups.flatMap(x => x.L.map(l => l.pk.player)));
+    const o = safestFor(S, legs.filter(l => !used.has(l.pk.player)), lineups[0].n)[0]; if (!o) break; lineups.push(o);
+  }
+  const cards = lineups.map((o, i) => lineupCard({id: "safe" + i, title: `${entries > 1 ? `Lineup ${i + 1} · ` : ""}${o.n} picks`, sub: `Pays about ${o.pay.toFixed(2)}×`, mode: "power"}, o.L, i === 0));
+  if (entries > 1) h += `<p class="lsum">${lineups.length > 1 ? `${lineups.length} lineups with no shared players` : "Only 1 lineup is possible at this hit rate without repeating players"}.</p>`;
+  h += cards.map(c => c.html).join("");
+  h += `<p class="note fine">The safer the lineup, the smaller the payout: that trade-off is how PrizePicks prices every entry. Payouts with goblins or demons are estimates; check PrizePicks before you submit.</p>`;
+  box.innerHTML = h;
+  bindCoach();
+}
 function renderBetSoon(){ const box = $("#betOut"); if (box && BET) box.innerHTML = loaderHTML("Checking every combination for the safest lineup…"); setTimeout(renderBet, 40); }
 function renderBet(){
   const box = $("#betOut"); if (!box) return;
   if (!BET) { box.innerHTML = ""; return; }
   const M = BET.M, entries = clip(Math.round(BET.entries || 1), 1, 20);
+  if (BET.S) return renderSafe(box, BET.S, entries);
   if (!(M >= 1.5)) { box.innerHTML = `<p class="note">Type the payout you want, like 5 or 25.</p>`; return; }
   if (false) { box.innerHTML = `<p class="note">${SPORTS[SPORT].name} doesn't have game stats in PickPrizer yet, so Pick4Me can't stand behind a lineup here. Browse the picks in All picks instead.</p>`; return; }
   // every rated pick is fair game (Strong, Unsure, goblins, demons); the builder just finds the best chance of hitting
@@ -1661,14 +1732,17 @@ function bindCoach(){
   if (gs) gs.onchange = () => { store.set("cgame_" + SPORT, gs.value); renderCoach(); };
   const cc = $("#cconfIn"); if (cc) cc.onchange = () => { store.set("cconf", cc.value); if (BET) renderBetSoon(); };
   const np = $("#npIn"); if (np) np.onchange = () => { store.set("npicks", np.value); if (BET) { BET.N = +np.value || 0; renderBetSoon(); } };
-  for (const [id, k] of [["multIn", "mult"], ["entriesIn", "entries"]]) { const el = $("#" + id); if (el) el.oninput = () => store.set(k, el.value); }
+  for (const [id, k] of [["multIn", "mult"], ["entriesIn", "entries"], ["safeIn", "safeTarget"]]) { const el = $("#" + id); if (el) el.oninput = () => store.set(k, el.value); }
   const f = $("#betForm");
-  if (f) f.onsubmit = e => { e.preventDefault(); const M = +$("#multIn").value, entries = +$("#entriesIn").value || 1;
+  document.querySelectorAll("[data-goal]").forEach(b => b.onclick = () => { store.set("goal", b.dataset.goal); BET = null; renderCoach(); });
+  if ($("#safeIn")) $("#safeIn").oninput = () => store.set("safeTarget", $("#safeIn").value);
+  if (f) f.onsubmit = e => { e.preventDefault(); const safeMode = goalMode() === "safe", M = safeMode ? 0 : +$("#multIn").value, entries = +$("#entriesIn").value || 1;
+    const S = safeMode ? clip(+$("#safeIn").value || 70, 20, 90) / 100 : 0; if (safeMode) store.set("safeTarget", String(Math.round(S * 100)));
     const N = +$("#npIn").value || 0; store.set("npicks", N ? String(N) : "");
-    store.set("mult", $("#multIn").value); store.set("entries", String(entries)); BET = {M, entries, N}; renderBetSoon();
+    if (!safeMode) store.set("mult", $("#multIn").value); store.set("entries", String(entries)); BET = {M, entries, N, S}; renderBetSoon();
     $("#betOut").scrollIntoView({behavior: "smooth", block: "start"}); };
   document.querySelectorAll("[data-go]").forEach(r => r.onclick = () => document.getElementById(r.dataset.go)?.scrollIntoView({behavior: "smooth"}));
-  document.querySelectorAll(".tpill").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tpill[data-pt]").forEach(b => b.onclick = () => {
     const t = b.dataset.pt, on = !ptypeOn(t); store.set("pt_" + t, on ? "1" : "0");
     b.classList.toggle("on", on); b.setAttribute("aria-pressed", on);
     if (BET) renderBetSoon();
