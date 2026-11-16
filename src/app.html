@@ -1347,29 +1347,63 @@ function valid(L, n){
 function optimize(legs, score, filter, must, seed, n, avoid){
   avoid ||= new Set();
   filter ||= () => true; must ||= () => true;
-  const all = legs.filter(filter).sort((a, b) => b.pe * b.f - a.pe * a.f);
-  const pool = all.slice(0, 70);
-  let L = [];
-  for (const sd of seed || []) {
-    const sp = all.filter(sd.pred); let added = 0;
-    for (const l of sp) { if (added === sd.n || L.length === n) break; if (!avoid.has(l.key) && !L.includes(l) && valid([...L, l], n)) { L.push(l); added++; } }
-    for (const l of sp.slice(0, 20)) if (!pool.includes(l)) pool.push(l);
+  const all = legs.filter(filter).filter(l => !avoid.has(l.key));
+  // candidate pool: the safest picks, the best-value picks and the biggest boosters, so nothing important is left out
+  const byP = all.slice().sort((a, b) => b.pe - a.pe), byV = all.slice().sort((a, b) => b.pe * b.f - a.pe * a.f), byF = all.slice().sort((a, b) => b.f * b.pe - a.f * a.pe && b.f - a.f);
+  const pool = [...new Set([...byP.slice(0, 70), ...byV.slice(0, 70), ...byF.filter(l => l.f > 1).slice(0, 40)])];
+  const greedy = key => { const L = []; for (const l of all.slice().sort((a, b) => key(b) - key(a))) { if (L.length === n) break; if (valid([...L, l], n)) L.push(l); } return L.length === n ? L : null; };
+  // starting points: plain safest, best value, the seed (e.g. enough demons for a big payout), and a sweep that trades
+  // safety for payout a little at a time (maximise log chance + lambda * log payout): together they cover the whole range
+  const starts = [];
+  if (seed && seed.length) {
+    let L = [];
+    for (const sd of seed) { let added = 0; for (const l of all.filter(sd.pred).sort((a, b) => b.pe - a.pe)) { if (added === sd.n || L.length === n) break; if (!L.includes(l) && valid([...L, l], n)) { L.push(l); added++; } } }
+    for (const l of byP) { if (L.length === n) break; if (!L.includes(l) && valid([...L, l], n)) L.push(l); }
+    if (L.length === n) starts.push(L);
   }
-  for (const l of pool) { if (L.length === n) break; if (!avoid.has(l.key) && !L.includes(l) && valid([...L, l], n)) L.push(l); }
-  for (const l of all) { if (L.length === n) break; if (!avoid.has(l.key) && !L.includes(l) && valid([...L, l], n)) { L.push(l); if (!pool.includes(l)) pool.push(l); } }
-  if (L.length < n) return null;
-  let best = must(L) ? score(L) : -Infinity, improved = true, iter = 0;
-  while (improved && iter++ < 80) {
-    improved = false;
-    for (let i = 0; i < n; i++) for (const c of pool) {
-      if (L.includes(c)) continue;
-      const T = L.slice(); T[i] = c;
-      if (!valid(T, n) || !must(T)) continue;
-      const s = score(T);
-      if (s > best + 1e-9) { L = T; best = s; improved = true; }
+  for (const lam of [0, 0.15, 0.3, 0.5, 0.75, 1, 1.5, 2, 3, 5, 8]) { const L = greedy(l => Math.log(l.pe + 1e-9) + lam * Math.log(l.f)); if (L) starts.push(L); }
+  { const L = greedy(l => l.pe * l.f); if (L) starts.push(L); }
+  if (!starts.length) return null;
+  for (const L of starts) for (const l of L) if (!pool.includes(l)) pool.push(l);
+  // polish each start with swaps; keep the best lineup found anywhere
+  let bestL = null, bestS = -Infinity;
+  const seen = new Set(), finals = [];
+  for (let L of starts) {
+    const sig = L.map(l => l.key).sort().join("|"); if (seen.has(sig)) continue; seen.add(sig);
+    let cur = must(L) ? score(L) : -Infinity, improved = true, iter = 0;
+    while (improved && iter++ < 60) {
+      improved = false;
+      for (let i = 0; i < n; i++) for (const c of pool) {
+        if (L.includes(c)) continue;
+        const T = L.slice(); T[i] = c;
+        if (!valid(T, n) || !must(T)) continue;
+        const sc = score(T);
+        if (sc > cur + 1e-9) { L = T; cur = sc; improved = true; }
+      }
     }
+    if (must(L) && cur > bestS) { bestS = cur; bestL = L; }
+    finals.push({L, s: cur});
   }
-  return must(L) ? L : null;
+  // final polish: swap TWO picks at a time on the best few lineups (catches trades that one swap can't reach)
+  const pool2 = [...new Set([...byP.slice(0, 45), ...byF.filter(l => l.f > 1).slice(0, 15), ...byV.slice(0, 15)])];
+  for (const fr of finals.sort((a, b) => b.s - a.s).slice(0, 3)) {
+    let L = fr.L, cur = fr.s, improved = true, iter = 0;
+    while (improved && iter++ < 6) {
+      improved = false;
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) for (let x = 0; x < pool2.length; x++) {
+        const c1 = pool2[x]; if (L.includes(c1)) continue;
+        for (let y = x + 1; y < pool2.length; y++) {
+          const c2 = pool2[y]; if (L.includes(c2) || c1.pk.player === c2.pk.player) continue;
+          const T = L.slice(); T[i] = c1; T[j] = c2;
+          if (!valid(T, n) || !must(T)) continue;
+          const sc = score(T);
+          if (sc > cur + 1e-9) { L = T; cur = sc; improved = true; }
+        }
+      }
+    }
+    if (must(L) && cur > bestS) { bestS = cur; bestL = L; }
+  }
+  return bestL;
 }
 const vsText = p => p.sport === "tennis" ? `vs ${esc(p.opp || "?")}` : `${esc(p.team)} vs ${esc(p.opp)}`;
 function reasons(l){
@@ -1482,6 +1516,7 @@ function lineupCard(def, L, best){
     <div class="lhead"><div><h3>${title}</h3><div class="sub">${sub}</div></div>
       <button class="copy" data-copy="${esc(plain)}">Copy</button></div>
     <div class="lbig"><div><b style="color:${hitCol}">${pct1(hit)}</b><span>chance it hits</span></div><div><b>${pay.toFixed(1)}×</b><span>${usePower ? "Power" : "Flex"} payout (est.)</span></div></div>
+    ${usePower ? (() => { const fair = 1 / pay, edge = hit / fair; return `<p class="note">${edge >= 1.05 ? `Break-even at ${pay.toFixed(1)}× is ${pct1(fair)}. This lineup is <b>${edge.toFixed(1)}×</b> that, so the odds lean your way` : `Break-even at ${pay.toFixed(1)}× is ${pct1(fair)}, about what this lineup has. Lower the payout for odds that lean your way`}</p>`; })() : ""}
     ${usePower && L.some(l => l.pk.type !== "standard") ? `<p class="note"><a href="#" class="payfix" data-n="${n}" data-ln="${L.reduce((t, l) => t + Math.log(l.f), 0)}">PrizePicks shows a different payout? Tap to correct</a></p>` : ""}
     ${legs}
     <div class="verdict">${keep.join("")}</div>
@@ -1502,6 +1537,40 @@ function betPanel(){
 }
 // which pick types Pick4Me may use (all on by default)
 const ptypeOn = t => store.get("pt_" + t, "1") === "1";
+// EXACT search: the lineup of exactly n picks with the highest chance that still pays at least M (Power).
+// Depth-first over picks sorted safest-first, skipping branches that provably can't beat the best found so far
+// (best possible remaining chance) or can't reach the payout (biggest possible remaining boosts). Time-boxed.
+function exactPower(legs, n, M, init, mustExtra, avoid, ms = 350){
+  const T = Math.log(M * 0.995 / POWER[n]), xs = legs.filter(l => !avoid || !avoid.has(l.key)).slice().sort((a, b) => b.pe - a.pe);
+  const lp = xs.map(l => Math.log(Math.max(l.pe, 1e-9))), lf = xs.map(l => Math.log(l.f)), N = xs.length;
+  const topF = lf.slice().sort((a, b) => b - a), maxF = k => { let s = 0; for (let i = 0; i < k; i++) s += topF[i]; return s; };
+  const maxFk = Array.from({length: n + 1}, (_, k) => maxF(k));
+  let best = init && lineupStats(init).powerPay >= M * 0.995 ? init.reduce((s, l) => s + Math.log(Math.max(l.pe, 1e-9)), 0) : -Infinity, bestL = best > -Infinity ? init : null;
+  const t0 = performance.now(), cur = [], players = new Set(), games = {};
+  let nodes = 0, timedOut = false;
+  const dfs = (i, sp, sf) => {
+    if (cur.length === n) {
+      if (sf >= T && sp > best + 1e-12 && new Set(cur.map(l => l.pk.team)).size >= 2 && (!mustExtra || mustExtra(cur))) { best = sp; bestL = cur.slice(); }
+      return;
+    }
+    const need = n - cur.length;
+    for (let j = i; j <= N - need; j++) {
+      if ((++nodes & 4095) === 0 && performance.now() - t0 > ms) { timedOut = true; return; }
+      // chance bound: the best we can still add is the next `need` picks (they're sorted safest-first)
+      let ub = sp; for (let k = 0; k < need; k++) ub += lp[j + k];
+      if (ub <= best + 1e-12) return;   // nothing later can do better either
+      if (sf + lf[j] + maxFk[need - 1] < T) continue;   // can't reach the payout with this pick
+      const l = xs[j], g = gameOf(l.pk);
+      if (players.has(l.pk.player) || (games[g] || 0) >= GAME_CAP) continue;
+      players.add(l.pk.player); games[g] = (games[g] || 0) + 1; cur.push(l);
+      dfs(j + 1, sp + lp[j], sf + lf[j]);
+      cur.pop(); players.delete(l.pk.player); games[g]--;
+      if (timedOut) return;
+    }
+  };
+  dfs(0, 0, 0);
+  return {L: bestL, exact: !timedOut};
+}
 function bestSizeFor(M, legs, mustExtra, avoid){
   const S = L => lineupStats(L), tries = [];
   for (const n of [2, 3, 4, 5, 6]) {
@@ -1510,12 +1579,16 @@ function bestSizeFor(M, legs, mustExtra, avoid){
     const isDem = l => l.pk.type === "demon", needDem = POWER[n] >= M ? 0 : Math.min(n, Math.ceil(Math.log(M / POWER[n]) / Math.log(factorOf("demon"))));
     const L = optimize(legs, L => Math.log(S(L).d[n] + 1e-12) - 12 * short(L), null, mustExtra, needDem ? [{pred: isDem, n: needDem}] : null, n, avoid);
     if (!L) { tries.push({n, L: null, reason: mustExtra ? "couldn't build a different lineup" : "not enough different players/games"}); continue; }
-    const raw = lineupStats(L, false), ok = raw.powerPay >= M - 1e-9;
-    tries.push({n, L, hit: raw.d[n], pay: raw.powerPay, ok, reason: ok ? "" : `tops out at ${raw.powerPay.toFixed(1)}×`});
+    // then search exactly for anything better (keeps the heuristic answer if the exact search finds nothing better in time)
+    const ex = exactPower(legs, n, M, L, mustExtra, avoid);
+    const LL = ex.L && ex.L !== L && lineupStats(ex.L).d[n] > lineupStats(L).d[n] ? ex.L : L;
+    const raw = lineupStats(LL, false), ok = raw.powerPay >= M * 0.995;   // within rounding of the target counts
+    tries.push({n, L: LL, hit: raw.d[n], pay: raw.powerPay, ok, exact: ex.exact, reason: ok ? "" : `tops out at ${raw.powerPay.toFixed(1)}×`});
   }
   const good = tries.filter(t => t.ok).sort((a, b) => b.hit - a.hit);
   return {tries, best: good[0] || null};
 }
+function renderBetSoon(){ const box = $("#betOut"); if (box && BET) box.innerHTML = loaderHTML("Checking every combination for the safest lineup…"); setTimeout(renderBet, 40); }
 function renderBet(){
   const box = $("#betOut"); if (!box) return;
   if (!BET) { box.innerHTML = ""; return; }
@@ -1586,19 +1659,19 @@ function renderCoach(){
 function bindCoach(){
   const gs = $("#coachGame");
   if (gs) gs.onchange = () => { store.set("cgame_" + SPORT, gs.value); renderCoach(); };
-  const cc = $("#cconfIn"); if (cc) cc.onchange = () => { store.set("cconf", cc.value); if (BET) renderBet(); };
-  const np = $("#npIn"); if (np) np.onchange = () => { store.set("npicks", np.value); if (BET) { BET.N = +np.value || 0; renderBet(); } };
+  const cc = $("#cconfIn"); if (cc) cc.onchange = () => { store.set("cconf", cc.value); if (BET) renderBetSoon(); };
+  const np = $("#npIn"); if (np) np.onchange = () => { store.set("npicks", np.value); if (BET) { BET.N = +np.value || 0; renderBetSoon(); } };
   for (const [id, k] of [["multIn", "mult"], ["entriesIn", "entries"]]) { const el = $("#" + id); if (el) el.oninput = () => store.set(k, el.value); }
   const f = $("#betForm");
   if (f) f.onsubmit = e => { e.preventDefault(); const M = +$("#multIn").value, entries = +$("#entriesIn").value || 1;
     const N = +$("#npIn").value || 0; store.set("npicks", N ? String(N) : "");
-    store.set("mult", $("#multIn").value); store.set("entries", String(entries)); BET = {M, entries, N}; renderBet();
+    store.set("mult", $("#multIn").value); store.set("entries", String(entries)); BET = {M, entries, N}; renderBetSoon();
     $("#betOut").scrollIntoView({behavior: "smooth", block: "start"}); };
   document.querySelectorAll("[data-go]").forEach(r => r.onclick = () => document.getElementById(r.dataset.go)?.scrollIntoView({behavior: "smooth"}));
   document.querySelectorAll(".tpill").forEach(b => b.onclick = () => {
     const t = b.dataset.pt, on = !ptypeOn(t); store.set("pt_" + t, on ? "1" : "0");
     b.classList.toggle("on", on); b.setAttribute("aria-pressed", on);
-    if (BET) renderBet();
+    if (BET) renderBetSoon();
   });
   document.querySelectorAll(".payfix").forEach(a => a.onclick = e => {
     e.preventDefault(); e.stopPropagation();
