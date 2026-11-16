@@ -1156,6 +1156,7 @@ function verdictOf(p, side){
   if (UNVERIFIED.has(p.sport + "|" + p.stat)) flags.push("scoring unconfirmed");
   if (p.lineOnly) hard.push("no game stats for this pick");
   if (p.newsFlag) hard.push("major news: " + p.newsFlag);
+  if (p.oppHard && side === "More") hard.push(p.returning ? "first game back from an absence" : "bench role for this line");
   if (p.newsWarn) flags.push("news to check: " + p.newsWarn);
   const soft = flags.length;
   flags.unshift(...hard);
@@ -1447,6 +1448,7 @@ function reasons(l){
   if (p.trap) risk.push(`PrizePicks' line (${p.stdLine}) is well ${p.trap === "high" ? "above" : "below"} his recent average (${p.proj}). They're pricing in something the stats don't show (role change, injury, matchup), so history can't be trusted here`);
   if (p.cal && l.side === "More") (p.cal.p >= 0.75 ? why : p.cal.p < 0.5 ? risk : why).push(`Measured: lines this far ${p.cal.z >= 0 ? "below" : "above"} a player's usual went over ${p.cal.league != null ? pct(p.cal.league) + ` of the time across ${p.cal.leagueN.toLocaleString()} past games` : ""}${p.cal.own != null ? `${p.cal.league != null ? "; for him it's " : ""}${pct(p.cal.own)} over his own ${p.cal.ownN} games` : ""}`);
   if (p.liveNote) why.unshift(p.liveNote);
+  if (p.opp2) { why.unshift(...p.opp2.notes); for (const r of p.opp2.risks) if (!(r.hard && l.side === "Less")) risk.unshift(r.t); }
   for (const n of p.ctxNotes2 || []) ((n.dir > 0) === (l.side === "More") ? why : risk).push(n.t);
   if (p.prof) { if (p.prof.label === "boom-or-bust") risk.push(`Boom-or-bust: his middle half of games runs ${p.prof.q1}–${p.prof.q3}, but 1 in 10 goes above ${p.prof.hi}, so the average flatters him`);
     else if (p.prof.label === "steady") why.push(`Steady: half his recent games land between ${p.prof.q1} and ${p.prof.q3}`); }
@@ -2879,6 +2881,82 @@ function trackDashboard(){
     <p class="note">Saved on this device for ${TRACK_DAYS} days. Ratings are stored exactly as made and never edited afterward, so later information can't flatter the record.</p>`;
 }
 
+// =====================================================================================================
+// ---------- OPPORTUNITY ENGINE (basketball + hockey): predict MINUTES first, then output per minute, then simulate.
+// Why: a hot streak while a starter was out, a bench player at a starter's line, or a first game back from injury
+// all look "safe" in raw averages. Minutes are where those stories show up, so they drive the prediction.
+// =====================================================================================================
+const OPP_SPORTS = {nba: {key: "MIN", full: 48, bench: 22, rateN: 30}, wnba: {key: "MIN", full: 40, bench: 20, rateN: 25},
+  cbb: {key: "MIN", full: 40, bench: 20, rateN: 25}, nhl: {key: "TOI", full: 60, bench: 14, rateN: 30}};
+function oppModel(picks, sport){
+  const C = OPP_SPORTS[sport]; if (!C) return 0;
+  const H = HIST[sport] || {}; let n = 0;
+  const avg = xs => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+  let seed = 424242; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const gauss = () => { let u = 0; while (!u) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd()); };
+  const gamma = a => {   // Marsaglia-Tsang, mean a, for a >= 1 (boosted below 1)
+    if (a < 1) return gamma(a + 1) * Math.pow(rnd(), 1 / a);
+    const d = a - 1 / 3, c = 1 / Math.sqrt(9 * d);
+    for (;;) { let x, v; do { x = gauss(); v = 1 + c * x; } while (v <= 0); v = v * v * v; const u = rnd(); if (u < 1 - 0.0331 * x ** 4 || Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v; }
+  };
+  const pois = m => { if (m <= 0) return 0; if (m > 40) return Math.max(0, Math.round(m + Math.sqrt(m) * gauss())); const L = Math.exp(-m); let k = 0, q = 1; do { k++; q *= rnd(); } while (q > L); return k - 1; };
+  for (const p of picks) {
+    if (p.sMore == null || p.lineOnly || p.live) continue;
+    const f = statFn(sport, p.stat); if (!f) continue;
+    const t0 = p.start ? Date.parse(p.start) : Date.now();
+    const gs = (H[p.player] || []).filter(g => g[C.key] != null && g[C.key] >= 3 && f(g) != null && (!g.date || Date.parse(g.date) < t0));
+    if (gs.length < 8) continue;
+    const mins = gs.map(g => g[C.key]), vals = gs.map(f);
+    // ---- 1) minutes tonight
+    const m5 = avg(mins.slice(0, 5)), m15 = avg(mins.slice(0, 15)), mS = avg(mins.slice(0, 60));
+    let mProj = 0.45 * m5 + 0.35 * m15 + 0.2 * mS;
+    const notes = [], risks = [];
+    // teammates out / back: most of that effect is through minutes and shots
+    if (p.ctxF && p.ctxF !== 1) mProj *= 1 + 0.6 * (p.ctxF - 1);
+    // first game back from an absence: teams usually limit minutes
+    const lastGap = gs[0].date ? (t0 - Date.parse(gs[0].date)) / 864e5 : 0;
+    if (lastGap > 9 && lastGap < 120) { mProj *= 0.85; p.returning = Math.round(lastGap); risks.push({hard: true, t: `First game in ${Math.round(lastGap)} days: players coming back often get limited minutes`}); }
+    mProj = clip(mProj, 0, C.full);
+    const sdM = Math.max(sport === "nhl" ? 1.5 : 2.5, Math.sqrt(avg(mins.slice(0, 15).map(m => (m - m15) ** 2))));
+    // ---- 2) output per minute: recent games weighted, pulled toward his longer-run rate (small samples lie)
+    let wa = 0, wb = 0, i = 0;
+    for (const g of gs.slice(0, C.rateN)) { const w = Math.pow(0.95, i++); wa += w * f(g); wb += w * g[C.key]; }
+    const rRecent = wa / Math.max(1, wb), longGs = gs.slice(0, 120), rLong = longGs.reduce((s, g) => s + f(g), 0) / Math.max(1, longGs.reduce((s, g) => s + g[C.key], 0));
+    const k = Math.min(gs.length, C.rateN), rate = (k * rRecent + 12 * rLong) / (k + 12);
+    // ---- 3) how noisy he is beyond minutes (overdispersion): >1 means streakier than a pure-chance stat
+    const res = gs.slice(0, 40).map(g => { const mu = rate * g[C.key]; return mu > 0.3 ? (f(g) - mu) ** 2 / mu : null; }).filter(x => x != null);
+    const phi = clip(avg(res) ?? 1.5, 1, 6);
+    // ---- 4) simulate the game 3,000 times: minutes (with the odd early exit), then the stat
+    const tM = Math.floor(p.line) + 0.5, tL = Math.ceil(p.line) - 0.5, N = 3000, out = new Float64Array(N);
+    let over = 0, under = 0, sum = 0;
+    for (let s = 0; s < N; s++) {
+      let m = clip(mProj + sdM * gauss(), 0, C.full);
+      if (rnd() < 0.04) m *= 0.25 + 0.5 * rnd();   // injury, foul trouble, ejection
+      const mu = rate * m, a = phi > 1.01 ? mu / (phi - 1) : 0;
+      const lam = a > 25 ? Math.max(0, mu + Math.sqrt(mu * (phi - 1)) * gauss()) : a > 0.05 ? gamma(a) * (phi - 1) : mu;   // big means: normal shortcut
+      const v = pois(lam);
+      out[s] = v; sum += v; if (v > tM) over++; else if (v < tL) under++;
+    }
+    const sorted = Array.from(out).sort((a, b) => a - b), q = x => sorted[Math.floor(x * (N - 1))];
+    const oMore = over / N, oLess = under / N, mean = sum / N;
+    // ---- 5) explain it, and flag the traps raw averages hide
+    const l5 = avg(vals.slice(0, 5)), expL5 = rate * m5;
+    notes.push(`Expected minutes tonight: ~${mProj.toFixed(0)} (last 5: ${m5.toFixed(0)}, last 15: ${m15.toFixed(0)})`);
+    notes.push(`Output: ${(rate * (sport === "nhl" ? 20 : 36)).toFixed(1)} per ${sport === "nhl" ? 20 : 36} minutes → about ${mean.toFixed(1)} tonight`);
+    if (l5 > 1.25 * expL5 && l5 - expL5 >= 1.5) risks.push({t: `Running hot: his last 5 averaged ${l5.toFixed(1)}, more than his minutes and usual rate explain (${expL5.toFixed(1)}). Streaks like that usually cool off`});
+    if (m5 > 1.15 * m15 && (p.ctxF ?? 1) <= 1.02) risks.push({t: `His minutes jumped lately (${m15.toFixed(0)} → ${m5.toFixed(0)}); if the rotation goes back to normal, so do his numbers`});
+    if (mProj < C.bench && p.best !== "Less" && p.line > 1.1 * rate * mProj) risks.push({hard: true, t: `Bench role (~${mProj.toFixed(0)} min): this line needs starter-level minutes or a big night`});
+    p.opp2 = {mProj: +mProj.toFixed(1), m5: +m5.toFixed(1), m15: +m15.toFixed(1), rate: +rate.toFixed(3), phi: +phi.toFixed(2), mean: +mean.toFixed(1), med: q(0.5), p10: q(0.1), p90: q(0.9), notes, risks};
+    // ---- 6) blend with the history model (the simulation leads; history keeps it honest)
+    p.sMore = clip(0.6 * oMore + 0.4 * p.sMore, 0.01, 0.99);
+    if (p.sLess != null) p.sLess = clip(0.6 * oLess + 0.4 * p.sLess, 0.01, 0.99);
+    p.proj = +(0.6 * mean + 0.4 * (p.proj ?? mean)).toFixed(1);
+    if (risks.some(r => r.hard)) p.oppHard = risks.find(r => r.hard).t;
+    n++;
+  }
+  return n;
+}
+
 // ---------- shared ratings: the finished work is saved (on this device and on the website) so the app opens instantly
 const slimG = g => { const o = {}; for (const [k, v] of Object.entries(g)) if (v != null && typeof v !== "function") o[k] = v; return o; };
 function packRated(sport){
@@ -2890,7 +2968,7 @@ function packRated(sport){
       const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
       if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
     }
-    return JSON.stringify({v: 3, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+    return JSON.stringify({v: 4, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
   } catch (e) { console.warn("couldn't save ratings", e); return null; }
 }
 function unpackRated(js){
@@ -2907,7 +2985,7 @@ async function loadRated(sport){
   const got = [];
   const mine = await IDB.get("rated:" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
   if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
-  return got.filter(j => j && j.v === 3 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+  return got.filter(j => j && j.v === 4 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
 }
 const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
 async function quickStart(force){
@@ -3461,6 +3539,8 @@ async function analyze(picks, sport = SPORT){
   await addTrending(picks, sport);
   const kind = SPORTS[sport].kind;
   const r = (kind === "espn" ? await analyzeESPN(picks, sport) : kind === "ufc" ? await analyzeUFC(picks) : kind === "golf" ? await analyzeGolf(picks) : kind === "sofa" ? await analyzeSoccer(picks) : kind === "line" ? await analyzeLineOnly(picks, sport) : sport === "tennis" ? await analyzeTennis(picks) : sport === "nfl" ? await analyzeNFL(picks) : sport === "cfb" ? await analyzeCFB(picks) : await analyzeNBA(picks)) || {};
+  setStatus("Projecting minutes and simulating every game…", 0.84);
+  oppModel(picks, sport);
   setStatus("Checking spreads, totals and rest days…", 0.86);
   const gc = await gameContext(picks, sport);
   for (const p of picks) profilePick(p);
