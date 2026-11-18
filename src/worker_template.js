@@ -98,6 +98,30 @@ async function board(req, env, ctx, league) {
   await kvPut(env, ctx, k, text, 2 * DAY);
   return json({ ok: true }, 200);
 }
+// Shared track record: graded picks from everyone, deduped per pick, so the app can measure and correct itself.
+// Stored as {sport: {key: [predicted, hit, day]}}; GET returns {sport: [[predicted, hit], ...]}.
+async function track(req, env, ctx) {
+  const o = await kvGet(env, "track"); let data = {};
+  try { data = o ? JSON.parse(o.text) : {}; } catch (e) { data = {}; }
+  if (req.method === "GET") {
+    const out = {}; for (const s in data) out[s] = Object.values(data[s]).map(v => [v[0], v[1]]);
+    return new Response(JSON.stringify(out), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+  }
+  if (req.method !== "POST") return json({ message: "method" }, 405);
+  const text = await req.text(); if (text.length > 200000) return json({ message: "too big" }, 413);
+  let b; try { b = JSON.parse(text); } catch (e) { return json({ message: "bad" }, 400); }
+  if (!b || b.v !== 1 || !/^[a-z]{2,8}$/.test(b.sport || "") || !Array.isArray(b.rows)) return json({ message: "bad" }, 400);
+  const S = data[b.sport] ||= {}, day = Math.floor(Date.now() / 864e5);
+  let added = 0;
+  for (const r of b.rows.slice(0, 400)) {
+    if (!Array.isArray(r) || typeof r[0] !== "string" || r[0].length > 120 || !(r[1] >= 0 && r[1] <= 1) || !(r[2] === 0 || r[2] === 1)) continue;
+    if (!S[r[0]]) { S[r[0]] = [Math.round(r[1] * 100) / 100, r[2], day]; added++; }
+  }
+  if (!added) return json({ ok: true, added: 0 }, 200);
+  for (const s in data) { const e = Object.entries(data[s]).filter(([, v]) => day - v[2] <= 30); data[s] = Object.fromEntries(e.slice(-4000)); }
+  await kvPut(env, ctx, "track", JSON.stringify(data), 40 * DAY);
+  return json({ ok: true, added }, 200);
+}
 async function rated(req, env, ctx, sport) {
   const k = "rated/" + sport;
   if (req.method === "GET") { const o = await kvGet(env, k); return o ? stored(o) : json({ message: "none yet" }, 404); }
@@ -125,6 +149,7 @@ export default {
     const bm = url.pathname.match(/^\/board(?:\/(\d{1,4}))?\/?$/);
     if (bm) return board(req, env, ctx, bm[1]);
     if (url.pathname === "/sc") return scList();
+    if (url.pathname === "/track") return track(req, env, ctx);
     const rm = url.pathname.match(/^\/rated\/([a-z]{2,8})$/);
     if (rm) return rated(req, env, ctx, rm[1]);
     if (url.pathname === "/manifest.json") return new Response(MANIFEST, { headers: { "content-type": "application/manifest+json" } });

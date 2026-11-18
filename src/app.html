@@ -256,6 +256,8 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
 .frow{display:flex;gap:14px;margin:0 0 16px}.frow .fl{flex:1;display:flex;flex-direction:column;gap:8px;font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#8ea3cc;font-weight:700}
 .frow .fl select,.frow .fl input{width:100%;font-size:17px;text-transform:none;letter-spacing:0;color:#fff;min-height:52px;padding:0 14px}
 .xin{position:relative;display:block}.xin i{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-style:normal;color:#8ea3cc;font-size:17px}
+.bstrip{margin:4px 0 10px}.bitem{padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}.bitem .blab{display:block;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#38bdf8;margin-bottom:2px}
+.bitem > b{font-size:16px}.bnums{font-size:13.5px;color:var(--mut);margin-top:3px}.bnums b{color:#fff;font-size:15px}.bnums .up{color:var(--good);font-weight:800}
 .cls{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.4px;padding:2px 8px;border-radius:7px;margin-right:6px;vertical-align:2px}
 .cls.live{background:rgba(239,68,68,.18);color:#fca5a5;animation:livepulse 1.6s ease-in-out infinite}@keyframes livepulse{50%{opacity:.55}}
 .cls.top{background:rgba(251,191,36,.16);color:#fcd34d}.cls.safe{background:rgba(52,211,153,.14);color:#6ee7b7}.cls.value{background:rgba(96,165,250,.16);color:#93c5fd}
@@ -410,7 +412,7 @@ body.isbusy #runBtn .rp{display:inline-flex}
       <select id="typeSel"><option value="">All types</option><option value="standard">Standard</option><option value="goblin">Goblins</option><option value="demon">Demons</option></select>
       <select id="gameSel"><option value="">All games</option></select>
       <select id="statSel"><option value="">All stats</option></select>
-      <select id="sortSel"><option value="">Sort: best chance</option><option value="proj">Sort: highest projected</option><option value="picked">Sort: most picked</option></select>
+      <select id="sortSel"><option value="">Sort: best bets</option><option value="chance">Sort: safest (highest chance)</option><option value="proj">Sort: highest projected</option><option value="picked">Sort: most picked</option></select>
       <select id="confSel"><option value="">Any rating</option><option value="g">🟢 Strong only</option><option value="gy">🟢 + 🟡</option><option value="top">⭐ Top picks</option><option value="safe">Safe picks</option><option value="value">Value picks</option></select>
       <input type="text" id="playerQ" list="playerList" placeholder="🔎 Type a player's name…" autocomplete="off" style="flex:1;min-width:180px"><datalist id="playerList"></datalist>
     </div>
@@ -1178,14 +1180,14 @@ const pickedTxt = p => p.trending != null ? `🔥 Picked ${p.trending.toLocaleSt
 function trackLoad(sport){ try { return JSON.parse(localStorage.getItem("pp_track_" + sport) || "[]"); } catch { return []; } }
 function trackSave(sport, rows){ try { localStorage.setItem("pp_track_" + sport, JSON.stringify(rows)); } catch {} }
 function trackUpdate(sport, picks){
-  const now = Date.now(), rows = trackLoad(sport).filter(r => now - Date.parse(r[5]) < TRACK_DAYS * 864e5);
+  const now = Date.now(), rows = trackLoad(sport).filter(r => now - Date.parse(r[5]) < TRACK_DAYS * 864e5), newlyGraded = [];
   // grade finished games
   for (const r of rows) {
     if (r[6] != null || !(now - Date.parse(r[5]) > 5 * 3600e3)) continue;
     const f = statFn(sport, r[1]), g = ((HIST[sport] || {})[r[0]] || []).find(g => g.date && Math.abs(Date.parse(g.date) - Date.parse(r[5])) < 18 * 3600e3 && (sport !== "nba" || g.MIN >= 1));
     if (!f || !g) continue;
     const v = f(g); if (v == null || v === r[2]) continue;
-    r[6] = (r[3] === "M" ? v > r[2] : v < r[2]) ? 1 : 0; r[12] = v;
+    r[6] = (r[3] === "M" ? v > r[2] : v < r[2]) ? 1 : 0; r[12] = v; newlyGraded.push(r);
   }
   // remember today's ratings (top 80 per colour)
   const have = new Set(rows.map(r => r.slice(0, 4).join("|") + r[5])), add = {g: [], y: [], r: []};
@@ -1199,6 +1201,7 @@ function trackUpdate(sport, picks){
     if (!have.has(k)) { have.add(k); rows.push(r); }
   }
   trackSave(sport, rows);
+  if (newlyGraded.length) { shareGraded(sport, newlyGraded); delete LEARN[sport]; }
 }
 function trackHTML(sport){
   const rows = trackLoad(sport).filter(r => r[6] != null);
@@ -1276,8 +1279,8 @@ function finalize(picks){
     const blend = (m, s) => m != null && s != null ? 0.55 * m + 0.45 * s : (m ?? s);
     const bm = blend(p.mMore, p.sMore), bl = blend(p.mLess, p.sLess);
     const done = p.liveCur != null && p.liveCur > p.line;   // live and already past the line
-    p.pMore = bm == null ? null : done ? 0.99 : clip(bm + crowd + tr, 0.03, 0.9);   // never claim more than 90%: injuries, blowouts and foul trouble exist
-    p.pLess = p.type !== "standard" || bl == null ? null : done ? 0.01 : clip(bl - crowd, 0.03, 0.9);
+    p.pMore = bm == null ? null : done ? 0.99 : clip(learnAdj(p.sport, bm + crowd + tr), 0.03, 0.9);   // never claim more than 90%: injuries, blowouts and foul trouble exist
+    p.pLess = p.type !== "standard" || bl == null ? null : done ? 0.01 : clip(learnAdj(p.sport, bl - crowd), 0.03, 0.9);
     let conf = p.mMore != null && p.games >= 15 ? "High" : (p.games >= 8 || p.mMore != null) ? "Med" : "Low";
     if (p.inj && /question|day|doubt/i.test(p.inj.status)) conf = "Low";
     p.conf = p.pMore == null ? "" : conf;
@@ -1835,10 +1838,11 @@ function card(p, i){
   const side = p.best, prob = side === "More" ? p.pMore : p.pLess, h = p.hits ? p.hits(side) : {};
   const c = prob >= 0.6 ? "var(--good)" : prob >= 0.45 ? "var(--mid)" : "var(--bad)";
   const m = side === "More" ? p.mMore : p.mLess, s = side === "More" ? p.sMore : p.sLess;
-  const gp = gapOf(p);
+  const gp = gapOf(p), ed = edgeOf(p);
   const chips = [p.proj != null ? `Projected ${p.proj}${gp ? ` (${gp > 0 ? "+" : ""}${gp} vs line)` : ""}` : null, h.l5 ? `Last 5: ${h.l5}` : null, h.l10 ? `Last 10: ${h.l10}` : null,
     p.vsN >= 3 ? `vs ${p.opp} ${Math.round((side === "More" ? p.vsMore : p.vsLess) * p.vsN)}/${p.vsN}` : null,
     pickedTxt(p)].filter(Boolean).map(t => `<span class="chip">${esc(t)}</span>`);
+  if (ed != null) chips.unshift(`<span class="chip ${ed >= 0.04 ? "up" : ed <= -0.04 ? "dn" : ""}">Needs ${pct(breakeven(p))} · ${ed >= 0 ? "+" : ""}${Math.round(ed * 100)} edge</span>`);
   if (p.buzz) chips.push(`<span class="chip ${p.buzzSent > 0.2 ? "up" : p.buzzSent < -0.2 ? "dn" : ""}">Reddit ${p.buzz}${p.buzzSent > 0.2 ? " ▲" : p.buzzSent < -0.2 ? " ▼" : ""}</span>`);
   return `<div class="pick" data-pk="${esc(p.sport + "|" + p.id)}"><div class="rank">${i}</div><div class="info">
     <div class="name">${vdot(p.verdict, true)} <span class="tag ${p.type}">${p.type.toUpperCase()}</span>${p.live ? `<span class="cls live">LIVE</span>` : ""}${p.cls ? `<span class="cls ${p.cls}">${p.cls === "top" ? "⭐ " : ""}${CLS_LAB[p.cls]}</span>` : ""}${esc(p.player)} <small>${vsText(p)}</small></div>
@@ -1851,6 +1855,25 @@ function card(p, i){
 }
 // how far our projection is from the line, in the direction we recommend (e.g. +6.2 means 6.2 better than the line)
 const gapOf = p => p.proj == null || p.line == null ? null : +((p.best === "Less" ? p.line - p.proj : p.proj - p.line)).toFixed(1);
+// A bet is good when its chance beats what its payout needs (break-even), not just when the chance is high:
+// a 90% goblin that needs 94% is a worse bet than a 62% standard that needs 55%. Serious flags push picks down.
+function edgeOf(p){ const prob = (p.best === "More" ? p.pMore : p.pLess); return prob == null ? null : prob - breakeven(p); }
+function betScore(p){
+  const e = edgeOf(p); if (e == null) return -9;
+  const hard = p.newsFlag || p.lineOnly || p.trap || p.oppHard || (p.inj && /out|doubt|suspen/i.test(p.inj.status || ""));
+  const ev = p.ev?.score ?? 50;
+  return e + 0.0015 * (ev - 50) - (hard ? 0.25 : 0) - (p.verdict?.c === "r" ? 0.1 : 0);
+}
+function bestStripHTML(list){
+  const ok = p => (edgeOf(p) ?? 0) > 0.01 && betScore(p) > 0;   // the best of each type that beats its payout at all
+  const lab2 = e => e >= 0.08 ? "strong edge" : e >= 0.04 ? "edge" : "slight edge";
+  const pick = type => list.filter(p => p.type === type && ok(p)).sort((a, b) => betScore(b) - betScore(a))[0];
+  const items = [["standard", "Best standard"], ["demon", "Best demon"], ["goblin", "Best goblin"]].map(([t, lab]) => [lab, pick(t)]).filter(([, p]) => p);
+  if (!items.length) return `<p class="note">No pick clearly beats its payout right now. The safest picks are still listed below.</p>`;
+  return `<div class="bstrip"><h2>Best bets right now <small>chance above what the payout needs</small></h2>${items.map(([lab, p]) => {
+    const prob = p.best === "More" ? p.pMore : p.pLess;
+    return `<div class="bitem" data-pk="${p.sport}|${p.id}"><span class="blab">${lab}</span><b>${esc(p.player)}</b> ${p.best} ${p.line} ${esc(p.stat)}<div class="bnums"><b>${pct(prob)}</b> chance · needs ${pct(breakeven(p))} · <span class="up">${lab2(edgeOf(p))} +${Math.round(edgeOf(p) * 100)}</span></div></div>`; }).join("")}</div>`;
+}
 function render(){
   const t = $("#typeSel").value, g = $("#gameSel").value, s = $("#statSel").value, cf = $("#confSel").value;
   const q = norm($("#playerQ").value), vc = p => p.verdict ? p.verdict.c : "n";
@@ -1858,12 +1881,12 @@ function render(){
     (!cf || (cf === "g" ? vc(p) === "g" : cf === "gy" ? vc(p) === "g" || vc(p) === "y" : cf === "top" ? p.cls === "top" : cf === "safe" ? p.cls === "safe" || p.cls === "top" && p.verdict?.c === "g" : p.cls === "value" || p.cls === "top"));
   const pb = p => (p.best === "More" ? p.pMore : p.pLess) ?? -1;
   const so = $("#sortSel").value;
-  const key = so === "proj" ? (p => gapOf(p) ?? -1e9) : so === "picked" ? (p => p.trending ?? -1) : pb;
+  const key = so === "proj" ? (p => gapOf(p) ?? -1e9) : so === "picked" ? (p => p.trending ?? -1) : so === "chance" ? pb : betScore;
   const list = ALL.filter(ok), by = (a, b) => key(b) - key(a) || pb(b) - pb(a);
-  const sortTxt = {proj: "biggest gap between projection and line first", picked: "most picked first"}[so] || "highest chance first";
+  const sortTxt = {proj: "biggest gap between projection and line first", picked: "most picked first", chance: "highest chance first"}[so] || "best bets first: biggest edge over what the payout needs";
   let h = "";
   if (!g) {
-    $("#out").innerHTML = list.length ? `<h2>All games <small>${list.length} picks · ${sortTxt}</small></h2>` +
+    $("#out").innerHTML = list.length ? bestStripHTML(list) + `<h2>All games <small>${list.length} picks · ${sortTxt}</small></h2>` +
       list.sort(by).slice(0, 300).map((p, i) => card(p, i + 1)).join("") : `<p class="note">${cf === "top" ? "No picks qualify as Top picks right now. The bar isn't lowered just to fill the list." : "No picks match these filters."}</p>`;
     return;
   }
@@ -2846,6 +2869,39 @@ function corrSim(L, N = 10000){
 
 // ---------- 6) TRACK RECORD: every rating is saved as it was made, graded later against the real stat line
 const TRACK_DAYS = 60;
+// ---------- LEARNING FROM RESULTS: compare what was predicted with what happened, per sport and chance range,
+// and correct future chances by the measured gap (more graded picks = more correction). Uses this device's record
+// plus the shared record from everyone using the site. Never invents: no data = no correction.
+let SHARED_TRACK = null;
+const LBINS = [0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.91];
+function learnTable(sport){
+  const rows = [];
+  for (const r of trackLoad(sport)) if (r[6] != null && r[7] != null) rows.push([r[7], r[6]]);
+  for (const e of (SHARED_TRACK && SHARED_TRACK[sport]) || []) rows.push(e);
+  const bins = LBINS.slice(0, -1).map((a, i) => ({a, b: LBINS[i + 1], n: 0, pred: 0, hit: 0}));
+  for (const [pr, h] of rows) { const b = bins.find(x => pr >= x.a && pr < x.b); if (b) { b.n++; b.pred += pr; b.hit += h; } }
+  for (const b of bins) if (b.n) { b.pred /= b.n; b.hit /= b.n; }
+  return bins;
+}
+const LEARN = {};
+function learnAdj(sport, p){
+  if (p == null) return p;
+  const flip = p < 0.5, q = flip ? 1 - p : p;
+  const bins = LEARN[sport] ||= learnTable(sport), b = bins.find(x => q >= x.a && q < x.b);
+  if (!b || b.n < 20) return p;
+  const shift = (b.hit - b.pred) * b.n / (b.n + 60);   // shrunk: 20 picks move it a little, 300 move it most of the way
+  const out = clip(q + shift, 0.5, 0.95);
+  return flip ? 1 - out : out;
+}
+async function loadSharedTrack(){
+  if (!IS_WEB) return;
+  try { const r = await tFetch("/track", {}, 6000); if (r.ok) { SHARED_TRACK = await r.json(); for (const k in LEARN) delete LEARN[k]; } } catch {}
+}
+function shareGraded(sport, rows){
+  if (!IS_WEB || !rows.length) return;
+  const body = JSON.stringify({v: 1, sport, rows: rows.map(r => [`${r[0]}|${r[1]}|${r[2]}|${r[3]}|${String(r[5]).slice(0, 10)}`, r[7], r[6]])});
+  fetch("/track", {method: "POST", body, headers: {"content-type": "application/json"}}).catch(() => {});
+}
 const TRK_CACHE = new Map();
 function trackStatRel(sport, stat){   // how far off this stat's predictions have been (|predicted - actual| hit rate), once there's enough
   const key = sport + "|" + stat; if (TRK_CACHE.has(key)) return TRK_CACHE.get(key);
@@ -2856,11 +2912,19 @@ function trackStatRel(sport, stat){   // how far off this stat's predictions hav
   const pr = rows.reduce((s, r) => s + r[7], 0) / rows.length, ac = rows.reduce((s, r) => s + r[6], 0) / rows.length;
   TRK_CACHE.set(key, Math.abs(pr - ac)); return Math.abs(pr - ac);
 }
+function sharedTrackHTML(){
+  if (!SHARED_TRACK) return "";
+  const rows = Object.entries(SHARED_TRACK).filter(([k]) => SPORTS[k]).flatMap(([s, xs]) => xs.map(x => ({s, pr: x[0], h: x[1]})));
+  if (!rows.length) return `<p class="note">Everyone's shared record: nothing graded yet.</p>`;
+  const hit = rows.filter(x => x.h).length / rows.length, pr = rows.reduce((a, x) => a + x.pr, 0) / rows.length;
+  const hi = rows.filter(x => x.pr >= 0.75), hiHit = hi.length ? hi.filter(x => x.h).length / hi.length : null;
+  return `<h4>Everyone using PickPrizer</h4><p class="body">${rows.length.toLocaleString()} graded picks: hit <b>${pct(hit)}</b>, predicted ${pct(pr)}.${hi.length ? ` Picks rated 75%+: hit <b>${pct(hiHit)}</b> of ${hi.length}.` : ""} These results also correct the app's chances automatically.</p>`;
+}
 function trackDashboard(){
   const all = Object.keys(SPORTS).flatMap(s => trackLoad(s).map(r => ({s, r}))), done = all.filter(x => x.r[6] != null);
   const rate = xs => xs.length ? `${pct(xs.filter(x => x.r[6]).length / xs.length)} <small>(${xs.filter(x => x.r[6]).length}/${xs.length})</small>` : `<small>no results yet</small>`;
   const row = (lab, xs) => `<tr><td>${lab}</td><td>${rate(xs)}</td></tr>`;
-  if (!done.length) return `<p class="body">Nothing graded yet. Every rating is saved the moment it's made (line, projection, chance, class, time), then graded against the real box score after the game, the next time the app loads that player.</p><p class="note">${all.length} ratings saved and waiting for their games to finish.</p>`;
+  if (!done.length) return sharedTrackHTML() + `<p class="body">Nothing graded yet on this device. Every rating is saved the moment it's made (line, projection, chance, class, time), then graded against the real box score after the game, the next time the app loads that player.</p><p class="note">${all.length} ratings saved and waiting for their games to finish.</p>`;
   const bySport = Object.keys(SPORTS).map(s => [SPORTS[s].label, done.filter(x => x.s === s)]).filter(([, xs]) => xs.length);
   const bins = [[0.5, 0.6], [0.6, 0.7], [0.7, 0.8], [0.8, 0.91]].map(([a, b]) => { const xs = done.filter(x => x.r[7] >= a && x.r[7] < b); return {a, b, n: xs.length, pred: xs.length ? xs.reduce((s, x) => s + x.r[7], 0) / xs.length : null, act: xs.length ? xs.filter(x => x.r[6]).length / xs.length : null}; });
   const errs = done.filter(x => x.r[10] != null && x.r[12] != null).map(x => Math.abs(x.r[12] - x.r[10]));
@@ -2869,7 +2933,7 @@ function trackDashboard(){
   for (const x of done) (byStat[x.s + "|" + x.r[1]] ||= []).push(x);
   const weak = Object.entries(byStat).filter(([, xs]) => xs.length >= 15).map(([k, xs]) => { const pr = xs.reduce((s, x) => s + (x.r[7] || 0), 0) / xs.length, ac = xs.filter(x => x.r[6]).length / xs.length; return {k, n: xs.length, gap: ac - pr, ac}; })
     .sort((a, b) => a.gap - b.gap);
-  return `<table class="trk2">${row("All graded picks", done)}
+  return sharedTrackHTML() + `<h4>This device</h4><table class="trk2">${row("All graded picks", done)}
     ${row("Strong (green)", done.filter(x => x.r[4] === "g"))}${row("Unsure (yellow)", done.filter(x => x.r[4] === "y"))}${row("Avoid (red)", done.filter(x => x.r[4] === "r"))}
     ${row("Top picks", done.filter(x => x.r[8] === "top"))}${row("Safe picks", done.filter(x => x.r[8] === "safe"))}${row("Value picks", done.filter(x => x.r[8] === "value"))}
     ${row("More", done.filter(x => x.r[3] === "M"))}${row("Less", done.filter(x => x.r[3] === "L"))}
@@ -3630,6 +3694,7 @@ if (IS_WEB && IOS) {
 document.querySelector("#runBtn .rp").innerHTML = PRESENT;
 drawSportTabs(); showSport();
 goTab("home");
+loadSharedTrack().finally(() => {});
 quickStart(/[?&]fresh=1/.test(location.search));   // show the last saved ratings instantly, then update in the background if they're old
 if (location.search) history.replaceState(null, "", location.pathname);
 $("#clipGo").onclick = async () => {
