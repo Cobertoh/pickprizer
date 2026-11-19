@@ -258,6 +258,11 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
 .xin{position:relative;display:block}.xin i{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-style:normal;color:#8ea3cc;font-size:17px}
 .bstrip{margin:4px 0 10px}.bitem{padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}.bitem .blab{display:block;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#38bdf8;margin-bottom:2px}
 .bitem > b{font-size:16px}.bnums{font-size:13.5px;color:var(--mut);margin-top:3px}.bnums b{color:#fff;font-size:15px}.bnums .up{color:var(--good);font-weight:800}
+.call{display:inline-block;font-size:11px;font-weight:900;letter-spacing:.6px;padding:2px 7px;border-radius:6px;margin-right:6px;vertical-align:1px;white-space:nowrap}
+.call.bet{background:#16a34a;color:#fff}.call.lean{background:rgba(250,204,21,.2);color:#fde68a}.call.pass{background:rgba(248,113,113,.18);color:#fca5a5}.call.na{background:#334155;color:#cbd5e1}
+.callrow{font-size:13px;color:#cbd5e1;margin:4px 0 2px;line-height:1.35}
+.callbox{border-radius:14px;padding:12px;margin:6px 0 10px;border:1px solid var(--line)}.callbox.bet{border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.08)}.callbox.lean{border-color:rgba(250,204,21,.45);background:rgba(250,204,21,.06)}.callbox.pass{border-color:rgba(248,113,113,.45);background:rgba(248,113,113,.06)}
+.callh{display:flex;align-items:center;gap:6px;margin-bottom:6px}.callh .call{font-size:14px;padding:4px 10px}.callh b{font-size:20px}.callt{font-size:14.5px;line-height:1.4}
 .grd{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:22px;padding:0 5px;border-radius:7px;font-weight:900;font-size:13px;margin-right:6px;vertical-align:1px;background:#334155;color:#cbd5e1}
 .grd.ap{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#1c1300;box-shadow:0 0 12px rgba(251,191,36,.45)}.grd.a{background:rgba(52,211,153,.2);color:#6ee7b7}.grd.b{background:rgba(96,165,250,.18);color:#93c5fd}.grd.c{background:rgba(250,204,21,.14);color:#fde68a}.grd.d{background:rgba(248,113,113,.16);color:#fca5a5}
 .cls.god{background:rgba(251,191,36,.16);color:#fcd34d}.greason{font-size:13px;color:#a7f3d0;margin:3px 0 2px}
@@ -729,8 +734,8 @@ function renderHome(){
   <section class="hsect">
     <h2 class="mid">Understanding <span>the grades</span></h2>
     <div class="legend2">
-      <span class="grd ap">A+</span><b>God pick</b><span>Hits 8+ in 10, nothing against it</span>
-      <span class="grd a">A</span><b>God pick</b><span>Hits 7 to 8 in 10, nothing against it</span>
+      <span class="grd ap">A+</span><b>God pick</b><span>Hits 8½+ in 10 (up to 9½), nothing against it</span>
+      <span class="grd a">A / A−</span><b>Strong / Solid</b><span>Hits 7 to 8½ in 10, nothing against it</span>
       <span class="grd b">B</span><b>Decent</b><span>About 6 in 10, or 7+ with a warning</span>
       <span class="grd c">C</span><b>Coin-flip range</b><span>About 5 in 10</span>
       <span class="grd d">D</span><b>Skip</b><span>Less likely than not</span>
@@ -1301,6 +1306,18 @@ function realityCheck(p){
   if (p.pLess != null) p.pLess = clip(p.pLess - d, 0.03, 0.9);
   p.realityShift = +d.toFixed(3);
 }
+// The 90% ceiling stays for most picks. A pick may go up to 95% only when the model AND his record both say so:
+// 9+ of his last 10 and 85%+ this season on that side, 20+ games, and no reality-check cut. (The backtest's top bucket
+// was slightly under-confident: said 84%, hit 86%.)
+function liftStrong(p, bm, bl, crowd, tr){
+  if (Math.abs(p.realityShift || 0) > 0 || !p.hits || (p.games || 0) < 20) return;
+  const rt = x => { const [a, b] = String(x || "").split("/").map(Number); return b >= 8 ? a / b : null; };
+  for (const side of ["More", "Less"]) {
+    const h = p.hits(side), l10 = rt(h?.l10), sea = rt(h?.season); if (l10 == null || sea == null || l10 < 0.9 || sea < 0.85) continue;
+    if (side === "More" && bm != null && p.pMore >= 0.9) p.pMore = clip(learnAdj(p.sport, bm + crowd + tr), 0.03, 0.95);
+    if (side === "Less" && bl != null && p.pLess != null && p.pLess >= 0.9) p.pLess = clip(learnAdj(p.sport, bl - crowd), 0.03, 0.95);
+  }
+}
 function finalize(picks){
   const trend = picks.map(p => p.trending).filter(t => t != null).sort((a, b) => a - b);
   for (const p of picks) {
@@ -1316,7 +1333,7 @@ function finalize(picks){
     const done = p.liveCur != null && p.liveCur > p.line;   // live and already past the line
     p.pMore = bm == null ? null : done ? 0.99 : clip(learnAdj(p.sport, bm + crowd + tr), 0.03, 0.9);   // never claim more than 90%: injuries, blowouts and foul trouble exist
     p.pLess = p.type !== "standard" || bl == null ? null : done ? 0.01 : clip(learnAdj(p.sport, bl - crowd), 0.03, 0.9);
-    if (!p.live && p.pMore != null && p.pMore < 0.99) realityCheck(p);
+    if (!p.live && p.pMore != null && p.pMore < 0.99) { realityCheck(p); liftStrong(p, bm, bl, crowd, tr); }
     let conf = p.mMore != null && p.games >= 15 ? "High" : (p.games >= 8 || p.mMore != null) ? "Med" : "Low";
     if (p.inj && /question|day|doubt/i.test(p.inj.status)) conf = "Low";
     p.conf = p.pMore == null ? "" : conf;
@@ -1830,7 +1847,8 @@ function openPick(p, side){
     <div class="name" style="font-size:17px"><span class="tag ${p.type}">${p.type.toUpperCase()}</span>${esc(p.player)} <small>${vsText(p)}</small></div>
     ${p.type !== "standard" ? `<p class="note" style="margin:2px 0 6px">${payTxt(p)}. Every other pick in the lineup is multiplied by this, so it's an estimate.</p>` : ""}
     <div style="margin:4px 0 8px">${sides.map(sd => `<button class="sidebtn ${sd === side ? "on" : ""}" data-mside="${sd}">${sd}</button>`).join(" ")} than <b>${p.line}</b> ${esc(p.stat)}${pickedTxt(p) ? ` · <span class="note">${esc(pickedTxt(p))}</span>` : ""}</div>
-    <div class="mver"><div>${v ? `<span class="vd ${v.c} big"><i></i>${VLAB[v.c]}</span>` : ""} <b style="font-size:20px">${pct(prob)}</b> <span class="note">estimated chance</span></div>
+    ${prob != null ? (() => { const k = callOf(p, side); return `<div class="callbox ${k.c}"><div class="callh"><span class="call ${k.c}">${k.lab}</span>${side === p.best ? gradeBadge(p) : ""}<b>${pct(prob)}</b><span class="note">hits about ${inTen(prob)}</span></div><div class="callt"><b>My call:</b> ${esc(k.txt)}</div></div>`; })() : ""}
+    <div class="mver">${prob == null ? `<div><b style="font-size:20px">${pct(prob)}</b></div>` : ""}
       <div class="note">My read: ${cl(v && v.model)} · Community: ${cl(v && v.crowd)}${v && v.flags.length ? `<br>Flags: ${esc(v.flags.join(", "))}` : ""}</div></div>
     ${evidenceHTML(p, side)}
     <div class="tabs mtabs"><button data-mtab="l10" class="on">Last 10</button>${p.sport === "mma" ? `<button data-mtab="vs">The matchup</button>` : `<button data-mtab="vs">vs ${esc(p.opp || "opponent")} (${Math.min(10, vs.length)})</button>`}</div>
@@ -1886,7 +1904,7 @@ function card(p, i){
   return `<div class="pick" data-pk="${esc(p.sport + "|" + p.id)}"><div class="rank">${i}</div><div class="info">
     <div class="name">${gradeBadge(p)}${isGod(p) ? `<span class="cls god">👑 God pick</span>` : ""}<span class="tag ${p.type}">${p.type.toUpperCase()}</span>${p.live ? `<span class="cls live">LIVE</span>` : ""}${p.cls && !isGod(p) && p.cls !== "top" ? `<span class="cls ${p.cls}">${CLS_LAB[p.cls]}</span>` : ""}${esc(p.player)} <small>${vsText(p)}</small></div>
     <div><b>${side}</b> than <b>${p.line}</b> ${esc(p.stat)}</div>
-    ${isGod(p) && reasonOf(p) ? `<div class="greason">${esc(reasonOf(p))}</div>` : ""}
+    ${p.verdict ? (() => { const k = callOf(p); return `<div class="callrow"><span class="call ${k.c}">${k.lab}</span><span>${esc(k.txt)}</span></div>`; })() : ""}
     <div class="chips">${chips.join("")}</div>
     ${p.inj ? `<div class="inj">⚠ ${esc(p.inj.status)}${p.inj.comment ? ": " + esc(p.inj.comment.slice(0, 100)) : ""}</div>` : ""}
     ${UNVERIFIED.has(p.sport + "|" + p.stat) ? `<div class="inj">⚠ PrizePicks' tennis fantasy scoring isn't confirmed, so this is a rough guess and it's never used in lineups</div>` : ""}
@@ -1925,7 +1943,7 @@ function godBlock(p){   // why a 70%+ pick is NOT a God pick (null = it is one)
 const isGod = p => !p.live && godBlock(p) === null || (p.live && probOf(p) >= 0.9);
 function gradeOf(p){
   const prob = probOf(p); if (prob == null) return {g: "–", c: "n", t: "Not rated"};
-  if (isGod(p)) return prob >= 0.8 ? {g: "A+", c: "ap", t: "God pick"} : prob >= 0.75 ? {g: "A", c: "a", t: "God pick"} : {g: "A−", c: "a", t: "God pick"};
+  if (isGod(p)) return prob >= 0.85 ? {g: "A+", c: "ap", t: "God pick"} : prob >= 0.78 ? {g: "A", c: "a", t: "Strong"} : {g: "A−", c: "a", t: "Solid"};
   const capped = p.verdict?.c === "r" ? Math.min(prob, 0.55) : prob;
   return capped >= 0.6 ? {g: "B", c: "b", t: "Decent"} : capped >= 0.5 ? {g: "C", c: "c", t: "Coin-flip range"} : {g: "D", c: "d", t: "Skip"};
 }
@@ -1943,12 +1961,44 @@ function reasonOf(p){
   const s = out.join(", "), first = s ? s[0].toUpperCase() + s.slice(1) + "." : "";
   return tm ? (first + " " + tm.t.replace(/\.?$/, ".")).trim() : first;
 }
+// ---------- MY CALL: a plain "bet it or not", using the chance, the grade's checks, the payout and the risks together.
+function watchOut(p){
+  const side = p.best, w = [];
+  if (p.minCv != null && p.minCv > 0.22) w.push("his minutes swing a lot");
+  if (p.b2b) w.push("he's on a back-to-back");
+  if (side === "More" && p.pBlow >= 0.2) w.push(`blowout risk ${Math.round(p.pBlow * 100)}% could sit him late`);
+  if (p.newsWarn) w.push(String(p.newsWarn).toLowerCase());
+  if (p.prof?.label === "boom-or-bust") w.push("he's boom-or-bust in this stat");
+  if (p.games < 15) w.push("smaller sample than usual");
+  return w[0] || "";
+}
+const BLOCK_TXT = {"too few games to trust": "there aren't enough games to trust the number", "scoring unconfirmed": "PrizePicks' scoring for this isn't confirmed",
+  "serious news": "there's serious news around him", "injury tag": "he has an injury tag", "line far from his average": "the line is far from his normal, which usually means the books know something",
+  "small role for this line": "his role is too small for this line", "flagged as risky": "too many things point against it",
+  "his recent games disagree": "his recent games don't back up the model", "a teammate change points the other way": "a teammate change has pushed his numbers the other way"};
+function callOf(p, side){
+  side = side || p.best;
+  const prob = side === "More" ? p.pMore : p.pLess;
+  if (prob == null) return {c: "na", lab: "No call", txt: "Not enough data to make a call."};
+  if (side !== p.best) return {c: "pass", lab: "PASS", txt: `I'd pass on this side. ${p.best === "More" ? "Over" : "Under"} is the better play here.`};
+  const blk = godBlock(p), why = reasonOf(p), wo = watchOut(p), ed = prob - breakeven(p);
+  const df = Math.abs(legFactor(p) - 1).toFixed(1);
+  const gob = p.type === "goblin" ? ` Good as a safe leg, but it cuts the payout by about ${df}×.` : p.type === "demon" ? ` Bonus: it adds about ${df}× to the payout.` : "";
+  if (p.live && prob >= 0.9) return {c: "bet", lab: "BET", txt: `He's already on pace live. ${why}`.trim()};
+  if (blk === null && prob >= 0.78) return {c: "bet", lab: "BET", txt: `I'd bet it. ${why}${wo ? ` Only thing to watch: ${wo}.` : " Nothing in the news, lineup or matchup worries me."}${gob}`};
+  if (blk === null) return {c: "lean", lab: "LEAN BET", txt: `I'd play it, but it's not a lock (about ${inTen(prob)}). ${why}${wo ? ` Watch: ${wo}.` : ""}${gob}`};
+  if (blk === "under 7 in 10" && prob >= 0.64 && ed >= 0.06 && p.verdict?.c !== "r")
+    return {c: "lean", lab: "SMALL PLAY", txt: `Only ${pct(prob)}, so I wouldn't lean on it, but it beats what the payout needs (${pct(breakeven(p))}). Fine as a filler leg.${gob}`};
+  const reason = blk === "under 7 in 10" ? (prob < 0.56 ? `it's close to a coin flip (${pct(prob)})` : `about ${inTen(prob)} isn't safe enough`) : /^only /.test(blk) ? `he's only ${blk.slice(5)} on this side` : (BLOCK_TXT[blk] || blk);
+  return {c: "pass", lab: "PASS", txt: `I'd pass: ${reason}.${prob >= 0.7 ? ` The ${pct(prob)} looks good on paper, but I don't trust it.` : ""}`};
+}
+const callBadge = p => { const k = callOf(p); return `<span class="call ${k.c}">${k.lab}</span>`; };
 function godList(list, type){
   return list.filter(p => isGod(p) && (!type || p.type === type)).sort((a, b) => probOf(b) - probOf(a) || (b.ev?.score || 0) - (a.ev?.score || 0));
 }
 function godRow(p, i){
   const prob = probOf(p);
-  return `<div class="grow2" data-pk="${esc(p.sport + "|" + p.id)}"><span class="gi">${i}</span>${gradeBadge(p)}<div class="gtx"><b>${esc(p.player)}</b> <span class="gside">${p.best === "More" ? "Over" : "Under"} ${p.line} ${esc(p.stat)}</span>${p.type !== "standard" ? ` <span class="tag ${p.type}">${p.type.toUpperCase()}</span> <span class="gpay">${payTxt(p, true)}</span>` : ""}<small>${esc(reasonOf(p))}</small></div><div class="gpct">${pct(prob)}<small>hits ${inTen(prob)}</small></div></div>`;
+  return `<div class="grow2" data-pk="${esc(p.sport + "|" + p.id)}"><span class="gi">${i}</span>${gradeBadge(p)}<div class="gtx"><b>${esc(p.player)}</b> <span class="gside">${p.best === "More" ? "Over" : "Under"} ${p.line} ${esc(p.stat)}</span>${p.type !== "standard" ? ` <span class="tag ${p.type}">${p.type.toUpperCase()}</span> <span class="gpay">${payTxt(p, true)}</span>` : ""}<small>${callBadge(p)} ${esc(callOf(p).txt)}</small></div><div class="gpct">${pct(prob)}<small>hits ${inTen(prob)}</small></div></div>`;
 }
 // a small all-God lineup: different players and games where possible, chance shown honestly
 function godLineup(list){
@@ -1982,7 +2032,7 @@ function godHTML(list, opts = {}){
     ${opts.lineup && !lus.length ? `<p class="gmore">No lineup made only of God picks pays more than 1.5× right now (goblins cut the payout too much). Pick4Me can build one that mixes in the next-best picks.</p>` : ""}
     ${lus.map(u => `<div class="glu"><div class="gluh"><b>${u.L.length}-pick God lineup</b><span>pays about ${u.pay.toFixed(1)}× · all hit about <b>${inTen(u.ch)}</b> nights (${pct(u.ch)})</span></div>${u.L.map(p => `<div class="glul" data-pk="${esc(p.sport + "|" + p.id)}">${gradeBadge(p)} ${esc(p.player)} · ${p.best === "More" ? "Over" : "Under"} ${p.line} ${esc(p.stat)}</div>`).join("")}</div>`).join("")}
     ${cats.filter(([, l]) => l.length).map(([lab, l]) => `<h3 class="gcat">${lab} <small>${l.length}</small></h3>${l.filter((p, i) => l.findIndex(q => q.player === p.player) === i).slice(0, per).map((p, i) => godRow(p, i + 1)).join("")}${l.length > per ? `<p class="gmore">+${l.length - per} more ${lab.toLowerCase()} God picks in All picks</p>` : ""}`).join("")}
-    <p class="gfine">Grades: A+ hits 8+ in 10, A about 7½, A− about 7. Estimates from real games, not guarantees: even an A+ misses some nights.</p></div>`;
+    <p class="gfine">Grades: A+ hits 8½+ in 10 (the real God picks), A about 8, A− about 7 (the minimum to make this list). Estimates from real games, not guarantees: even an A+ misses some nights.</p></div>`;
 }
 function edgeOf(p){ const prob = (p.best === "More" ? p.pMore : p.pLess); return prob == null ? null : prob - breakeven(p); }
 function betScore(p){
