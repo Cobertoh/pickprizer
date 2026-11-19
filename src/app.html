@@ -258,6 +258,18 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
 .xin{position:relative;display:block}.xin i{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-style:normal;color:#8ea3cc;font-size:17px}
 .bstrip{margin:4px 0 10px}.bitem{padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}.bitem .blab{display:block;font-size:11px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#38bdf8;margin-bottom:2px}
 .bitem > b{font-size:16px}.bnums{font-size:13.5px;color:var(--mut);margin-top:3px}.bnums b{color:#fff;font-size:15px}.bnums .up{color:var(--good);font-weight:800}
+.grd{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:22px;padding:0 5px;border-radius:7px;font-weight:900;font-size:13px;margin-right:6px;vertical-align:1px;background:#334155;color:#cbd5e1}
+.grd.ap{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#1c1300;box-shadow:0 0 12px rgba(251,191,36,.45)}.grd.a{background:rgba(52,211,153,.2);color:#6ee7b7}.grd.b{background:rgba(96,165,250,.18);color:#93c5fd}.grd.c{background:rgba(250,204,21,.14);color:#fde68a}.grd.d{background:rgba(248,113,113,.16);color:#fca5a5}
+.cls.god{background:rgba(251,191,36,.16);color:#fcd34d}.greason{font-size:13px;color:#a7f3d0;margin:3px 0 2px}
+.godbox{margin:6px 0 14px;padding:14px;border:1px solid rgba(251,191,36,.35);border-radius:16px;background:linear-gradient(180deg,rgba(251,191,36,.07),rgba(15,23,42,.2))}
+.ghd{font-size:22px;font-weight:900;color:#fff;margin:0 0 6px;text-align:left}.ghd small{display:block;font-size:12.5px;font-weight:600;color:var(--mut);margin-top:2px}
+.gcat{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#fcd34d;margin:12px 0 2px}.gcat small{color:var(--mut)}
+.grow2{display:flex;align-items:center;gap:6px;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer;text-align:left}.gi{color:var(--mut);font-size:12px;width:14px}
+.gtx{flex:1;min-width:0}.gtx b{font-size:15px}.gside{font-size:14px}.gtx small{display:block;color:var(--mut);font-size:12.5px;margin-top:2px}
+.gpct{text-align:right;font-weight:900;font-size:19px;color:var(--good)}.gpct small{display:block;font-size:11px;font-weight:600;color:var(--mut)}
+.glu{padding:10px 12px;margin:6px 0;border-radius:12px;background:rgba(251,191,36,.08);text-align:left}.gluh b{color:#fcd34d}.gluh span{display:block;font-size:13px;color:var(--mut)}.gluh span b{color:#fff}
+.gpay{font-size:11.5px;color:var(--mut)}.glul{font-size:14px;padding:5px 0;cursor:pointer}.gmore,.gfine{font-size:12px;color:var(--mut);margin:6px 0 0}
+.hgod{text-align:left}.legend2 .grd{justify-self:start}
 .cls{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.4px;padding:2px 8px;border-radius:7px;margin-right:6px;vertical-align:2px}
 .cls.live{background:rgba(239,68,68,.18);color:#fca5a5;animation:livepulse 1.6s ease-in-out infinite}@keyframes livepulse{50%{opacity:.55}}
 .cls.top{background:rgba(251,191,36,.16);color:#fcd34d}.cls.safe{background:rgba(52,211,153,.14);color:#6ee7b7}.cls.value{background:rgba(96,165,250,.16);color:#93c5fd}
@@ -412,8 +424,8 @@ body.isbusy #runBtn .rp{display:inline-flex}
       <select id="typeSel"><option value="">All types</option><option value="standard">Standard</option><option value="goblin">Goblins</option><option value="demon">Demons</option></select>
       <select id="gameSel"><option value="">All games</option></select>
       <select id="statSel"><option value="">All stats</option></select>
-      <select id="sortSel"><option value="">Sort: best bets</option><option value="chance">Sort: safest (highest chance)</option><option value="proj">Sort: highest projected</option><option value="picked">Sort: most picked</option></select>
-      <select id="confSel"><option value="">Any rating</option><option value="g">🟢 Strong only</option><option value="gy">🟢 + 🟡</option><option value="top">⭐ Top picks</option><option value="safe">Safe picks</option><option value="value">Value picks</option></select>
+      <select id="sortSel"><option value="">Sort: God picks first</option><option value="edge">Sort: best value (edge)</option><option value="chance">Sort: safest (highest chance)</option><option value="proj">Sort: highest projected</option><option value="picked">Sort: most picked</option></select>
+      <select id="confSel"><option value="">Any rating</option><option value="god">👑 God picks (7 in 10+)</option><option value="g">🟢 Strong only</option><option value="gy">🟢 + 🟡</option><option value="top">⭐ Top picks</option><option value="safe">Safe picks</option><option value="value">Value picks</option></select>
       <input type="text" id="playerQ" list="playerList" placeholder="🔎 Type a player's name…" autocomplete="off" style="flex:1;min-width:180px"><datalist id="playerList"></datalist>
     </div>
     <div id="out"></div>
@@ -702,6 +714,7 @@ function renderHome(){
     <button class="alt2" data-go-tab="board">Browse every pick</button>
     <p class="live ${d ? "ok" : NEEDPASTE[SPORT] ? "need" : ""}"><i></i>${d ? `${sp.name} picks ready · ${d.picks.length.toLocaleString()} checked` : NEEDPASTE[SPORT] ? `${sp.name} lines need updating: ☰ → Update PrizePicks lines` : `Getting today's ${sp.name} picks…`}</p>
   </section>
+  ${d && d.picks.length ? `<section class="hsect hgod">${godHTML(d.picks, {per: 5, lineup: true})}<button class="alt2" data-go-tab="board">See every pick</button></section>` : ""}
   <div class="glowline"></div>
   <section class="hsect">
     <h2 class="big">How it <em>works</em></h2>
@@ -714,11 +727,13 @@ function renderHome(){
   </section>
   <div class="glowline"></div>
   <section class="hsect">
-    <h2 class="mid">Understanding <span>the colors</span></h2>
+    <h2 class="mid">Understanding <span>the grades</span></h2>
     <div class="legend2">
-      <i class="dot g"></i><b>Strong</b><span>Hits about 3 in 4 times or better</span>
-      <i class="dot y"></i><b>Unsure</b><span>Could be good, less certain</span>
-      <i class="dot r"></i><b>Avoid</b><span>Risky pick</span>
+      <span class="grd ap">A+</span><b>God pick</b><span>Hits 8+ in 10, nothing against it</span>
+      <span class="grd a">A</span><b>God pick</b><span>Hits 7 to 8 in 10, nothing against it</span>
+      <span class="grd b">B</span><b>Decent</b><span>About 6 in 10, or 7+ with a warning</span>
+      <span class="grd c">C</span><b>Coin-flip range</b><span>About 5 in 10</span>
+      <span class="grd d">D</span><b>Skip</b><span>Less likely than not</span>
     </div>
   </section>
   <div class="glowline"></div>
@@ -1563,7 +1578,7 @@ function betPanel(){
       : `<label class="fl">Payout<span class="xin"><input type="number" inputmode="decimal" id="multIn" min="1.5" step="any" value="${esc(m)}" placeholder="10"><i>×</i></span></label>`}
     <label class="fl">Picks<select id="npIn">${["", "2", "3", "4", "5", "6"].map(v => `<option value="${v}" ${store.get("npicks", "") === v ? "selected" : ""}>${v || "Best"}</option>`).join("")}</select></label>
     <label class="fl">Entries<input type="number" inputmode="numeric" id="entriesIn" min="1" max="20" step="1" value="${esc(en)}"></label></div>
-    <div class="frow"><label class="fl">Use only<select id="cconfIn">${[["", "Any rating"], ["g", "🟢 Strong only"], ["gy", "🟢 + 🟡"], ["top", "⭐ Top picks"], ["safe", "Safe picks"], ["value", "Value picks"]].map(([v, t]) => `<option value="${v}" ${store.get("cconf", "") === v ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
+    <div class="frow"><label class="fl">Use only<select id="cconfIn">${[["", "Any rating"], ["god", "👑 God picks (7 in 10+)"], ["g", "🟢 Strong only"], ["gy", "🟢 + 🟡"], ["top", "⭐ Top picks"], ["safe", "Safe picks"], ["value", "Value picks"]].map(([v, t]) => `<option value="${v}" ${store.get("cconf", "") === v ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
     <div class="tpills">${["goblin", "standard", "demon"].map(t => `<button type="button" class="tpill ${t} ${ptypeOn(t) ? "on" : ""}" data-pt="${t}" aria-pressed="${ptypeOn(t)}">${t === "goblin" ? "Goblins" : t === "demon" ? "Demons" : "Standard"}</button>`).join("")}</div>
     <button type="submit" class="pri wide">Build my lineup</button></form>`;
 }
@@ -1661,7 +1676,7 @@ function renderSafe(box, S, entries){
   if (!["goblin", "standard", "demon"].some(ptypeOn)) { box.innerHTML = `<p class="note">Turn on at least one pick type above.</p>`; return; }
   const cf = store.get("cconf", ""), vc = l => (l.v || {}).c, best = l => l.side === l.pk.best;
   const confOk = l => !cf || (cf === "g" ? vc(l) === "g" : cf === "gy" ? vc(l) === "g" || vc(l) === "y"
-    : best(l) && (cf === "top" ? l.pk.cls === "top" : cf === "safe" ? l.pk.cls === "safe" || (l.pk.cls === "top" && vc(l) === "g") : l.pk.cls === "value" || l.pk.cls === "top"));
+    : best(l) && (cf === "god" ? isGod(l.pk) : cf === "top" ? l.pk.cls === "top" : cf === "safe" ? l.pk.cls === "safe" || (l.pk.cls === "top" && vc(l) === "g") : l.pk.cls === "value" || l.pk.cls === "top"));
   const legs = buildLegs().filter(l => ptypeOn(l.pk.type)).filter(confOk).filter(l => !l.pk.newsFlag && !/out|doubt|suspen/i.test(l.pk.inj?.status || ""));
   const N = BET.N || 0, nG = new Set(legs.map(l => gameOf(l.pk))).size; GAME_CAP = nG >= 3 ? 2 : nG === 2 ? 3 : 6;
   let opts = safestFor(S, legs, N);
@@ -1698,7 +1713,7 @@ function renderBet(){
   if (!["goblin", "standard", "demon"].some(ptypeOn)) { box.innerHTML = `<p class="note">Turn on at least one pick type above.</p>`; return; }
   const cf = store.get("cconf", ""), vc = l => (l.v || {}).c, best = l => l.side === l.pk.best;
   const confOk = l => !cf || (cf === "g" ? vc(l) === "g" : cf === "gy" ? vc(l) === "g" || vc(l) === "y"
-    : best(l) && (cf === "top" ? l.pk.cls === "top" : cf === "safe" ? l.pk.cls === "safe" || (l.pk.cls === "top" && vc(l) === "g") : l.pk.cls === "value" || l.pk.cls === "top"));
+    : best(l) && (cf === "god" ? isGod(l.pk) : cf === "top" ? l.pk.cls === "top" : cf === "safe" ? l.pk.cls === "safe" || (l.pk.cls === "top" && vc(l) === "g") : l.pk.cls === "value" || l.pk.cls === "top"));
   const allLegs = buildLegs().filter(l => ptypeOn(l.pk.type)).filter(confOk).filter(l => !l.pk.newsFlag && !/out|doubt|suspen/i.test(l.pk.inj?.status || ""));
   const safeLegs = allLegs.filter(l => l.v.c !== "r" || l.p >= 0.5);
   let legs = safeLegs;
@@ -1869,13 +1884,14 @@ function card(p, i){
   if (ed != null) chips.unshift(`<span class="chip ${ed >= 0.04 ? "up" : ed <= -0.04 ? "dn" : ""}">Needs ${pct(breakeven(p))} · ${ed >= 0 ? "+" : ""}${Math.round(ed * 100)} edge</span>`);
   if (p.buzz) chips.push(`<span class="chip ${p.buzzSent > 0.2 ? "up" : p.buzzSent < -0.2 ? "dn" : ""}">Reddit ${p.buzz}${p.buzzSent > 0.2 ? " ▲" : p.buzzSent < -0.2 ? " ▼" : ""}</span>`);
   return `<div class="pick" data-pk="${esc(p.sport + "|" + p.id)}"><div class="rank">${i}</div><div class="info">
-    <div class="name">${vdot(p.verdict, true)} <span class="tag ${p.type}">${p.type.toUpperCase()}</span>${p.live ? `<span class="cls live">LIVE</span>` : ""}${p.cls ? `<span class="cls ${p.cls}">${p.cls === "top" ? "⭐ " : ""}${CLS_LAB[p.cls]}</span>` : ""}${esc(p.player)} <small>${vsText(p)}</small></div>
+    <div class="name">${gradeBadge(p)}${isGod(p) ? `<span class="cls god">👑 God pick</span>` : ""}<span class="tag ${p.type}">${p.type.toUpperCase()}</span>${p.live ? `<span class="cls live">LIVE</span>` : ""}${p.cls && !isGod(p) && p.cls !== "top" ? `<span class="cls ${p.cls}">${CLS_LAB[p.cls]}</span>` : ""}${esc(p.player)} <small>${vsText(p)}</small></div>
     <div><b>${side}</b> than <b>${p.line}</b> ${esc(p.stat)}</div>
+    ${isGod(p) && reasonOf(p) ? `<div class="greason">${esc(reasonOf(p))}</div>` : ""}
     <div class="chips">${chips.join("")}</div>
     ${p.inj ? `<div class="inj">⚠ ${esc(p.inj.status)}${p.inj.comment ? ": " + esc(p.inj.comment.slice(0, 100)) : ""}</div>` : ""}
     ${UNVERIFIED.has(p.sport + "|" + p.stat) ? `<div class="inj">⚠ PrizePicks' tennis fantasy scoring isn't confirmed, so this is a rough guess and it's never used in lineups</div>` : ""}
     ${p.lineOnly ? `<div class="note">Rated from PrizePicks' lines and the community (no game stats for this pick)</div>` : p.games < 3 ? `<div class="note">${p.found === false ? (p.sport === "tennis" ? "player not found on Sofascore" : "player not found on ESPN or NBA.com") : p.games ? `too few ${p.unit || "games"} to rate` : "no stats loaded (tap “Having trouble?” at the bottom)"}</div>` : ""}</div>
-    <div class="pct" style="color:${prob != null ? c : "var(--mut)"}">${pct(prob)}<small>${side.toLowerCase()}</small></div></div>`;
+    <div class="pct" style="color:${prob != null ? c : "var(--mut)"}">${pct(prob)}<small>${prob != null ? "hits " + inTen(prob) : side.toLowerCase()}</small></div></div>`;
 }
 // how far our projection is from the line, in the direction we recommend (e.g. +6.2 means 6.2 better than the line)
 const gapOf = p => p.proj == null || p.line == null ? null : +((p.best === "Less" ? p.line - p.proj : p.proj - p.line)).toFixed(1);
@@ -1886,6 +1902,87 @@ function payTxt(p, short){
   if (!p || p.type === "standard") return "";
   const f = legFactor(p), d = f - 1, r = Math.abs(d) >= 0.095 ? d.toFixed(1) : d.toFixed(2);
   return short ? `${d >= 0 ? "+" : ""}${r}× payout` : `${d >= 0 ? "Adds" : "Cuts"} roughly ${Math.abs(+r)}× of payout (×${f.toFixed(2)})`;
+}
+// ---------- GRADES. A God pick is a pick we'd expect to hit at least 7 times in 10, with nothing serious against it
+// and his recent games agreeing. Grades come from the calibrated chance, so an A+ should hit 8+ in 10 over time.
+const probOf = p => (p.best === "More" ? p.pMore : p.pLess);
+function godBlock(p){   // why a 70%+ pick is NOT a God pick (null = it is one)
+  const prob = probOf(p), side = p.best;
+  if (prob == null || prob < 0.7) return "under 7 in 10";
+  if (p.lineOnly || p.games < 8) return "too few games to trust";
+  if (UNVERIFIED.has(p.sport + "|" + p.stat)) return "scoring unconfirmed";
+  if (p.newsFlag || p.news?.some(n => n.tone === "bad")) return "serious news";
+  if (p.inj && /question|day|doubt|out|suspen|reserve/i.test(p.inj.status || "")) return "injury tag";
+  if (p.trap) return "line far from his average";
+  if (p.oppHard && side === "More") return "small role for this line";
+  if (p.verdict?.c === "r") return "flagged as risky";
+  if (Math.abs(p.realityShift || 0) >= 0.05) return "his recent games disagree";
+  const h = p.hits ? p.hits(side) : null, [a, b] = String(h?.l10 || "").split("/").map(Number);
+  if (b >= 5 && a / b < 0.6) return `only ${a}/${b} lately`;
+  if ((p.ctxNotes || []).some(n => (n.dir === 1 || n.dir === -1) && (n.dir > 0) !== (side === "More") && (n.size || 0) >= 0.06)) return "a teammate change points the other way";
+  return null;
+}
+const isGod = p => !p.live && godBlock(p) === null || (p.live && probOf(p) >= 0.9);
+function gradeOf(p){
+  const prob = probOf(p); if (prob == null) return {g: "–", c: "n", t: "Not rated"};
+  if (isGod(p)) return prob >= 0.8 ? {g: "A+", c: "ap", t: "God pick"} : prob >= 0.75 ? {g: "A", c: "a", t: "God pick"} : {g: "A−", c: "a", t: "God pick"};
+  const capped = p.verdict?.c === "r" ? Math.min(prob, 0.55) : prob;
+  return capped >= 0.6 ? {g: "B", c: "b", t: "Decent"} : capped >= 0.5 ? {g: "C", c: "c", t: "Coin-flip range"} : {g: "D", c: "d", t: "Skip"};
+}
+const inTen = x => `${Math.max(1, Math.min(9, Math.round(x * 10)))} in 10`;
+const gradeBadge = p => { const g = gradeOf(p); return `<span class="grd ${g.c}" title="${esc(g.t)}">${g.g}</span>`; };
+// one plain sentence on why, built only from real numbers we have
+function reasonOf(p){
+  const side = p.best, lw = side === "More" ? "over" : "under", h = p.hits ? p.hits(side) : {}, out = [];
+  const [a, b] = String(h.l10 || "").split("/").map(Number);
+  if (b >= 5) out.push(`went ${lw} in ${a} of his last ${b}`);
+  if (p.vsN >= 3) { const r = side === "More" ? p.vsMore : p.vsLess; if (r >= 0.6) out.push(`${Math.round(r * p.vsN)} of ${p.vsN} against ${p.opp}`); }
+  const gp = gapOf(p); if (gp != null && gp > 0 && out.length < 2) out.push(`projects ${p.proj}, ${gp} past the line`);
+  const tm = (p.ctxNotes || []).find(n => (n.dir === 1 || n.dir === -1) && (n.dir > 0) === (side === "More") && n.t);
+  if (!out.length && !tm) return "";
+  const s = out.join(", "), first = s ? s[0].toUpperCase() + s.slice(1) + "." : "";
+  return tm ? (first + " " + tm.t.replace(/\.?$/, ".")).trim() : first;
+}
+function godList(list, type){
+  return list.filter(p => isGod(p) && (!type || p.type === type)).sort((a, b) => probOf(b) - probOf(a) || (b.ev?.score || 0) - (a.ev?.score || 0));
+}
+function godRow(p, i){
+  const prob = probOf(p);
+  return `<div class="grow2" data-pk="${esc(p.sport + "|" + p.id)}"><span class="gi">${i}</span>${gradeBadge(p)}<div class="gtx"><b>${esc(p.player)}</b> <span class="gside">${p.best === "More" ? "Over" : "Under"} ${p.line} ${esc(p.stat)}</span>${p.type !== "standard" ? ` <span class="tag ${p.type}">${p.type.toUpperCase()}</span> <span class="gpay">${payTxt(p, true)}</span>` : ""}<small>${esc(reasonOf(p))}</small></div><div class="gpct">${pct(prob)}<small>hits ${inTen(prob)}</small></div></div>`;
+}
+// a small all-God lineup: different players and games where possible, chance shown honestly
+function godLineup(list){
+  // best all-God lineups that actually pay: for 2 and 3 picks, the highest chance among lineups paying at least 1.5×
+  const pool = godList(list).filter(p => !p.live).slice(0, 30), out = [];
+  for (const n of [2, 3]) {
+    let best = null;
+    const rec = (start, L) => {
+      if (L.length === n) {
+        const pay = POWER[n] * L.reduce((a, p) => a * legFactor(p), 1); if (pay < 1.5) return;
+        const ch = L.reduce((a, p) => a * probOf(p), 1);
+        if (!best || ch > best.ch + 1e-9 || (Math.abs(ch - best.ch) < 1e-9 && pay > best.pay)) best = {L: [...L], ch, pay};
+        return;
+      }
+      for (let i = start; i < pool.length; i++) { if (L.some(q => q.player === pool[i].player)) continue; L.push(pool[i]); rec(i + 1, L); L.pop(); }
+    };
+    rec(0, []);
+    if (best) out.push(best);
+  }
+  return out;
+}
+function godHTML(list, opts = {}){
+  const cats = [["standard", "Standard"], ["goblin", "Goblins"], ["demon", "Demons"]].map(([t, lab]) => [lab, godList(list, t)]);
+  const total = cats.reduce((a, [, l]) => a + l.length, 0), per = opts.per || 5;
+  if (!total) {
+    const near = list.filter(p => probOf(p) != null && p.verdict?.c !== "r" && !p.lineOnly).sort((a, b) => probOf(b) - probOf(a)).slice(0, 3);
+    return `<div class="godbox"><div class="ghd">👑 God picks<small>7 in 10 or better</small></div><p class="note">Nothing clears 7 in 10 with everything agreeing right now. We won't fake one. The closest picks:</p>${near.map((p, i) => godRow(p, i + 1)).join("")}</div>`;
+  }
+  const lus = opts.lineup ? godLineup(list) : [];
+  return `<div class="godbox"><div class="ghd">👑 God picks<small>${total} pick${total > 1 ? "s" : ""} that hit 7 in 10 or better, most likely first</small></div>
+    ${opts.lineup && !lus.length ? `<p class="gmore">No lineup made only of God picks pays more than 1.5× right now (goblins cut the payout too much). Pick4Me can build one that mixes in the next-best picks.</p>` : ""}
+    ${lus.map(u => `<div class="glu"><div class="gluh"><b>${u.L.length}-pick God lineup</b><span>pays about ${u.pay.toFixed(1)}× · all hit about <b>${inTen(u.ch)}</b> nights (${pct(u.ch)})</span></div>${u.L.map(p => `<div class="glul" data-pk="${esc(p.sport + "|" + p.id)}">${gradeBadge(p)} ${esc(p.player)} · ${p.best === "More" ? "Over" : "Under"} ${p.line} ${esc(p.stat)}</div>`).join("")}</div>`).join("")}
+    ${cats.filter(([, l]) => l.length).map(([lab, l]) => `<h3 class="gcat">${lab} <small>${l.length}</small></h3>${l.filter((p, i) => l.findIndex(q => q.player === p.player) === i).slice(0, per).map((p, i) => godRow(p, i + 1)).join("")}${l.length > per ? `<p class="gmore">+${l.length - per} more ${lab.toLowerCase()} God picks in All picks</p>` : ""}`).join("")}
+    <p class="gfine">Grades: A+ hits 8+ in 10, A about 7½, A− about 7. Estimates from real games, not guarantees: even an A+ misses some nights.</p></div>`;
 }
 function edgeOf(p){ const prob = (p.best === "More" ? p.pMore : p.pLess); return prob == null ? null : prob - breakeven(p); }
 function betScore(p){
@@ -1908,15 +2005,15 @@ function render(){
   const t = $("#typeSel").value, g = $("#gameSel").value, s = $("#statSel").value, cf = $("#confSel").value;
   const q = norm($("#playerQ").value), vc = p => p.verdict ? p.verdict.c : "n";
   const ok = p => (!t || p.type === t) && (!g || gameOf(p) === g) && (!s || p.stat === s) && (!q || norm(p.player).includes(q)) &&
-    (!cf || (cf === "g" ? vc(p) === "g" : cf === "gy" ? vc(p) === "g" || vc(p) === "y" : cf === "top" ? p.cls === "top" : cf === "safe" ? p.cls === "safe" || p.cls === "top" && p.verdict?.c === "g" : p.cls === "value" || p.cls === "top"));
+    (!cf || (cf === "god" ? isGod(p) : cf === "g" ? vc(p) === "g" : cf === "gy" ? vc(p) === "g" || vc(p) === "y" : cf === "top" ? p.cls === "top" : cf === "safe" ? p.cls === "safe" || p.cls === "top" && p.verdict?.c === "g" : p.cls === "value" || p.cls === "top"));
   const pb = p => (p.best === "More" ? p.pMore : p.pLess) ?? -1;
   const so = $("#sortSel").value;
-  const key = so === "proj" ? (p => gapOf(p) ?? -1e9) : so === "picked" ? (p => p.trending ?? -1) : so === "chance" ? pb : betScore;
+  const key = so === "proj" ? (p => gapOf(p) ?? -1e9) : so === "picked" ? (p => p.trending ?? -1) : so === "chance" ? pb : so === "edge" ? betScore : (p => isGod(p) ? 10 + pb(p) : betScore(p));
   const list = ALL.filter(ok), by = (a, b) => key(b) - key(a) || pb(b) - pb(a);
-  const sortTxt = {proj: "biggest gap between projection and line first", picked: "most picked first", chance: "highest chance first"}[so] || "best bets first: biggest edge over what the payout needs";
+  const sortTxt = {proj: "biggest gap between projection and line first", picked: "most picked first", chance: "highest chance first", edge: "biggest edge over what the payout needs first"}[so] || "God picks first (most likely to hit), then the best of the rest";
   let h = "";
   if (!g) {
-    $("#out").innerHTML = list.length ? bestStripHTML(list) + `<h2>All games <small>${list.length} picks · ${sortTxt}</small></h2>` +
+    $("#out").innerHTML = list.length ? godHTML(list, {per: 3}) + `<h2>All games <small>${list.length} picks · ${sortTxt}</small></h2>` +
       list.sort(by).slice(0, 300).map((p, i) => card(p, i + 1)).join("") : `<p class="note">${cf === "top" ? "No picks qualify as Top picks right now. The bar isn't lowered just to fill the list." : "No picks match these filters."}</p>`;
     return;
   }
