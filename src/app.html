@@ -1502,7 +1502,7 @@ function lineupCard(def, L, best){
     const r = reasons(l), p = l.pk;
     return `<div class="leg" data-pk="${esc(p.sport + "|" + p.id)}" data-side="${l.side}"><div class="n">${i + 1}</div><div class="body">
       <div class="name">${vdot(l.v || verdictOf(p, l.side))} <span class="tag ${p.type}">${p.type.toUpperCase()}</span>${esc(p.player)} <small>${vsText(p)}${pickedTxt(p) ? " · " + esc(pickedTxt(p)) : ""}</small></div>
-      <div><b>${l.side}</b> than <b>${p.line}</b> ${esc(p.stat)}</div>
+      <div><b>${l.side}</b> than <b>${p.line}</b> ${esc(p.stat)}${p.type !== "standard" ? ` <small class="note">· ${payTxt(p, true)} roughly</small>` : ""}</div>
       ${r.why.slice(0, 2).map(t => `<div class="why">${esc(t)}</div>`).join("")}
       ${r.risk.slice(0, 1).map(t => `<div class="risk">${esc(t)}</div>`).join("")}
     </div><div class="p" style="color:${l.p >= .6 ? "var(--good)" : l.p >= .45 ? "var(--mid)" : "var(--bad)"}">${pct(l.p)}</div></div>`;
@@ -1795,6 +1795,7 @@ function openPick(p, side){
   $("#modal").innerHTML = `<div class="mbox" role="dialog" aria-modal="true">
     <button class="mclose" id="mClose" aria-label="Close">✕</button>
     <div class="name" style="font-size:17px"><span class="tag ${p.type}">${p.type.toUpperCase()}</span>${esc(p.player)} <small>${vsText(p)}</small></div>
+    ${p.type !== "standard" ? `<p class="note" style="margin:2px 0 6px">${payTxt(p)}. Every other pick in the lineup is multiplied by this, so it's an estimate.</p>` : ""}
     <div style="margin:4px 0 8px">${sides.map(sd => `<button class="sidebtn ${sd === side ? "on" : ""}" data-mside="${sd}">${sd}</button>`).join(" ")} than <b>${p.line}</b> ${esc(p.stat)}${pickedTxt(p) ? ` · <span class="note">${esc(pickedTxt(p))}</span>` : ""}</div>
     <div class="mver"><div>${v ? `<span class="vd ${v.c} big"><i></i>${VLAB[v.c]}</span>` : ""} <b style="font-size:20px">${pct(prob)}</b> <span class="note">estimated chance</span></div>
       <div class="note">My read: ${cl(v && v.model)} · Community: ${cl(v && v.crowd)}${v && v.flags.length ? `<br>Flags: ${esc(v.flags.join(", "))}` : ""}</div></div>
@@ -1846,6 +1847,7 @@ function card(p, i){
   const chips = [p.proj != null ? `Projected ${p.proj}${gp ? ` (${gp > 0 ? "+" : ""}${gp} vs line)` : ""}` : null, h.l5 ? `Last 5: ${h.l5}` : null, h.l10 ? `Last 10: ${h.l10}` : null,
     p.vsN >= 3 ? `vs ${p.opp} ${Math.round((side === "More" ? p.vsMore : p.vsLess) * p.vsN)}/${p.vsN}` : null,
     pickedTxt(p)].filter(Boolean).map(t => `<span class="chip">${esc(t)}</span>`);
+  if (p.type !== "standard") chips.unshift(`<span class="chip ${p.type === "demon" ? "up" : ""}">${payTxt(p, true)} roughly</span>`);
   if (ed != null) chips.unshift(`<span class="chip ${ed >= 0.04 ? "up" : ed <= -0.04 ? "dn" : ""}">Needs ${pct(breakeven(p))} · ${ed >= 0 ? "+" : ""}${Math.round(ed * 100)} edge</span>`);
   if (p.buzz) chips.push(`<span class="chip ${p.buzzSent > 0.2 ? "up" : p.buzzSent < -0.2 ? "dn" : ""}">Reddit ${p.buzz}${p.buzzSent > 0.2 ? " ▲" : p.buzzSent < -0.2 ? " ▼" : ""}</span>`);
   return `<div class="pick" data-pk="${esc(p.sport + "|" + p.id)}"><div class="rank">${i}</div><div class="info">
@@ -1861,6 +1863,12 @@ function card(p, i){
 const gapOf = p => p.proj == null || p.line == null ? null : +((p.best === "Less" ? p.line - p.proj : p.proj - p.line)).toFixed(1);
 // A bet is good when its chance beats what its payout needs (break-even), not just when the chance is high:
 // a 90% goblin that needs 94% is a worse bet than a 62% standard that needs 55%. Serious flags push picks down.
+// how much a goblin/demon changes the payout, in plain words: "+0.3× payout (≈ ×1.3)"
+function payTxt(p, short){
+  if (!p || p.type === "standard") return "";
+  const f = legFactor(p), d = f - 1, r = Math.abs(d) >= 0.095 ? d.toFixed(1) : d.toFixed(2);
+  return short ? `${d >= 0 ? "+" : ""}${r}× payout` : `${d >= 0 ? "Adds" : "Cuts"} roughly ${Math.abs(+r)}× of payout (×${f.toFixed(2)})`;
+}
 function edgeOf(p){ const prob = (p.best === "More" ? p.pMore : p.pLess); return prob == null ? null : prob - breakeven(p); }
 function betScore(p){
   const e = edgeOf(p); if (e == null) return -9;
