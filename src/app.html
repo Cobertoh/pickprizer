@@ -1946,7 +1946,8 @@ function godBlock(p){   // why a 70%+ pick is NOT a God pick (null = it is one)
 const valueOf = p => { const pr = probOf(p); return pr == null ? 0 : pr * legFactor(p); };
 const passesChecks = p => !p.live ? godBlock(p) === null : probOf(p) >= 0.9;
 // A God pick passes every check (7 in 10 minimum, nothing against it) AND pays at least like a 70% standard.
-const isGod = p => passesChecks(p) && valueOf(p) >= 0.7;
+// High goblins count (a shallow goblin at 85% that keeps ×0.75+ of the payout); deep "can't miss" goblins don't.
+const isGod = p => passesChecks(p) && legFactor(p) >= 0.7 && valueOf(p) >= 0.62;
 const isSafeLeg = p => passesChecks(p) && !isGod(p);
 function gradeOf(p){
   const prob = probOf(p); if (prob == null) return {g: "–", c: "n", t: "Not rated"};
@@ -1994,7 +1995,7 @@ function callOf(p, side){
   const df = Math.abs(legFactor(p) - 1).toFixed(1);
   const gob = p.type === "goblin" ? ` Good as a safe leg, but it cuts the payout by about ${df}×.` : p.type === "demon" ? ` Bonus: it adds about ${df}× to the payout.` : "";
   if (p.live && prob >= 0.9) return {c: "bet", lab: "BET", txt: `He's already on pace live. ${why}`.trim()};
-  if (blk === null && valueOf(p) < 0.7) return {c: "lean", lab: "SAFE LEG", txt: `Very likely to hit (${pct(prob)}), but it pays little: it cuts the payout to ×${legFactor(p).toFixed(2)}. Use it to steady a lineup, not as your main bet.`};
+  if (blk === null && !isGod(p)) return {c: "lean", lab: "SAFE LEG", txt: `Very likely to hit (${pct(prob)}), but it pays little: it cuts the payout to ×${legFactor(p).toFixed(2)}. Use it to steady a lineup, not as your main bet.`};
   if (blk === null && (prob >= 0.78 || (p.type === "demon" && prob >= 0.72))) return {c: "bet", lab: "BET", txt: `${p.type === "demon" ? "I'd bet it. This is the kind of demon that looks too good to be true, but it checks out." : "I'd bet it."} ${why}${wo ? ` Only thing to watch: ${wo}.` : " Nothing in the news, lineup or matchup worries me."}${gob}`};
   if (blk === null) return {c: "lean", lab: "LEAN BET", txt: `I'd play it, but it's not a lock (about ${inTen(prob)}). ${why}${wo ? ` Watch: ${wo}.` : ""}${gob}`};
   if (blk === "under 7 in 10" && prob >= 0.64 && ed >= 0.06 && p.verdict?.c !== "r")
@@ -2030,12 +2031,21 @@ function godLineup(list){
   }
   return out;
 }
+function heldBackTxt(list){
+  const c = {}; let n = 0;
+  for (const p of list) { if ((probOf(p) || 0) < 0.7 || p.live) continue; const b = godBlock(p); const k = b === null ? (legFactor(p) < 0.7 ? "pays too little (deep goblin)" : null) : /^only /.test(b) ? "recent games too cold" : b; if (!k) continue; c[k] = (c[k] || 0) + 1; n++; }
+  if (!n) return "";
+  return `<p class="gmore">${n} picks were 70%+ but held back: ${Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `${v} ${k}`).join(", ")}.</p>`;
+}
 function godHTML(list, opts = {}){
   const cats = [["demon", "Demons"], ["standard", "Standard"], ["goblin", "Goblins"]].map(([t, lab]) => [lab, godList(list, t)]);
   const total = cats.reduce((a, [, l]) => a + l.length, 0), per = opts.per || 5;
   if (!total) {
-    const near = list.filter(p => probOf(p) >= 0.6 && p.verdict?.c !== "r" && !p.lineOnly && valueOf(p) >= 0.6).sort((a, b) => valueOf(b) - valueOf(a)).slice(0, 3);
-    return `<div class="godbox"><div class="ghd">👑 God picks<small>7 in 10 or better and worth the payout</small></div><p class="note">Nothing is both 7 in 10 and worth the payout right now. We won't fake one. The best value that comes close:</p>${near.map((p, i) => godRow(p, i + 1)).join("")}</div>`;
+    const near = list.filter(p => p.verdict && !p.lineOnly && ["bet", "lean"].includes(callOf(p).c) && callOf(p).lab !== "SAFE LEG").sort((a, b) => valueOf(b) - valueOf(a));
+    const uniq = near.filter((p, i) => near.findIndex(q => q.player === p.player) === i).slice(0, 5);
+    return `<div class="godbox"><div class="ghd">👑 God picks<small>7 in 10 or better and worth the payout</small></div>${uniq.length
+      ? `${heldBackTxt(list)}<p class="note">No God picks on this board yet. These are the best plays I'd still make, best value first:</p>${uniq.map((p, i) => godRow(p, i + 1)).join("")}`
+      : `<p class="note">No God picks on this board, and nothing else I'd put money on either. Check back closer to game time, when injury news and lines settle.</p>`}</div>`;
   }
   const lus = opts.lineup ? godLineup(list) : [];
   return `<div class="godbox"><div class="ghd">👑 God picks<small>${total} pick${total > 1 ? "s" : ""} that hit 7 in 10+ AND pay well, best value first</small></div>
