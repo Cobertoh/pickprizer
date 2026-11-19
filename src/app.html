@@ -1158,7 +1158,7 @@ function verdictOf(p, side){
   if (UNVERIFIED.has(p.sport + "|" + p.stat)) flags.push("scoring unconfirmed");
   if (p.lineOnly) hard.push("no game stats for this pick");
   if (p.newsFlag) hard.push("major news: " + p.newsFlag);
-  if (p.oppHard && side === "More") hard.push(p.returning ? "first game back from an absence" : "bench role for this line");
+  if (p.oppHard && side === "More") hard.push(p.returning ? "first game back from an absence" : p.opp2?.fb ? "small role for this line" : "bench role for this line");
   if (p.newsWarn) flags.push("news to check: " + p.newsWarn);
   const soft = flags.length;
   flags.unshift(...hard);
@@ -2920,7 +2920,8 @@ function sharedTrackHTML(){
   const hi = rows.filter(x => x.pr >= 0.75), hiHit = hi.length ? hi.filter(x => x.h).length / hi.length : null;
   return `<h4>Everyone using PickPrizer</h4><p class="body">${rows.length.toLocaleString()} graded picks: hit <b>${pct(hit)}</b>, predicted ${pct(pr)}.${hi.length ? ` Picks rated 75%+: hit <b>${pct(hiHit)}</b> of ${hi.length}.` : ""} These results also correct the app's chances automatically.</p>`;
 }
-function trackDashboard(){
+function trackDashboard(){ return replayHTML() + trackDashboard0(); }
+function trackDashboard0(){
   const all = Object.keys(SPORTS).flatMap(s => trackLoad(s).map(r => ({s, r}))), done = all.filter(x => x.r[6] != null);
   const rate = xs => xs.length ? `${pct(xs.filter(x => x.r[6]).length / xs.length)} <small>(${xs.filter(x => x.r[6]).length}/${xs.length})</small>` : `<small>no results yet</small>`;
   const row = (lab, xs) => `<tr><td>${lab}</td><td>${rate(xs)}</td></tr>`;
@@ -3012,13 +3013,154 @@ function oppModel(picks, sport){
     if (mProj < C.bench && p.best !== "Less" && p.line > 1.1 * rate * mProj) risks.push({hard: true, t: `Bench role (~${mProj.toFixed(0)} min): this line needs starter-level minutes or a big night`});
     p.opp2 = {mProj: +mProj.toFixed(1), m5: +m5.toFixed(1), m15: +m15.toFixed(1), rate: +rate.toFixed(3), phi: +phi.toFixed(2), mean: +mean.toFixed(1), med: q(0.5), p10: q(0.1), p90: q(0.9), notes, risks};
     // ---- 6) blend with the history model (the simulation leads; history keeps it honest)
-    p.sMore = clip(0.6 * oMore + 0.4 * p.sMore, 0.01, 0.99);
-    if (p.sLess != null) p.sLess = clip(0.6 * oLess + 0.4 * p.sLess, 0.01, 0.99);
-    p.proj = +(0.6 * mean + 0.4 * (p.proj ?? mean)).toFixed(1);
+    const W = oppW(sport);   // engine vs history mix, tuned by the replay test
+    p.sMore = clip(W * oMore + (1 - W) * p.sMore, 0.01, 0.99);
+    if (p.sLess != null) p.sLess = clip(W * oLess + (1 - W) * p.sLess, 0.01, 0.99);
+    p.proj = +(W * mean + (1 - W) * (p.proj ?? mean)).toFixed(1);
     if (risks.some(r => r.hard)) p.oppHard = risks.find(r => r.hard).t;
     n++;
   }
   return n;
+}
+
+// =====================================================================================================
+// ---------- FOOTBALL ENGINE (NFL + college): volume first (targets, carries, pass attempts), then efficiency
+// per opportunity, then a 3,000-run simulation. Yards follow touches; touches follow role and game script.
+// =====================================================================================================
+const FB_OPP = [
+  [/^(receiving yards|rec yards)$/i, g => g.tgt, g => g.recYds, "yards", "targets"],
+  [/^receptions$/i, g => g.tgt, g => g.rec, "binom", "targets"],
+  [/^(rush yards|rushing yards)$/i, g => g.rushAtt, g => g.rushYds, "yards", "carries"],
+  [/^(pass yards|passing yards)$/i, g => g.passAtt, g => g.passYds, "yards", "pass attempts"],
+  [/^pass completions$/i, g => g.passAtt, g => g.passCmp, "binom", "pass attempts"],
+  [/^rush\+rec yds$/i, g => g.rushAtt == null && g.tgt == null ? null : (g.rushAtt || 0) + (g.tgt || 0), g => g.rushYds == null && g.recYds == null ? null : (g.rushYds || 0) + (g.recYds || 0), "yards", "touches"],
+];
+const oppW = sport => { const v = +(localStorage.getItem("pp_oppw_" + sport) || NaN); return isNaN(v) ? 0.6 : clip(v, 0, 1); };
+function fbDist(gs, O, F, kind){   // gs: games newest first, all BEFORE the game being predicted
+  const rows = gs.map(g => [O(g), F(g)]).filter(([o, v]) => o != null && v != null && o >= 0);
+  if (rows.length < 4) return null;
+  const avg = xs => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const os = rows.map(r => r[0]);
+  const oProj = 0.5 * avg(os.slice(0, 3)) + 0.3 * avg(os.slice(0, 6)) + 0.2 * avg(os.slice(0, 17));
+  const sdO = Math.max(1, Math.sqrt(avg(os.slice(0, 10).map(o => (o - avg(os.slice(0, 10))) ** 2))));
+  const tot = rows.slice(0, 24), sO = tot.reduce((a, r) => a + r[0], 0), sV = tot.reduce((a, r) => a + r[1], 0);
+  const eff = sO > 0 ? (sV + 0.5 * avg(rows.map(r => r[1])) / Math.max(1, avg(os))) / (sO + 0.5) : 0;   // per opportunity, lightly smoothed
+  const resid = tot.filter(r => r[0] > 0).map(r => (r[1] - eff * r[0]) ** 2 / r[0]);
+  const s1 = Math.sqrt(Math.max(kind === "binom" ? eff * (1 - eff) : 1, avg(resid.length ? resid : [kind === "binom" ? 0.25 : 30])));
+  const mean = eff * oProj, sd = Math.sqrt(eff * eff * sdO * sdO + s1 * s1 * Math.max(oProj, 0.5));
+  return {oProj, sdO, eff, s1, mean, sd, n: rows.length};
+}
+function footballModel(picks, sport){
+  if (sport !== "nfl" && sport !== "cfb") return 0;
+  const H = HIST[sport] || {}; let n = 0;
+  let seed = 777; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const gauss = () => { let u = 0; while (!u) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd()); };
+  const W = oppW(sport);
+  for (const p of picks) {
+    if (p.sMore == null || p.lineOnly || p.live) continue;
+    const row = FB_OPP.find(([re]) => re.test(p.stat)); if (!row) continue;
+    const [, O, F, kind, word] = row, t0 = p.start ? Date.parse(p.start) : Date.now();
+    const gs = (H[p.player] || []).filter(g => !g.date || Date.parse(g.date) < t0);
+    const d = fbDist(gs, O, F, kind); if (!d || d.oProj < 0.5) continue;
+    const tM = Math.floor(p.line) + 0.5, tL = Math.ceil(p.line) - 0.5, N = 3000;
+    let over = 0, under = 0, sum = 0;
+    for (let s = 0; s < N; s++) {
+      let o = Math.max(0, Math.round(d.oProj + d.sdO * gauss()));
+      if (rnd() < 0.03) o = Math.round(o * (0.2 + 0.4 * rnd()));   // left the game early
+      const v = kind === "binom" ? (() => { let c = 0; for (let i = 0; i < o; i++) if (rnd() < d.eff) c++; return c; })() : Math.max(-5, d.eff * o + d.s1 * Math.sqrt(Math.max(o, 0.5)) * gauss());
+      sum += v; if (v > tM) over++; else if (v < tL) under++;
+    }
+    const oMore = over / N, oLess = under / N, mean = sum / N, o5 = gs.slice(0, 3).map(O).filter(x => x != null);
+    const notes = [`Expected ${word} tonight: ~${d.oProj.toFixed(1)}`, `${kind === "binom" ? `Converts ${Math.round(d.eff * 100)}% of ${word}` : `${d.eff.toFixed(1)} yards per ${word.replace(/s$/, "")}`} → about ${mean.toFixed(1)}`];
+    const risks = [];
+    const l3 = gs.slice(0, 3).map(F).filter(x => x != null), l3avg = l3.length ? l3.reduce((a, b) => a + b, 0) / l3.length : null;
+    if (l3avg != null && l3avg > 1.3 * d.mean && l3avg - d.mean > 8) risks.push({t: `Big recent games (${l3avg.toFixed(0)} a game over the last 3) ran ahead of his usual volume and efficiency; expect some pullback`});
+    if (o5.length >= 3 && d.oProj < 3 && p.best !== "Less") risks.push({hard: true, t: `Small role: only ~${d.oProj.toFixed(1)} ${word} a game`});
+    p.opp2 = {fb: true, oProj: +d.oProj.toFixed(1), eff: +d.eff.toFixed(3), mean: +mean.toFixed(1), notes, risks};
+    p.sMore = clip(W * oMore + (1 - W) * p.sMore, 0.01, 0.99);
+    if (p.sLess != null) p.sLess = clip(W * oLess + (1 - W) * p.sLess, 0.01, 0.99);
+    p.proj = +(W * mean + (1 - W) * (p.proj ?? mean)).toFixed(1);
+    if (risks.some(r => r.hard)) p.oppHard = risks.find(r => r.hard).t;
+    n++;
+  }
+  return n;
+}
+
+// =====================================================================================================
+// ---------- REPLAY TEST: rewind to each of the last 15 games of every player on today's board, predict using
+// ONLY what was known before that game, then check what really happened. Measures accuracy and calibration,
+// compares "history only" vs "opportunity engine" vs blends, and keeps whichever predicted past games best.
+// Lines are rebuilt from what a book would have posted then (his recent average) since old PrizePicks lines
+// aren't available; goblin- and demon-style lines are tested too.
+// =====================================================================================================
+const BT = {};
+function bballDist(gs, f, key, full){
+  const ok = gs.filter(g => g[key] != null && g[key] >= 3 && f(g) != null); if (ok.length < 8) return null;
+  const avg = xs => xs.reduce((a, b) => a + b, 0) / xs.length, mins = ok.map(g => g[key]);
+  const m5 = avg(mins.slice(0, 5)), m15 = avg(mins.slice(0, 15)), mProj = clip(0.45 * m5 + 0.35 * m15 + 0.2 * avg(mins.slice(0, 60)), 0, full);
+  const sdM = Math.max(2.5, Math.sqrt(avg(mins.slice(0, 15).map(m => (m - m15) ** 2))));
+  let wa = 0, wb = 0; ok.slice(0, 30).forEach((g, i) => { const w = Math.pow(0.95, i); wa += w * f(g); wb += w * g[key]; });
+  const longG = ok.slice(0, 120), rL = longG.reduce((s, g) => s + f(g), 0) / Math.max(1, longG.reduce((s, g) => s + g[key], 0));
+  const k = Math.min(ok.length, 30), rate = (k * (wa / Math.max(1, wb)) + 12 * rL) / (k + 12);
+  const res = ok.slice(0, 40).map(g => { const mu = rate * g[key]; return mu > 0.3 ? (f(g) - mu) ** 2 / mu : null; }).filter(x => x != null);
+  const phi = clip(res.length ? avg(res) : 1.5, 1, 6), mean = rate * mProj;
+  return {mean, sd: Math.sqrt(rate * rate * sdM * sdM + phi * Math.max(mean, 0.3))};
+}
+function histProb(vals, t){   // the history model in miniature: recency-weighted hit rate, pulled toward 50% for small samples
+  let a = 0, b = 0; vals.slice(0, 25).forEach((v, i) => { const w = Math.pow(0.93, i); a += w * (v > t ? 1 : 0); b += w; });
+  return (a + 1.5) / (b + 3);
+}
+function replayTest(sport, picks){
+  const C = OPP_SPORTS[sport], fb = sport === "nfl" || sport === "cfb"; if (!C && !fb) return null;
+  const H = HIST[sport] || {}, WS = [0, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9, 1], recs = [];
+  const seen = new Set();
+  for (const p of picks) {
+    const k = p.player + "|" + p.stat; if (seen.has(k) || seen.size >= 160) continue; seen.add(k);
+    const f = statFn(sport, p.stat); if (!f) continue;
+    const row = fb ? FB_OPP.find(([re]) => re.test(p.stat)) : null; if (fb && !row) continue;
+    const all = (H[p.player] || []).filter(g => f(g) != null && (fb || (g[C.key] != null && g[C.key] >= 3)));
+    if (all.length < 24) continue;
+    for (let i = 0; i < Math.min(15, all.length - 20); i++) {
+      const target = all[i], prior = all.slice(i + 1);   // only games BEFORE the one being predicted
+      const vals = prior.map(f), w10 = vals.slice(0, 10), avg10 = w10.reduce((a, b) => a + b, 0) / w10.length;
+      const sd10 = Math.max(0.8, Math.sqrt(w10.reduce((a, v) => a + (v - avg10) ** 2, 0) / w10.length));
+      const d = fb ? fbDist(prior, row[1], row[2], row[3]) : bballDist(prior, f, C.key, C.full); if (!d) continue;
+      const actual = f(target);
+      for (const [type, off] of [["standard", 0], ["goblin", -0.9], ["demon", 0.6]]) {
+        const line = Math.max(0.5, Math.floor(avg10 + off * sd10) + 0.5), t = line;
+        const pH = histProb(vals, t), pO = clip(1 - phi((t - d.mean) / Math.max(0.5, d.sd)), 0.01, 0.99);
+        recs.push({type, pH, pO, hit: actual > t ? 1 : 0});
+      }
+    }
+  }
+  if (recs.length < 60) return null;
+  const score = w => { let ll = 0, br = 0; for (const r of recs) { const q = clip(w * r.pO + (1 - w) * r.pH, 0.02, 0.98); ll -= r.hit ? Math.log(q) : Math.log(1 - q); br += (q - r.hit) ** 2; } return {w, ll: ll / recs.length, br: br / recs.length}; };
+  const variants = WS.map(score).sort((a, b) => a.ll - b.ll), best = variants[0];
+  const q = r => clip(best.w * r.pO + (1 - best.w) * r.pH, 0.02, 0.98);
+  // calibration and "how often the confident side was right" for the winning blend
+  const bins = [[0.5, 0.6], [0.6, 0.7], [0.7, 0.8], [0.8, 0.99]].map(([a, b]) => {
+    const xs = recs.map(r => { const p = q(r); return p >= 0.5 ? {p, h: r.hit} : {p: 1 - p, h: 1 - r.hit}; }).filter(x => x.p >= a && x.p < b);
+    return {a, b, n: xs.length, pred: xs.length ? xs.reduce((s, x) => s + x.p, 0) / xs.length : null, act: xs.length ? xs.reduce((s, x) => s + x.h, 0) / xs.length : null};
+  });
+  const conf = recs.map(r => { const p = q(r); return {p: Math.max(p, 1 - p), right: (p >= 0.5) === (r.hit === 1)}; });
+  const c70 = conf.filter(x => x.p >= 0.7), c60 = conf.filter(x => x.p >= 0.6);
+  const res = {sport, n: recs.length, players: seen.size, best, variants, bins,
+    hist: score(0), engine: score(1), acc70: c70.length ? c70.filter(x => x.right).length / c70.length : null, n70: c70.length,
+    acc60: c60.length ? c60.filter(x => x.right).length / c60.length : null, n60: c60.length, at: Date.now(),
+    pairs: recs.slice(0, 600).map(r => { const p = q(r); return [+p.toFixed(2), r.hit]; })};
+  BT[sport] = res;
+  try { localStorage.setItem("pp_oppw_" + sport, String(best.w)); localStorage.setItem("pp_bt_" + sport, JSON.stringify({...res, pairs: undefined, variants: res.variants.slice(0, 8)})); } catch {}
+  for (const k in LEARN) delete LEARN[k];
+  return res;
+}
+function replayHTML(){
+  const rs = Object.keys(SPORTS).map(s => { if (BT[s]) return BT[s]; try { return JSON.parse(localStorage.getItem("pp_bt_" + s) || "null"); } catch { return null; } }).filter(Boolean);
+  if (!rs.length) return `<h4>Replay of past games</h4><p class="note">Runs automatically after a sport's picks load: every player's last 15 games are re-predicted using only what was known before each game.</p>`;
+  return `<h4>Replay of past games</h4>` + rs.map(r => `<p class="body"><b>${esc(SPORTS[r.sport]?.label || r.sport)}</b>: ${r.n.toLocaleString()} past predictions (${r.players} player-stats).
+    When it leaned 60%+ one way it was right <b>${r.acc60 != null ? pct(r.acc60) : "–"}</b> (${r.n60}); at 70%+, <b>${r.acc70 != null ? pct(r.acc70) : "–"}</b> (${r.n70}).
+    Best mix: ${Math.round(r.best.w * 100)}% opportunity engine / ${Math.round((1 - r.best.w) * 100)}% history${r.engine && r.hist ? ` (engine alone error ${r.engine.ll.toFixed(3)}, history alone ${r.hist.ll.toFixed(3)}, mix ${r.best.ll.toFixed(3)}; lower is better)` : ""}. Now in use.</p>
+    <table class="trk2"><tr><th>Said</th><th>Times</th><th>Actually right</th></tr>${r.bins.map(b => `<tr><td>${Math.round(b.a * 100)}–${Math.round(Math.min(b.b, 0.9) * 100)}%</td><td>${b.n}</td><td>${b.n ? pct(b.act) : "–"}</td></tr>`).join("")}</table>`).join("") +
+    `<p class="note">Old PrizePicks lines aren't published, so each replayed line is rebuilt from the player's average at the time (plus goblin- and demon-style lines). Teammate injuries and news from back then aren't replayed.</p>`;
 }
 
 // ---------- shared ratings: the finished work is saved (on this device and on the website) so the app opens instantly
@@ -3032,7 +3174,7 @@ function packRated(sport){
       const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
       if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
     }
-    return JSON.stringify({v: 4, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+    return JSON.stringify({v: 5, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
   } catch (e) { console.warn("couldn't save ratings", e); return null; }
 }
 function unpackRated(js){
@@ -3049,7 +3191,7 @@ async function loadRated(sport){
   const got = [];
   const mine = await IDB.get("rated:" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
   if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
-  return got.filter(j => j && j.v === 4 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+  return got.filter(j => j && j.v === 5 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
 }
 const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
 async function quickStart(force){
@@ -3604,7 +3746,7 @@ async function analyze(picks, sport = SPORT){
   const kind = SPORTS[sport].kind;
   const r = (kind === "espn" ? await analyzeESPN(picks, sport) : kind === "ufc" ? await analyzeUFC(picks) : kind === "golf" ? await analyzeGolf(picks) : kind === "sofa" ? await analyzeSoccer(picks) : kind === "line" ? await analyzeLineOnly(picks, sport) : sport === "tennis" ? await analyzeTennis(picks) : sport === "nfl" ? await analyzeNFL(picks) : sport === "cfb" ? await analyzeCFB(picks) : await analyzeNBA(picks)) || {};
   setStatus("Projecting minutes and simulating every game…", 0.84);
-  oppModel(picks, sport);
+  oppModel(picks, sport); footballModel(picks, sport);
   setStatus("Checking spreads, totals and rest days…", 0.86);
   const gc = await gameContext(picks, sport);
   for (const p of picks) profilePick(p);
@@ -3619,6 +3761,7 @@ async function analyze(picks, sport = SPORT){
   finalize(picks);
   CLASSIFY_PICKS[sport] = {picks}; classify(picks);
   trackUpdate(sport, picks);
+  setTimeout(() => { try { const rt = replayTest(sport, picks); if (rt && DATA[sport]) DATA[sport].replay = {acc70: rt.acc70, n70: rt.n70, w: rt.best.w}; } catch (e) { console.warn("replay", e); } }, 300);
   DATA[sport] = {picks, gameCtx: gc, note: r.note || "", booksUsed: !!r.booksUsed, time: new Date(), redditBlocked: !!ERRS["Reddit"]};
   setTimeout(() => headlineScan(sport), 50);
   if (SPORT === sport) showSport();
