@@ -1156,6 +1156,7 @@ function verdictOf(p, side){
   if (l10 != null && l10 < 0.5) flags.push("cold last 10");
   if (p.ctxNotes?.some(n => n.dir === 0)) flags.push("key teammate out, effect unknown");
   if (p.ctxNotes?.some(n => (n.dir === 1 || n.dir === -1) && (n.dir > 0) !== (side === "More") && (n.size || 0) >= 0.06)) flags.push("a teammate being out has pushed his numbers the other way");
+  if (Math.abs(p.realityShift || 0) >= 0.05) flags.push("the model disagreed with his recent games, so it was toned down");
   if (p.minCv != null && p.minCv > 0.22) flags.push("his minutes swing a lot");
   if (p.type !== "standard" && !(p.cal && p.cal.ownN >= 30)) flags.push("too little history to verify");
   if (UNVERIFIED.has(p.sport + "|" + p.stat)) flags.push("scoring unconfirmed");
@@ -1269,6 +1270,22 @@ function scoreBuzz(picks, texts){
 }
 
 // ---------- combine into More / Less probabilities
+// Reality check: if the model says a side wins far more often than it actually has lately (last 10 + this season),
+// trust the model less. A 63% "less" that only cleared 1 of his last 10 games is not a 63% pick.
+function realityCheck(p){
+  p.realityShift = 0;
+  const h = p.hits ? p.hits("More") : null; if (!h) return;
+  const rt = x => { const [a, b] = String(x || "").split("/").map(Number); return b >= 5 ? a / b : null; };
+  const l10 = rt(h.l10), sea = rt(h.season);
+  const ref = l10 != null && sea != null ? 0.6 * l10 + 0.4 * sea : (l10 ?? sea);
+  if (ref == null) return;
+  const gap = p.pMore - ref;
+  if (Math.abs(gap) <= 0.15) return;
+  const d = -0.5 * (gap - Math.sign(gap) * 0.15);
+  p.pMore = clip(p.pMore + d, 0.03, 0.9);
+  if (p.pLess != null) p.pLess = clip(p.pLess - d, 0.03, 0.9);
+  p.realityShift = +d.toFixed(3);
+}
 function finalize(picks){
   const trend = picks.map(p => p.trending).filter(t => t != null).sort((a, b) => a - b);
   for (const p of picks) {
@@ -1284,6 +1301,7 @@ function finalize(picks){
     const done = p.liveCur != null && p.liveCur > p.line;   // live and already past the line
     p.pMore = bm == null ? null : done ? 0.99 : clip(learnAdj(p.sport, bm + crowd + tr), 0.03, 0.9);   // never claim more than 90%: injuries, blowouts and foul trouble exist
     p.pLess = p.type !== "standard" || bl == null ? null : done ? 0.01 : clip(learnAdj(p.sport, bl - crowd), 0.03, 0.9);
+    if (!p.live && p.pMore != null && p.pMore < 0.99) realityCheck(p);
     let conf = p.mMore != null && p.games >= 15 ? "High" : (p.games >= 8 || p.mMore != null) ? "Med" : "Low";
     if (p.inj && /question|day|doubt/i.test(p.inj.status)) conf = "Low";
     p.conf = p.pMore == null ? "" : conf;
@@ -2803,7 +2821,8 @@ function classify(picks){
     const safe = p.verdict.c === "g" && sens != null && sens >= 0.65 && p.prof?.label !== "boom-or-bust";
     const value = !hard && prob - be >= 0.06;
     const contra = (p.ctxNotes || []).some(n => (n.dir === 1 || n.dir === -1) && (n.dir > 0) !== (side === "More") && (n.size || 0) >= 0.06);
-    const top = !hard && !contra && ev.score >= 75 && prob - be >= 0.08 && strongCats >= 3 && sens != null && sens >= be && !p.outlier?.high;
+    const hh = p.hits ? p.hits(side) : null, r10 = (() => { const [a, b] = String(hh?.l10 || "").split("/").map(Number); return b >= 5 ? a / b : null; })();
+    const top = !hard && !contra && prob >= 0.68 && p.verdict.c !== "r" && (r10 == null || r10 >= 0.6) && Math.abs(p.realityShift || 0) < 0.05 && ev.score >= 75 && prob - be >= 0.08 && strongCats >= 3 && sens != null && sens >= be && !p.outlier?.high;
     p.cls = top ? "top" : safe ? "safe" : value ? "value" : null;
   }
 }
@@ -3192,7 +3211,7 @@ function packRated(sport){
       const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
       if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
     }
-    return JSON.stringify({v: 7, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+    return JSON.stringify({v: 8, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
   } catch (e) { console.warn("couldn't save ratings", e); return null; }
 }
 function unpackRated(js){
@@ -3209,7 +3228,7 @@ async function loadRated(sport){
   const got = [];
   const mine = await IDB.get("rated:" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
   if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
-  return got.filter(j => j && j.v === 7 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+  return got.filter(j => j && j.v === 8 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
 }
 const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
 async function quickStart(force){
