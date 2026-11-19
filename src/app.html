@@ -283,7 +283,7 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
 .evrow{display:grid;grid-template-columns:96px 1fr 42px;gap:4px 8px;align-items:center;font-size:13px;margin:6px 0}
 .evrow i{height:6px;border-radius:3px;background:linear-gradient(90deg,#3b82f6 var(--w),rgba(148,163,184,.18) var(--w))}.evrow b{text-align:right}.evrow small{grid-column:1/-1;color:var(--mut);margin-top:-2px}
 .trk2{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0 12px}.trk2 td,.trk2 th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}.trk2 td:last-child,.trk2 th:last-child{text-align:right}
-.tpills{display:flex;gap:8px;margin:2px 0 16px}
+.tpills{display:flex;gap:8px;margin:2px 0 16px}.bfilters{margin:4px 0 14px}.bfilters .tpills{margin:0 0 12px}.bfilters .frow{margin:0 0 12px}.pq{width:100%;min-height:52px;font-size:17px;box-sizing:border-box}
 .tpill{flex:1;min-height:44px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:transparent;color:#8ea3cc;font-weight:700;font-size:15px;transition:.15s}
 .tpill.on{color:#fff;border-color:transparent}
 .tpill.goblin.on{background:rgba(52,211,153,.18);box-shadow:inset 0 0 0 1.5px #34d399}
@@ -425,13 +425,14 @@ body.isbusy #runBtn .rp{display:inline-flex}
   <section id="mineView" class="hide"></section>
 
   <section id="boardView" class="hide">
-    <div class="filters">
-      <select id="typeSel"><option value="">All types</option><option value="standard">Standard</option><option value="goblin">Goblins</option><option value="demon">Demons</option></select>
-      <select id="gameSel"><option value="">All games</option></select>
-      <select id="statSel"><option value="">All stats</option></select>
-      <select id="sortSel"><option value="">Sort: God picks first</option><option value="edge">Sort: best value (edge)</option><option value="chance">Sort: safest (highest chance)</option><option value="proj">Sort: highest projected</option><option value="picked">Sort: most picked</option></select>
-      <select id="confSel"><option value="">Any rating</option><option value="god">👑 God picks (7 in 10+)</option><option value="g">🟢 Strong only</option><option value="gy">🟢 + 🟡</option><option value="top">⭐ Top picks</option><option value="safe">Safe picks</option><option value="value">Value picks</option></select>
-      <input type="text" id="playerQ" list="playerList" placeholder="🔎 Type a player's name…" autocomplete="off" style="flex:1;min-width:180px"><datalist id="playerList"></datalist>
+    <div class="bfilters">
+      <div class="tpills" id="bShow"></div>
+      <div class="tpills" id="bTypes"></div>
+      <div class="frow"><label class="fl">Game<select id="gameSel"><option value="">All games</option></select></label>
+        <label class="fl">Stat<select id="statSel"><option value="">All stats</option></select></label></div>
+      <div class="frow"><label class="fl">Sort<select id="sortSel"><option value="">God picks first</option><option value="edge">Best value (edge)</option><option value="chance">Safest (highest chance)</option><option value="proj">Highest projected</option><option value="picked">Most picked</option></select></label>
+        <label class="fl">Rating<select id="confSel"><option value="">Any rating</option><option value="g">🟢 Strong only</option><option value="gy">🟢 + 🟡</option><option value="safe">Safe picks</option><option value="value">Value picks</option></select></label></div>
+      <input type="text" id="playerQ" list="playerList" placeholder="🔎 Type a player's name…" autocomplete="off" class="pq"><datalist id="playerList"></datalist>
     </div>
     <div id="out"></div>
   </section>
@@ -2072,9 +2073,10 @@ function bestStripHTML(list){
     return `<div class="bitem" data-pk="${p.sport}|${p.id}"><span class="blab">${lab}</span><b>${esc(p.player)}</b> ${p.best} ${p.line} ${esc(p.stat)}<div class="bnums"><b>${pct(prob)}</b> chance · needs ${pct(breakeven(p))} · <span class="up">${lab2(edgeOf(p))} +${Math.round(edgeOf(p) * 100)}</span></div></div>`; }).join("")}</div>`;
 }
 function render(){
-  const t = $("#typeSel").value, g = $("#gameSel").value, s = $("#statSel").value, cf = $("#confSel").value;
+  drawBoardPills();
+  const g = $("#gameSel").value, s = $("#statSel").value, cf = $("#confSel").value, show = store.get("bshow", "");
   const q = norm($("#playerQ").value), vc = p => p.verdict ? p.verdict.c : "n";
-  const ok = p => (!t || p.type === t) && (!g || gameOf(p) === g) && (!s || p.stat === s) && (!q || norm(p.player).includes(q)) &&
+  const ok = p => btOn(p.type) && (show !== "god" || isGod(p)) && (show !== "bet" || (p.verdict && ["bet", "lean"].includes(callOf(p).c))) && (!g || gameOf(p) === g) && (!s || p.stat === s) && (!q || norm(p.player).includes(q)) &&
     (!cf || (cf === "god" ? isGod(p) : cf === "g" ? vc(p) === "g" : cf === "gy" ? vc(p) === "g" || vc(p) === "y" : cf === "top" ? p.cls === "top" : cf === "safe" ? p.cls === "safe" || p.cls === "top" && p.verdict?.c === "g" : p.cls === "value" || p.cls === "top"));
   const pb = p => (p.best === "More" ? p.pMore : p.pLess) ?? -1;
   const so = $("#sortSel").value;
@@ -2095,7 +2097,19 @@ function render(){
   }
   $("#out").innerHTML = h || `<p class="note">No picks match these filters.</p>`;
 }
-for (const id of ["#typeSel", "#gameSel", "#statSel", "#confSel", "#sortSel"]) $(id).onchange = render;
+// All picks: tap-to-toggle pick types (separate from Pick4Me's) and a quick "show" switch
+const btOn = t => store.get("bt_" + t, "1") === "1";
+function drawBoardPills(){
+  const sh = store.get("bshow", "");
+  $("#bShow").innerHTML = [["", "All picks"], ["god", "👑 God"], ["bet", "✅ I'd bet"]].map(([v, t]) => `<button type="button" class="tpill gl ${sh === v ? "on" : ""}" data-bshow="${v}">${t}</button>`).join("");
+  $("#bTypes").innerHTML = ["goblin", "standard", "demon"].map(t => `<button type="button" class="tpill ${t} ${btOn(t) ? "on" : ""}" data-bt="${t}" aria-pressed="${btOn(t)}">${t === "goblin" ? "Goblins" : t === "demon" ? "Demons" : "Standard"}</button>`).join("");
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-bt]"), v = e.target.closest("[data-bshow]");
+  if (b) { const t = b.dataset.bt, on = btOn(t); if (on && ["goblin", "standard", "demon"].filter(btOn).length === 1) return; store.set("bt_" + t, on ? "0" : "1"); render(); }
+  if (v) { store.set("bshow", v.dataset.bshow); render(); }
+});
+for (const id of ["#gameSel", "#statSel", "#confSel", "#sortSel"]) $(id).onchange = render;
 $("#playerQ").oninput = render;
 
 // ---------- NFL (ESPN game logs)
