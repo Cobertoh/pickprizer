@@ -1155,6 +1155,7 @@ function verdictOf(p, side){
   if (long != null && long < 0.5) flags.push("weak long-term rate");
   if (l10 != null && l10 < 0.5) flags.push("cold last 10");
   if (p.ctxNotes?.some(n => n.dir === 0)) flags.push("key teammate out, effect unknown");
+  if (p.ctxNotes?.some(n => (n.dir === 1 || n.dir === -1) && (n.dir > 0) !== (side === "More") && (n.size || 0) >= 0.06)) flags.push("a teammate being out has pushed his numbers the other way");
   if (p.minCv != null && p.minCv > 0.22) flags.push("his minutes swing a lot");
   if (p.type !== "standard" && !(p.cal && p.cal.ownN >= 30)) flags.push("too little history to verify");
   if (UNVERIFIED.has(p.sport + "|" + p.stat)) flags.push("scoring unconfirmed");
@@ -2760,7 +2761,9 @@ function evidence(p, side){
     pts += q ? 0 : 8; w.push(q ? `injury tag: ${p.inj.status}` : "no injury tag");
     const bad = p.newsFlag || p.news?.some(n => n.tone === "bad"), warn = p.newsWarn;
     pts += bad ? 0 : warn ? 3 : 6; w.push(bad ? "serious news" : warn ? "minor news" : p.newsChecked ? "news checked, nothing serious" : "no news found");
-    pts += p.ctxNotes?.length ? 3 : 2;
+    const against = (p.ctxNotes || []).filter(n => (n.dir === 1 || n.dir === -1) && (n.dir > 0) !== more && (n.size || 0) >= 0.05);
+    pts += against.length ? -6 : p.ctxNotes?.length ? 3 : 2;
+    if (against.length) w.push("a teammate change points the other way");
     pts += p.minCv == null ? 2 : p.minCv < 0.15 ? 3 : p.minCv < 0.25 ? 2 : 0;
     parts.push({k: "News & lineup", pts, max: 20, why: w.join(", ")});
   }
@@ -2791,7 +2794,8 @@ function classify(picks){
     const strongCats = ev.parts.filter(x => x.pts >= 0.6 * x.max).length;
     const safe = p.verdict.c === "g" && sens != null && sens >= 0.65 && p.prof?.label !== "boom-or-bust";
     const value = !hard && prob - be >= 0.06;
-    const top = !hard && ev.score >= 75 && prob - be >= 0.08 && strongCats >= 3 && sens != null && sens >= be && !p.outlier?.high;
+    const contra = (p.ctxNotes || []).some(n => (n.dir === 1 || n.dir === -1) && (n.dir > 0) !== (side === "More") && (n.size || 0) >= 0.06);
+    const top = !hard && !contra && ev.score >= 75 && prob - be >= 0.08 && strongCats >= 3 && sens != null && sens >= be && !p.outlier?.high;
     p.cls = top ? "top" : safe ? "safe" : value ? "value" : null;
   }
 }
@@ -2991,7 +2995,9 @@ function oppModel(picks, sport){
     let wa = 0, wb = 0, i = 0;
     for (const g of gs.slice(0, C.rateN)) { const w = Math.pow(0.95, i++); wa += w * f(g); wb += w * g[C.key]; }
     const rRecent = wa / Math.max(1, wb), longGs = gs.slice(0, 120), rLong = longGs.reduce((s, g) => s + f(g), 0) / Math.max(1, longGs.reduce((s, g) => s + g[C.key], 0));
-    const k = Math.min(gs.length, C.rateN), rate = (k * rRecent + 12 * rLong) / (k + 12);
+    const k = Math.min(gs.length, C.rateN);
+    let rate = (k * rRecent + 8 * rLong) / (k + 8);   // lighter pull to the long run, so improving young players aren't dragged back
+    if (p.ctxF && p.ctxF !== 1) rate *= 1 + 0.4 * (p.ctxF - 1);   // the other 40% of a teammate effect: more shots / touches per minute
     // ---- 3) how noisy he is beyond minutes (overdispersion): >1 means streakier than a pure-chance stat
     const res = gs.slice(0, 40).map(g => { const mu = rate * g[C.key]; return mu > 0.3 ? (f(g) - mu) ** 2 / mu : null; }).filter(x => x != null);
     const phi = clip(avg(res) ?? 1.5, 1, 6);
@@ -3178,7 +3184,7 @@ function packRated(sport){
       const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
       if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
     }
-    return JSON.stringify({v: 6, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+    return JSON.stringify({v: 7, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
   } catch (e) { console.warn("couldn't save ratings", e); return null; }
 }
 function unpackRated(js){
@@ -3195,7 +3201,7 @@ async function loadRated(sport){
   const got = [];
   const mine = await IDB.get("rated:" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
   if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
-  return got.filter(j => j && j.v === 6 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+  return got.filter(j => j && j.v === 7 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
 }
 const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
 async function quickStart(force){
@@ -3678,7 +3684,8 @@ async function analyzeNBA(picks){
       const withB = A.filter(g => B.eids.has(g.eid)); if (withB.length < 5) continue;
       const first = withB[withB.length - 1].date, recent = new Date(Date.now() - 400 * 864e5).toISOString(), wo = A.filter(g => !B.eids.has(g.eid) && g.date > first && g.date > recent);
       if (wo.length < 3) { notes.push({dir: 0, t: `${B.name} (${Math.round(B.min)} min a game) is out and there are too few games without him to measure what that does`}); continue; }
-      const mO = mean(wo), k = clip(1 + (mO / base - 1) * wo.length / (wo.length + 6), 0.85, 1.25);
+      const big = B.min >= 30 && wo.length >= 5;   // a real starter/star out, seen enough times
+      const mO = mean(wo), k = clip(1 + (mO / base - 1) * wo.length / (wo.length + (big ? 3 : 6)), 0.8, big ? 1.45 : 1.25);
       ks.push(k);
       notes.push({dir: k > 1.03 ? 1 : k < 0.97 ? -1 : 0.5, size: Math.abs(k - 1), t: k > 1.03 ? `${B.name} is out: without him he averages ${mO.toFixed(1)} (${wo.length} games), above his recent ${base.toFixed(1)}`
         : k < 0.97 ? `${B.name} is out, and that has hurt him: ${mO.toFixed(1)} without him (${wo.length} games) vs his recent ${base.toFixed(1)}` : `${B.name} is out (already reflected in his recent numbers)`});
@@ -3698,7 +3705,7 @@ async function analyzeNBA(picks){
     // teammates who are out usually missed the SAME games, so their effects overlap: count the biggest one fully, the rest a little
     const d = ks.map(k => k - 1).sort((a, b) => Math.abs(b) - Math.abs(a));
     f = 1 + (d[0] || 0) + 0.3 * (d[1] || 0) + 0.1 * (d[2] || 0);
-    return {f: clip(f, 0.85, 1.2), notes};
+    return {f: clip(f, 0.8, 1.4), notes};
   };
   for (const p of picks) {
     p.games = 0;
