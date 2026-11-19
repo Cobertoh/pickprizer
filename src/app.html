@@ -585,7 +585,9 @@ function cttl(u){   // how long a download stays good on this device (seconds); 
     if (pth.endsWith("/teams")) return 7 * CDAY;
     if (pth.includes("/roster")) return 12 * CHOUR;
     if (pth.includes("/golf/")) return q.get("event") || q.get("dates") ? 3 * CHOUR : 10 * CMIN;
-    if (pth.endsWith("/scoreboard") && q.get("dates")) { const dd = q.get("dates"), today = ymd(new Date()); return dd.length === 8 && dd < today ? 30 * CDAY : dd.length === 6 && dd < today.slice(0, 6) ? 30 * CDAY : CHOUR; }
+    if (pth.endsWith("/scoreboard") && q.get("dates")) { const dd = q.get("dates"), today = etDate(new Date().toISOString());
+      if (dd === today) return 90;   // today: game states and odds change by the minute
+      return dd.length === 8 && dd < today ? 30 * CDAY : dd.length === 6 && dd < today.slice(0, 6) ? 30 * CDAY : 30 * CMIN; }
     if (pth.endsWith("/summary")) return q.get("live") ? 0 : 30 * CDAY;
     return 10 * CMIN;
   }
@@ -1446,11 +1448,12 @@ function reasons(l){
   }
   if (p.minTrend >= 1.05) (l.side === "More" ? why : risk).push(`Minutes trending up (~${p.minAvg} avg)`);
   if (p.minTrend <= 0.95) (l.side === "Less" ? why : risk).push("Minutes trending down");
-  for (const n of p.ctxNotes || []) (n.dir === 0 ? risk : n.dir === 0.5 ? why : (n.dir > 0) === (l.side === "More") ? why : risk).push(n.t + (n.dir === 0.5 ? " (little change)" : ""));
+  // teammate effects: biggest first, at most 3; "no real change" ones aren't reasons either way
+  for (const n of (p.ctxNotes || []).filter(n => n.dir !== 0.5).sort((a, b) => (b.size || 0) - (a.size || 0)).slice(0, 3)) (n.dir === 0 ? risk : (n.dir > 0) === (l.side === "More") ? why : risk).push(n.t);
   if (!p.ctxNotes?.length && p.teammatesOut?.length && p.sport === "nfl") risk.push(`Teammate${p.teammatesOut.length > 1 ? "s" : ""} out: ${p.teammatesOut.slice(0, 3).join(", ")}. Roles may shift`);
   if (p.trap) risk.push(`PrizePicks' line (${p.stdLine}) is well ${p.trap === "high" ? "above" : "below"} his recent average (${p.proj}). They're pricing in something the stats don't show (role change, injury, matchup), so history can't be trusted here`);
   if (p.cal && l.side === "More") (p.cal.p >= 0.75 ? why : p.cal.p < 0.5 ? risk : why).push(`Measured: lines this far ${p.cal.z >= 0 ? "below" : "above"} a player's usual went over ${p.cal.league != null ? pct(p.cal.league) + ` of the time across ${p.cal.leagueN.toLocaleString()} past games` : ""}${p.cal.own != null ? `${p.cal.league != null ? "; for him it's " : ""}${pct(p.cal.own)} over his own ${p.cal.ownN} games` : ""}`);
-  if (p.liveNote) why.unshift(p.liveNote);
+  if (p.liveNote) (p.liveCur != null ? why : risk).unshift(p.liveNote);
   if (p.opp2) { why.unshift(...p.opp2.notes); for (const r of p.opp2.risks) if (!(r.hard && l.side === "Less")) risk.unshift(r.t); }
   for (const n of p.ctxNotes2 || []) ((n.dir > 0) === (l.side === "More") ? why : risk).push(n.t);
   if (p.prof) { if (p.prof.label === "boom-or-bust") risk.push(`Boom-or-bust: his middle half of games runs ${p.prof.q1}–${p.prof.q3}, but 1 in 10 goes above ${p.prof.hi}, so the average flatters him`);
@@ -2663,7 +2666,7 @@ async function gameContext(picks, sport){
 const LIVE_LEN = {nba: [4, 12], wnba: [4, 10], cbb: [2, 20]};
 async function liveAdjust(picks, sport, games){
   const L = LIVE_LEN[sport], livePicks = picks.filter(p => p.liveGame && p.sMore != null);
-  if (!L || !livePicks.length) { for (const p of picks.filter(p => p.live)) p.liveNote = "Game in progress: rated from before the game (no live box score for this sport)"; return 0; }
+  if (!L || !livePicks.length) { for (const p of picks.filter(p => p.live)) p.liveNote = L ? "Game in progress, but live stats weren't available yet: this is rated from before the game. Refresh in a minute" : "Game in progress: rated from before the game (no live box score for this sport)"; return 0; }
   const C = CTX[sport], byGame = {};
   for (const p of livePicks) (byGame[p.liveGame.id] ||= []).push(p);
   let n = 0;
@@ -2682,7 +2685,7 @@ async function liveAdjust(picks, sport, games){
     }
     for (const p of byGame[id]) {
       const g = box[norm(p.player)], f = statFn(sport, p.stat);
-      if (!g || !f) { p.liveNote = "Game in progress: couldn't find him in the live box score, rated from before the game"; continue; }
+      if (!g || !f) { p.liveNote = "Game in progress, but he isn't in the live box score yet: rated from before the game"; continue; }
       const cur = f(g), full = p.proj ?? p.line, sd = p.sd || Math.max(0.8, 0.3 * p.line);
       if (cur == null) continue;
       const expFinal = cur + full * rem, sdr = Math.max(0.5, sd * Math.sqrt(rem));
@@ -2694,6 +2697,7 @@ async function liveAdjust(picks, sport, games){
       p.liveNote = cur > p.line ? `Live: already at ${cur}, past the line` : `Live: ${cur} so far with about ${p.liveRem} min left, on pace for ${p.proj}`;
     }
   });
+  for (const p of picks) if (p.live && p.liveCur == null && !p.liveNote) p.liveNote = "Game in progress, but live stats couldn't be matched: rated from before the game. Refresh in a minute";
   return n;
 }
 
@@ -3174,7 +3178,7 @@ function packRated(sport){
       const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
       if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
     }
-    return JSON.stringify({v: 5, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+    return JSON.stringify({v: 6, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
   } catch (e) { console.warn("couldn't save ratings", e); return null; }
 }
 function unpackRated(js){
@@ -3191,7 +3195,7 @@ async function loadRated(sport){
   const got = [];
   const mine = await IDB.get("rated:" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
   if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
-  return got.filter(j => j && j.v === 5 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+  return got.filter(j => j && j.v === 6 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
 }
 const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
 async function quickStart(force){
@@ -3676,7 +3680,8 @@ async function analyzeNBA(picks){
       if (wo.length < 3) { notes.push({dir: 0, t: `${B.name} (${Math.round(B.min)} min a game) is out and there are too few games without him to measure what that does`}); continue; }
       const mO = mean(wo), k = clip(1 + (mO / base - 1) * wo.length / (wo.length + 6), 0.85, 1.25);
       ks.push(k);
-      notes.push({dir: k > 1.03 ? 1 : k < 0.97 ? -1 : 0.5, t: `${B.name} is out: he averages ${mO.toFixed(1)} in ${wo.length} games without him vs ${mean(withB).toFixed(1)} with him`});
+      notes.push({dir: k > 1.03 ? 1 : k < 0.97 ? -1 : 0.5, size: Math.abs(k - 1), t: k > 1.03 ? `${B.name} is out: without him he averages ${mO.toFixed(1)} (${wo.length} games), above his recent ${base.toFixed(1)}`
+        : k < 0.97 ? `${B.name} is out, and that has hurt him: ${mO.toFixed(1)} without him (${wo.length} games) vs his recent ${base.toFixed(1)}` : `${B.name} is out (already reflected in his recent numbers)`});
     }
     const last5 = A.slice(0, 5);
     for (const bn of teamPlayers[team] || []) {
@@ -3688,7 +3693,7 @@ async function analyzeNBA(picks){
       const mR = mean(A.slice(0, 10)), mW = mean(withB); if (!(mR > 0)) continue;
       const k = clip(1 + (mW / mR - 1) * 0.6, 0.8, 1.15);
       ks.push(k);
-      notes.push({dir: k > 1.03 ? 1 : k < 0.97 ? -1 : 0.5, t: `${bn} is back after missing ${missed} of the last 5: the recent ${mR.toFixed(1)} came without him, with him it's ${mW.toFixed(1)}`});
+      notes.push({dir: k > 1.03 ? 1 : k < 0.97 ? -1 : 0.5, size: Math.abs(k - 1), t: `${bn} is back after missing ${missed} of the last 5: the recent ${mR.toFixed(1)} came without him, with him it's ${mW.toFixed(1)}`});
     }
     // teammates who are out usually missed the SAME games, so their effects overlap: count the biggest one fully, the rest a little
     const d = ks.map(k => k - 1).sort((a, b) => Math.abs(b) - Math.abs(a));

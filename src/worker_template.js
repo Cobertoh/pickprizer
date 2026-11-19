@@ -21,6 +21,7 @@ function ttl(u) {
   }
   if (h === "site.api.espn.com" && p.endsWith("/teams")) return 7 * DAY;
   if (h === "site.api.espn.com" && p.includes("/roster")) return 6 * HOUR;
+  if (h.includes("espn.com") && (p.endsWith("/scoreboard") || p.endsWith("/summary"))) return 60;   // game states and live box scores
   if (h.includes("espn.com")) return 10 * MIN;
   if (h === "stats.nba.com") return 3 * HOUR;
   if (h.endsWith("sofascore.com")) return p.endsWith("/statistics") ? 30 * DAY : p.includes("/search/") ? 7 * DAY : HOUR;
@@ -127,7 +128,7 @@ async function rated(req, env, ctx, sport) {
   if (req.method === "GET") { const o = await kvGet(env, k); return o ? stored(o) : json({ message: "none yet" }, 404); }
   if (req.method !== "POST") return json({ message: "method" }, 405);
   const text = await req.text();
-  if (text.length > 6e6 || !text.startsWith('{"v":5,')) return json({ message: "bad" }, 400);
+  if (text.length > 6e6 || !text.startsWith('{"v":6,')) return json({ message: "bad" }, 400);
   const o = await kvGet(env, k);
   if (o && Date.now() - o.t < 4 * MIN * 1000) return json({ ok: true, skipped: true }, 200);   // someone just saved one
   await kvPut(env, ctx, k, text, 2 * DAY);
