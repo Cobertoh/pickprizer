@@ -283,7 +283,7 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
 .evrow{display:grid;grid-template-columns:96px 1fr 42px;gap:4px 8px;align-items:center;font-size:13px;margin:6px 0}
 .evrow i{height:6px;border-radius:3px;background:linear-gradient(90deg,#3b82f6 var(--w),rgba(148,163,184,.18) var(--w))}.evrow b{text-align:right}.evrow small{grid-column:1/-1;color:var(--mut);margin-top:-2px}
 .trk2{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0 12px}.trk2 td,.trk2 th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}.trk2 td:last-child,.trk2 th:last-child{text-align:right}
-.tpills{display:flex;gap:8px;margin:2px 0 16px}.bfilters{margin:4px 0 14px}.bfilters .tpills{margin:0 0 12px}#bShow{flex-wrap:wrap}#bShow .tpill{flex:1 1 30%}.pnote{font-size:13px;color:#fcd34d;margin:0 0 10px}.bfilters .frow{margin:0 0 12px}.pq{width:100%;min-height:52px;font-size:17px;box-sizing:border-box}
+.tpills{display:flex;gap:8px;margin:2px 0 16px}.bfilters{margin:4px 0 14px}.bfilters .tpills{margin:0 0 12px}#bShow{flex-wrap:wrap}#bShow .tpill{flex:1 1 30%}.playas{font-size:15px;margin:10px 0 4px;color:#e2e8f0}.pnote{font-size:13px;color:#fcd34d;margin:0 0 10px}.bfilters .frow{margin:0 0 12px}.pq{width:100%;min-height:52px;font-size:17px;box-sizing:border-box}
 .tpill{flex:1;min-height:44px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:transparent;color:#8ea3cc;font-weight:700;font-size:15px;transition:.15s}
 .tpill.on{color:#fff;border-color:transparent}
 .tpill.goblin.on{background:rgba(52,211,153,.18);box-shadow:inset 0 0 0 1.5px #34d399}
@@ -3777,7 +3777,8 @@ async function checkMine(){
   if (n < 2) { out.innerHTML = `<p style="color:var(--mid)">Pick at least 2 players. PrizePicks lineups are 2 to 6 picks.</p>`; return; }
   const warn = [];
   const names = L.map(l => l.pk.player);
-  if (new Set(names).size < n) warn.push("The same player is in your lineup twice. PrizePicks won't allow that.");
+  const dup = names.filter((x, i) => names.indexOf(x) !== i);
+  if (dup.length) warn.push(`${esc([...new Set(dup)].join(", "))} is in your lineup more than once. Those legs rise and fall together: one quiet night from him and they can all miss at once. Better to spread across players.`);
   if (new Set(L.map(l => l.pk.sport + l.pk.team)).size < 2) warn.push("Every pick is from the same team. PrizePicks requires at least 2 different teams.");
   const unr = L.filter(l => l.unrated);
   if (unr.length) warn.push(`${unr.map(l => esc(l.pk.player)).join(", ")} ${unr.length > 1 ? "aren't" : "isn't"} rated (no stats loaded), so I counted ${unr.length > 1 ? "them" : "it"} as a 50/50 coin flip.`);
@@ -3802,6 +3803,11 @@ async function checkMine(){
     <table class="sumtab"><tr><td class="note">Play as</td><td class="note">Chance to win</td><td class="note">Pays</td></tr>
     <tr><td>Power (all ${n} must hit)</td><td style="font-weight:800">${pct1(raw.d[n])}</td><td><b>${raw.powerPay.toFixed(1)}×</b></td></tr>
     ${ft ? `<tr><td>Flex (profit on ${Math.min(...ft.map((m, k) => m > 1 ? k : 99))}+ hits)</td><td style="font-weight:800">${pct1(flexProfit)}</td><td><b>${raw.flexPay.toFixed(1)}×</b> top</td></tr>` : ""}</table>
+    ${Math.max(raw.power, raw.flex) < 0.95 ? `<p class="playas">🛑 <b>I wouldn't play this one as is.</b> Either way it pays back only about $${Math.max(raw.power, raw.flex).toFixed(2)} per $1 on average${L.filter(l => l.pk.type === "goblin").length >= 2 ? ": the goblins cut the payout more than they raise your chance" : ""}. Swap a leg or two for a standard or a God pick.</p>` : ft ? (() => { const fx = raw.flex >= raw.power, f1 = ft[n - 1] * raw.F;
+      return `<p class="playas">👉 <b>Play it as ${fx ? "Flex" : "Power"}.</b> ${fx
+        ? `With these odds, missing one is the most likely bad outcome, and Flex still pays about ${f1.toFixed(1)}× if ${n - 1} of ${n} hit. Average return per $1: Flex $${raw.flex.toFixed(2)} vs Power $${raw.power.toFixed(2)}.`
+        : `The bigger Power payout is worth more than Flex's safety net here. Average return per $1: Power $${raw.power.toFixed(2)} vs Flex $${raw.flex.toFixed(2)}.`}</p>`; })() : ""}
+    <p class="note">All ${n} hitting happens on about ${pct(raw.d[n])} of nights even though each pick is likely on its own: ${n} picks at ${pct(Math.pow(raw.d[n], 1 / n))} each multiply out to ${pct(raw.d[n])}.</p>
     ${warn.map(w => `<p style="color:var(--mid)">⚠ ${w}</p>`).join("")}</div>`;
   const card = lineupCard({id: "mine", title: "🧾 Your lineup", sub: "How each pick looks and what could go wrong"}, L, true);
   out.innerHTML = both + swap + card.html;
