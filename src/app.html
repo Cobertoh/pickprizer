@@ -1318,6 +1318,14 @@ function liftStrong(p, bm, bl, crowd, tr){
     if (side === "Less" && bl != null && p.pLess != null && p.pLess >= 0.9) p.pLess = clip(learnAdj(p.sport, bl - crowd), 0.03, 0.95);
   }
 }
+// All-or-nothing lines (steals, blocks, turnovers, threes, fouls at 0.5 or 1.5): one play decides them, and our
+// game logs can't see that play coming. Pull these toward a coin flip so they never look like locks.
+const isSwingy = p => VOLATILE.has(p.stat) && p.line <= 1.5 && !["NFL", "CFB"].includes(p.sport);
+function swingyShrink(p){
+  if (!isSwingy(p)) return;
+  const k = p.line <= 0.5 ? 0.7 : 0.8;
+  p.pMore = 0.5 + k * (p.pMore - 0.5); if (p.pLess != null) p.pLess = 0.5 + k * (p.pLess - 0.5);
+}
 function finalize(picks){
   const trend = picks.map(p => p.trending).filter(t => t != null).sort((a, b) => a - b);
   for (const p of picks) {
@@ -1333,7 +1341,7 @@ function finalize(picks){
     const done = p.liveCur != null && p.liveCur > p.line;   // live and already past the line
     p.pMore = bm == null ? null : done ? 0.99 : clip(learnAdj(p.sport, bm + crowd + tr), 0.03, 0.9);   // never claim more than 90%: injuries, blowouts and foul trouble exist
     p.pLess = p.type !== "standard" || bl == null ? null : done ? 0.01 : clip(learnAdj(p.sport, bl - crowd), 0.03, 0.9);
-    if (!p.live && p.pMore != null && p.pMore < 0.99) { realityCheck(p); liftStrong(p, bm, bl, crowd, tr); }
+    if (!p.live && p.pMore != null && p.pMore < 0.99) { realityCheck(p); liftStrong(p, bm, bl, crowd, tr); swingyShrink(p); }
     let conf = p.mMore != null && p.games >= 15 ? "High" : (p.games >= 8 || p.mMore != null) ? "Med" : "Low";
     if (p.inj && /question|day|doubt/i.test(p.inj.status)) conf = "Low";
     p.conf = p.pMore == null ? "" : conf;
@@ -1928,6 +1936,7 @@ function godBlock(p){   // why a 70%+ pick is NOT a God pick (null = it is one)
   const prob = probOf(p), side = p.best;
   if (prob == null || prob < 0.7) return "under 7 in 10";
   if (p.lineOnly || p.games < 8) return "too few games to trust";
+  if (isSwingy(p)) return "all-or-nothing stat";
   if (UNVERIFIED.has(p.sport + "|" + p.stat)) return "scoring unconfirmed";
   if (p.newsFlag || p.news?.some(n => n.tone === "bad")) return "serious news";
   if (p.inj && /question|day|doubt|out|suspen|reserve/i.test(p.inj.status || "")) return "injury tag";
@@ -1983,6 +1992,7 @@ function watchOut(p){
 }
 const BLOCK_TXT = {"too few games to trust": "there aren't enough games to trust the number", "scoring unconfirmed": "PrizePicks' scoring for this isn't confirmed",
   "serious news": "there's serious news around him", "injury tag": "he has an injury tag", "line far from his average": "the line is far from his normal, which usually means the books know something",
+  "all-or-nothing stat": "one single play decides this line, and nobody can see that coming",
   "small role for this line": "his role is too small for this line", "flagged as risky": "too many things point against it",
   "his recent games disagree": "his recent games don't back up the model", "a teammate change points the other way": "a teammate change has pushed his numbers the other way"};
 function callOf(p, side){
@@ -2071,7 +2081,7 @@ function bestStripHTML(list){
     return `<div class="bitem" data-pk="${p.sport}|${p.id}"><span class="blab">${lab}</span><b>${esc(p.player)}</b> ${p.best} ${p.line} ${esc(p.stat)}<div class="bnums"><b>${pct(prob)}</b> chance · needs ${pct(breakeven(p))} · <span class="up">${lab2(edgeOf(p))} +${Math.round(edgeOf(p) * 100)}</span></div></div>`; }).join("")}</div>`;
 }
 // Value pick: likely enough to trust (60%+, no serious flags) AND it pays like a 68%+ standard or better
-const isValuePick = p => { const pr = probOf(p); return pr != null && pr >= 0.6 && !p.live && valueOf(p) >= 0.68 && legFactor(p) >= 0.85 && p.verdict?.c !== "r" && !["serious news", "injury tag", "line far from his average", "too few games to trust", "scoring unconfirmed"].includes(godBlock(p)); };
+const isValuePick = p => { const pr = probOf(p); return pr != null && pr >= 0.6 && !p.live && valueOf(p) >= 0.68 && legFactor(p) >= 0.85 && p.verdict?.c !== "r" && !["serious news", "injury tag", "line far from his average", "too few games to trust", "scoring unconfirmed", "all-or-nothing stat"].includes(godBlock(p)); };
 const BMODES = {
   "": {lab: "All picks", txt: "highest chance first", ok: () => true, key: p => probOf(p) ?? -1},
   god: {lab: "👑 God", txt: "God picks only, best first", ok: isGod, key: valueOf},
@@ -3398,7 +3408,7 @@ function packRated(sport){
       const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
       if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
     }
-    return JSON.stringify({v: 8, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+    return JSON.stringify({v: 9, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
   } catch (e) { console.warn("couldn't save ratings", e); return null; }
 }
 function unpackRated(js){
@@ -3415,7 +3425,7 @@ async function loadRated(sport){
   const got = [];
   const mine = await IDB.get("rated:" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
   if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
-  return got.filter(j => j && j.v === 8 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+  return got.filter(j => j && j.v === 9 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
 }
 const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
 async function quickStart(force){
