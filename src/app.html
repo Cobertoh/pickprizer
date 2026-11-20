@@ -288,6 +288,10 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
 .stysum{margin:8px 0 26px;padding:10px 12px;font-size:14px;border-radius:14px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.35)}.stysum.alt{background:rgba(148,163,184,.07);border-color:var(--line)}
 .stynums{display:grid;grid-template-columns:1fr 1fr 1fr;text-align:center}.stynums b{font-size:22px;display:block}.stynums small{font-size:11.5px;color:var(--mut)}.stytxt{font-size:14px;margin:10px 0 0}
 .adv{margin:22px 0 10px;border-top:1px solid var(--line);padding-top:12px}.adv summary{cursor:pointer;color:var(--mut);font-size:14px;margin-bottom:10px}
+.lbtns{display:flex;flex-direction:column;gap:6px;align-items:flex-end}.copy.played{background:rgba(34,197,94,.15);border-color:rgba(34,197,94,.5);color:#86efac}
+.slipc{border:1px solid var(--line);border-radius:12px;padding:8px 10px;margin:8px 0}.slipc.won{border-color:rgba(34,197,94,.55)}.slipc.lost{border-color:rgba(248,113,113,.45)}
+.sliph{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}.sliph span{font-size:12px;color:var(--mut);flex:1}.slipc.won .sliph b{color:#86efac}.slipc.lost .sliph b{color:#fca5a5}.slipdel{background:none;border:0;color:var(--mut);cursor:pointer}
+.slipl{font-size:13.5px;padding:2px 0}
 .playas{font-size:15px;margin:10px 0 4px;color:#e2e8f0}.pnote{font-size:13px;color:#fcd34d;margin:0 0 10px}.bfilters .frow{margin:0 0 12px}.pq{width:100%;min-height:52px;font-size:17px;box-sizing:border-box}
 .tpill{flex:1;min-height:44px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:transparent;color:#8ea3cc;font-weight:700;font-size:15px;transition:.15s}
 .tpill.on{color:#fff;border-color:transparent}
@@ -1232,6 +1236,56 @@ function trackUpdate(sport, picks){
   trackSave(sport, rows);
   if (newlyGraded.length) { shareGraded(sport, newlyGraded); delete LEARN[sport]; }
 }
+// ---------- MY SLIPS: the slips the user actually played, graded automatically, compared with what the app predicted
+function slipsLoad(){ try { return JSON.parse(localStorage.getItem("pp_slips") || "[]"); } catch { return []; } }
+function slipsSave(a){ try { localStorage.setItem("pp_slips", JSON.stringify(a.slice(-200))); } catch {} }
+function slipSave(L, src){
+  const st = lineupStats(L, false), n = L.length, ft = FLEX[n], fx = ft && st.flex > st.power;
+  const slip = {id: Date.now().toString(36), at: new Date().toISOString(), src, mode: fx ? "flex" : "power", pay: fx ? st.flexPay : st.powerPay,
+    pred: st.d[n], ev: fx ? st.flex : st.power,
+    legs: L.map(l => ({sport: l.pk.sport, player: l.pk.player, stat: l.pk.stat, line: l.pk.line, side: l.side === "More" ? "M" : "L", type: l.pk.type, p: +l.p.toFixed(3), start: l.pk.start, hit: null, v: null}))};
+  const a = slipsLoad(); a.push(slip); slipsSave(a); return slip;
+}
+function slipsGrade(sport){
+  const a = slipsLoad(); let ch = false;
+  for (const sl of a) for (const lg of sl.legs) {
+    if (lg.hit != null || lg.sport !== sport || !lg.start || Date.now() - Date.parse(lg.start) < 4 * 3600e3) continue;
+    const f = statFn(sport, lg.stat), g = ((HIST[sport] || {})[lg.player] || []).find(g => g.date && Math.abs(Date.parse(g.date) - Date.parse(lg.start)) < 18 * 3600e3);
+    if (!f || !g) continue;
+    if (sport === "nba" && !(g.MIN >= 1)) { lg.hit = -1; lg.v = 0; ch = true; continue; }   // didn't play: PrizePicks voids the leg
+    const v = f(g); if (v == null) continue;
+    lg.v = v; lg.hit = v === lg.line ? -1 : (lg.side === "M" ? v > lg.line : v < lg.line) ? 1 : 0; ch = true;
+  }
+  if (ch) slipsSave(a);
+}
+function slipResult(sl){
+  const L = sl.legs.filter(l => l.hit !== -1), done = L.every(l => l.hit != null), hits = L.filter(l => l.hit === 1).length, miss = L.filter(l => l.hit === 0).length;
+  if (sl.mode === "power" && miss) return {k: "lost", t: "Lost"};
+  if (!done) return {k: "open", t: "Pending"};
+  if (sl.mode === "power") return {k: "won", t: "Won"};
+  const ft = FLEX[L.length] || [], m = ft[hits] || 0;
+  return m > 1 ? {k: "won", t: `Won (${hits}/${L.length})`} : m > 0 ? {k: "push", t: `Money back-ish (${hits}/${L.length})`} : {k: "lost", t: `Lost (${hits}/${L.length})`};
+}
+function slipsHTML(){
+  const a = slipsLoad().slice().reverse();
+  if (!a.length) return `<h4>Your slips</h4><p class="body">No slips saved yet. When you play a lineup, tap <b>"✅ I played this"</b> on it (Pick4Me or My lineup). The app grades it after the games and shows here whether it's actually working for you, not just in theory.</p>`;
+  const fin = a.filter(sl => slipResult(sl).k !== "open"), won = fin.filter(sl => slipResult(sl).k === "won").length, exp = fin.reduce((s, sl) => s + (sl.pred || 0), 0);
+  const legs = fin.flatMap(sl => sl.legs).filter(l => l.hit === 0 || l.hit === 1), lh = legs.filter(l => l.hit === 1).length, lp = legs.reduce((s, l) => s + l.p, 0);
+  const verdict = fin.length < 5 ? `Too few finished slips to judge yet (${fin.length}). Give it at least 10.` :
+    won >= exp - Math.sqrt(exp) ? `Winning about as often as predicted or better. The tool is doing what it says.` : `Winning less than predicted. Send me a screenshot of this so I can find which picks are letting you down.`;
+  const by = t => { const x = legs.filter(l => (t === "Less" ? l.side === "L" : t === "combo" ? /\+/.test(l.stat) : l.type === t)); return x.length ? `${pct(x.filter(l => l.hit).length / x.length)} of ${x.length} (predicted ${pct(x.reduce((s, l) => s + l.p, 0) / x.length)})` : "none yet"; };
+  return `<h4>Your slips</h4>
+    <table class="trk2"><tr><td>Slips finished</td><td><b>${won} won of ${fin.length}</b>${fin.length ? ` <small>(the app expected about ${exp.toFixed(1)})</small>` : ""}</td></tr>
+    <tr><td>Legs that hit</td><td>${legs.length ? `${pct(lh / legs.length)} <small>(${lh}/${legs.length}, predicted ${pct(lp / legs.length)})</small>` : "<small>none yet</small>"}</td></tr>
+    <tr><td>Goblin legs</td><td><small>${by("goblin")}</small></td></tr><tr><td>Standard legs</td><td><small>${by("standard")}</small></td></tr><tr><td>Demon legs</td><td><small>${by("demon")}</small></td></tr><tr><td>Under legs</td><td><small>${by("Less")}</small></td></tr><tr><td>Combo-stat legs</td><td><small>${by("combo")}</small></td></tr></table>
+    <p class="body"><b>${verdict}</b></p>
+    ${a.slice(0, 15).map(sl => { const r = slipResult(sl); return `<div class="slipc ${r.k}"><div class="sliph"><b>${r.t}</b><span>${sl.legs.length}-pick ${sl.mode === "flex" ? "Flex" : "Power"} · ${sl.pay.toFixed(1)}× · predicted ${pct(sl.pred)} · ${new Date(sl.at).toLocaleDateString([], {month: "short", day: "numeric"})} · ${esc(sl.src)}</span><button type="button" class="slipdel" data-slipdel="${sl.id}" title="Remove">✕</button></div>
+      ${sl.legs.map(l => `<div class="slipl">${l.hit === 1 ? "✅" : l.hit === 0 ? "❌" : l.hit === -1 ? "↩️" : "⏳"} ${esc(l.player)} ${l.side === "M" ? "Over" : "Under"} ${l.line} ${esc(l.stat)}${l.type !== "standard" ? ` <small>(${l.type})</small>` : ""} <small>· said ${pct(l.p)}${l.v != null && l.hit !== -1 ? ` · got ${l.v}` : ""}</small></div>`).join("")}</div>`; }).join("")}`;
+}
+document.addEventListener("click", e => {
+  const d = e.target.closest("[data-slipdel]"); if (!d) return;
+  e.stopPropagation(); slipsSave(slipsLoad().filter(sl => sl.id !== d.dataset.slipdel)); d.closest(".slipc")?.remove();
+});
 function trackHTML(sport){
   const rows = trackLoad(sport).filter(r => r[6] != null);
   const part = c => { const x = rows.filter(r => r[4] === c); return x.length ? `<span class="vd ${c}"><i></i>${VLAB[c]}: <b>${x.filter(r => r[6]).length}/${x.length}</b> hit (${pct(x.filter(r => r[6]).length / x.length)})</span>` : `<span class="vd ${c}"><i></i>${VLAB[c]}: no results yet</span>`; };
@@ -1544,8 +1598,17 @@ function reasons(l){
   if (p.type === "demon") risk.push("Demon: raised line, so harder to hit (pays more)");
   return {why, risk};
 }
+const CARD_L = {};
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-played]"); if (!b) return;
+  e.stopPropagation(); const L = CARD_L[b.dataset.played]; if (!L) return;
+  if (b.dataset.done) return;
+  const src = b.dataset.played === "mine" ? "My lineup" : /^sty/.test(b.dataset.played) ? "Pick4Me " + (STYLES[store.get("style", "")]?.name || "") : "Pick4Me";
+  slipSave(L, src.trim()); b.dataset.done = "1"; b.textContent = "Saved ✓ (graded after the games)";
+});
 function lineupCard(def, L, best){
   const {title, sub} = def;
+  if (L) CARD_L[def.id] = L;
   if (!L) return {html: `<div class="lineup"><div class="lhead"><div><h3>${title}</h3><div class="sub">${sub}</div></div></div><p class="note">Not enough eligible picks on tonight's board to build this one.</p></div>`};
   const e = lineupStats(L, true), raw = lineupStats(L, false), n = L.length, ft = FLEX[n];
   const usePower = !ft ? true : def.mode ? def.mode === "power" : e.power >= e.flex, ev = usePower ? e.power : e.flex;
@@ -1588,7 +1651,7 @@ function lineupCard(def, L, best){
   const keep = verdict.filter(v => /Weakest link|Correlation|Before lock/.test(v));
   const html = `<div class="lineup${best ? " best" : ""}" id="lu-${def.id}">
     <div class="lhead"><div><h3>${title}</h3><div class="sub">${sub}</div></div>
-      <button class="copy" data-copy="${esc(plain)}">Copy</button></div>
+      <span class="lbtns"><button class="copy" data-copy="${esc(plain)}">Copy</button><button type="button" class="copy played" data-played="${esc(def.id)}">✅ I played this</button></span></div>
     <div class="lbig"><div><b style="color:${hitCol}">${pct1(hit)}</b><span>chance it hits</span></div><div><b>${pay.toFixed(1)}×</b><span>${usePower ? "Power" : "Flex"} payout (est.)</span></div></div>
     ${usePower ? (() => { const fair = 1 / pay, edge = hit / fair; return `<p class="note">${edge >= 1.05 ? `Break-even at ${pay.toFixed(1)}× is ${pct1(fair)}. This lineup is <b>${edge.toFixed(1)}×</b> that, so the odds lean your way` : `Break-even at ${pay.toFixed(1)}× is ${pct1(fair)}, about what this lineup has. Lower the payout for odds that lean your way`}</p>`; })() : ""}
     ${usePower && L.some(l => l.pk.type !== "standard") ? `<p class="note"><a href="#" class="payfix" data-n="${n}" data-ln="${L.reduce((t, l) => t + Math.log(l.f), 0)}">PrizePicks shows a different payout? Tap to correct</a></p>` : ""}
@@ -3247,7 +3310,7 @@ function sharedTrackHTML(){
   const hi = rows.filter(x => x.pr >= 0.75), hiHit = hi.length ? hi.filter(x => x.h).length / hi.length : null;
   return `<h4>Everyone using PickPrizer</h4><p class="body">${rows.length.toLocaleString()} graded picks: hit <b>${pct(hit)}</b>, predicted ${pct(pr)}.${hi.length ? ` Picks rated 75%+: hit <b>${pct(hiHit)}</b> of ${hi.length}.` : ""} These results also correct the app's chances automatically.</p>`;
 }
-function trackDashboard(){ return replayHTML() + trackDashboard0(); }
+function trackDashboard(){ return slipsHTML() + replayHTML() + trackDashboard0(); }
 function trackDashboard0(){
   const all = Object.keys(SPORTS).flatMap(s => trackLoad(s).map(r => ({s, r}))), done = all.filter(x => x.r[6] != null);
   const rate = xs => xs.length ? `${pct(xs.filter(x => x.r[6]).length / xs.length)} <small>(${xs.filter(x => x.r[6]).length}/${xs.length})</small>` : `<small>no results yet</small>`;
@@ -4097,7 +4160,7 @@ async function analyze(picks, sport = SPORT){
   if ($("#useReddit").checked) { setStatus("Reading what people are saying on Reddit…", 0.88); scoreBuzz(picks, await reddit(sport)); }
   finalize(picks);
   CLASSIFY_PICKS[sport] = {picks}; classify(picks);
-  trackUpdate(sport, picks);
+  trackUpdate(sport, picks); slipsGrade(sport);
   setTimeout(() => { try { const rt = replayTest(sport, picks); if (rt && DATA[sport]) DATA[sport].replay = {acc70: rt.acc70, n70: rt.n70, w: rt.best.w}; } catch (e) { console.warn("replay", e); } }, 300);
   DATA[sport] = {picks, gameCtx: gc, note: r.note || "", booksUsed: !!r.booksUsed, time: new Date(), redditBlocked: !!ERRS["Reddit"]};
   setTimeout(() => headlineScan(sport), 50);
