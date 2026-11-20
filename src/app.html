@@ -1346,7 +1346,7 @@ function finalize(picks){
     const done = p.liveCur != null && p.liveCur > p.line;   // live and already past the line
     p.pMore = bm == null ? null : done ? 0.99 : clip(learnAdj(p.sport, bm + crowd + tr), 0.03, 0.9);   // never claim more than 90%: injuries, blowouts and foul trouble exist
     p.pLess = p.type !== "standard" || bl == null ? null : done ? 0.01 : clip(learnAdj(p.sport, bl - crowd), 0.03, 0.9);
-    if (!p.live && p.pMore != null && p.pMore < 0.99) { realityCheck(p); liftStrong(p, bm, bl, crowd, tr); swingyShrink(p); }
+    if (!p.live && p.pMore != null && p.pMore < 0.99) { realityCheck(p); liftStrong(p, bm, bl, crowd, tr); swingyShrink(p); segAdjust(p); }
     let conf = p.mMore != null && p.games >= 15 ? "High" : (p.games >= 8 || p.mMore != null) ? "Med" : "Low";
     if (p.inj && /question|day|doubt/i.test(p.inj.status)) conf = "Low";
     p.conf = p.pMore == null ? "" : conf;
@@ -2003,6 +2003,7 @@ function godBlock(p){   // why a 70%+ pick is NOT a God pick (null = it is one)
   if (prob == null || prob < 0.7) return "under 7 in 10";
   if (p.lineOnly || p.games < 8) return "too few games to trust";
   if (isSwingy(p)) return "all-or-nothing stat";
+  if (p.best === "Less" && segGap(p.sport, "side|L") <= -0.08) return "unders have been missing lately";
   if (UNVERIFIED.has(p.sport + "|" + p.stat)) return "scoring unconfirmed";
   if (p.newsFlag || p.news?.some(n => n.tone === "bad")) return "serious news";
   if (p.inj && /question|day|doubt|out|suspen|reserve/i.test(p.inj.status || "")) return "injury tag";
@@ -2058,6 +2059,7 @@ function watchOut(p){
 }
 const BLOCK_TXT = {"too few games to trust": "there aren't enough games to trust the number", "scoring unconfirmed": "PrizePicks' scoring for this isn't confirmed",
   "serious news": "there's serious news around him", "injury tag": "he has an injury tag", "line far from his average": "the line is far from his normal, which usually means the books know something",
+  "unders have been missing lately": "unders have been hitting far less than predicted lately, so I'm not trusting them until that turns around",
   "all-or-nothing stat": "one single play decides this line, and nobody can see that coming",
   "small role for this line": "his role is too small for this line", "flagged as risky": "too many things point against it",
   "his recent games disagree": "his recent games don't back up the model", "a teammate change points the other way": "a teammate change has pushed his numbers the other way"};
@@ -3182,6 +3184,33 @@ function learnTable(sport){
   return bins;
 }
 const LEARN = {};
+// Segment self-correction: if a KIND of pick (unders, combo stats like Pts+Rebs+Asts) has been missing more than
+// predicted on this device, shift that kind by the gap, shrunk by sample size (15 picks move it a little, 100+ most of the way).
+const SEG = {};
+function segGap(sport, key){
+  const T = SEG[sport] ||= (() => {
+    const t = {}, add = (k, r) => { (t[k] ||= {n: 0, pr: 0, h: 0}); t[k].n++; t[k].pr += r[7]; t[k].h += r[6]; };
+    for (const r of trackLoad(sport)) if (r[6] != null && r[7] != null) {
+      const side = r[3]; add("side|" + side, r);
+      if (/\+/.test(r[1] || "")) add("combo|" + side, r);
+    }
+    return t;
+  })();
+  const x = T[key]; if (!x || x.n < 15) return 0;
+  return clip((x.h - x.pr) / x.n * x.n / (x.n + 40), -0.25, 0.1);
+}
+function segAdjust(p){
+  if (p.pMore == null || p.live) return;
+  p.segShift = 0;
+  for (const side of ["M", "L"]) {
+    let d = segGap(p.sport, "side|" + side);
+    if (/\+/.test(p.stat)) d += segGap(p.sport, "combo|" + side) * 0.7;
+    if (!d) continue;
+    if (side === "M") { p.pMore = clip(p.pMore + d, 0.03, 0.95); if (p.pLess != null && p.type === "standard") p.pLess = clip(p.pLess - d, 0.03, 0.95); }
+    else if (p.pLess != null) { p.pLess = clip(p.pLess + d, 0.03, 0.95); if (p.type === "standard") p.pMore = clip(p.pMore - d, 0.03, 0.95); }
+    if ((side === "M") === (p.best === "More")) p.segShift = +d.toFixed(3);
+  }
+}
 function learnAdj(sport, p){
   if (p == null) return p;
   const flip = p < 0.5, q = flip ? 1 - p : p;
@@ -3474,7 +3503,7 @@ function packRated(sport){
       const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
       if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
     }
-    return JSON.stringify({v: 9, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+    return JSON.stringify({v: 10, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
   } catch (e) { console.warn("couldn't save ratings", e); return null; }
 }
 function unpackRated(js){
@@ -3491,7 +3520,7 @@ async function loadRated(sport){
   const got = [];
   const mine = await IDB.get("rated:" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
   if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
-  return got.filter(j => j && j.v === 9 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+  return got.filter(j => j && j.v === 10 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
 }
 const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
 async function quickStart(force){
