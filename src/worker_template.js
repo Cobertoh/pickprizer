@@ -97,7 +97,16 @@ async function board(req, env, ctx, league) {
   if (text.length > 12e6) return json({ message: "too big" }, 413);
   if (!/^\s*\{\s*"data"\s*:\s*\[\s*\{/.test(text.slice(0, 200)) || !text.includes('"projection"')) return json({ message: "not a PrizePicks board" }, 400);
   await kvPut(env, ctx, k, text, 2 * DAY);
+  // Time machine: keep one pregame snapshot per day (the last one saved before 7pm ET), for 90 days, straight to KV.
+  const now = new Date(), et = new Date(now.getTime() - 5 * 3600e3), day = et.toISOString().slice(0, 10);
+  if (env.KV && et.getUTCHours() < 19) ctx.waitUntil(env.KV.put("snap/" + sport + "/" + day, text, { expirationTtl: 90 * DAY, metadata: { t: Date.now() } }).catch(() => {}));
   return json({ ok: true }, 200);
+}
+async function snap(req, env, sport, day) {
+  if (!env.KV) return json({ message: "no storage" }, 404);
+  if (!day) { const l = await env.KV.list({ prefix: "snap/" + sport + "/" }); return json({ dates: l.keys.map(k => k.name.split("/")[2]).sort() }, 200); }
+  const text = await env.KV.get("snap/" + sport + "/" + day);
+  return text ? new Response(text, { headers: { "content-type": "application/json", "cache-control": "public, max-age=86400" } }) : json({ message: "none" }, 404);
 }
 // Shared track record: graded picks from everyone, deduped per pick, so the app can measure and correct itself.
 // Stored as {sport: {key: [predicted, hit, day]}}; GET returns {sport: [[predicted, hit], ...]}.
@@ -151,6 +160,8 @@ export default {
     if (bm) return board(req, env, ctx, bm[1]);
     if (url.pathname === "/sc") return scList();
     if (url.pathname === "/track") return track(req, env, ctx);
+    const sm = url.pathname.match(/^\/snap\/([a-z]{2,8})(?:\/(\d{4}-\d\d-\d\d))?$/);
+    if (sm) return snap(req, env, sm[1], sm[2]);
     const rm = url.pathname.match(/^\/rated\/([a-z]{2,8})$/);
     if (rm) return rated(req, env, ctx, rm[1]);
     if (url.pathname === "/manifest.json") return new Response(MANIFEST, { headers: { "content-type": "application/manifest+json" } });

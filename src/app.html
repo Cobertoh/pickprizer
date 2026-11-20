@@ -3310,7 +3310,51 @@ function sharedTrackHTML(){
   const hi = rows.filter(x => x.pr >= 0.75), hiHit = hi.length ? hi.filter(x => x.h).length / hi.length : null;
   return `<h4>Everyone using PickPrizer</h4><p class="body">${rows.length.toLocaleString()} graded picks: hit <b>${pct(hit)}</b>, predicted ${pct(pr)}.${hi.length ? ` Picks rated 75%+: hit <b>${pct(hiHit)}</b> of ${hi.length}.` : ""} These results also correct the app's chances automatically.</p>`;
 }
-function trackDashboard(){ return slipsHTML() + replayHTML() + trackDashboard0(); }
+// ---------- SLIP REPLAY: for every past day this device recorded, rebuild the lineups Pick4Me would have made from
+// the ratings exactly as they were made then (real PrizePicks lines, only what was known before the games), then grade them.
+const TYPE_F = {standard: 1, goblin: 0.62, demon: 1.6};   // rough: old rows don't keep the standard line, so goblin/demon pay is typical
+function slipReplay(){
+  const days = {};
+  for (const sport of Object.keys(SPORTS)) for (const r of trackLoad(sport)) {
+    if (r[6] == null || r[7] == null || r[4] === "r" || r[7] < 0.55) continue;
+    if (VOLATILE.has(r[1]) && r[2] <= 1.5) continue;
+    const day = String(r[5]).slice(0, 10), k = sport + "|" + day;
+    (days[k] ||= []).push({player: r[0], stat: r[1], line: r[2], side: r[3], p: r[7], hit: r[6], type: r[11] || "standard", f: TYPE_F[r[11]] || 1, day, sport, start: r[5]});
+  }
+  const res = {};
+  for (const [k, S] of Object.entries(STYLES)) {
+    const out = [];
+    for (const [dk, legs0] of Object.entries(days)) {
+      const legs = legs0.filter((l, i) => legs0.findIndex(m => m.player === l.player && m.stat === l.stat) === i).sort((a, b) => b.p - a.p).slice(0, 30);
+      let best = null;
+      for (const n of S.ns) {
+        const L = [];
+        const rec = (st, ch, F) => {
+          if (L.length === n) { if (POWER[n] * F >= S.pay - 1e-9 && (!best || ch > best.ch)) best = {L: [...L], ch, F, n}; return; }
+          for (let i = st; i < legs.length; i++) { const l = legs[i]; if (best && ch * Math.pow(l.p, n - L.length) <= best.ch) break; if (L.some(x => x.player === l.player)) continue; L.push(l); rec(i + 1, ch * l.p, F * l.f); L.pop(); }
+        };
+        rec(0, 1, 1);
+      }
+      if (best) out.push({day: dk.split("|")[1], sport: dk.split("|")[0], ...best, won: best.L.every(l => l.hit === 1), pay: POWER[best.n] * best.F});
+    }
+    res[k] = out.sort((a, b) => (a.day < b.day ? 1 : -1));
+  }
+  return res;
+}
+function slipReplayHTML(){
+  const R = slipReplay(), any = Object.values(R).some(x => x.length);
+  if (!any) return `<h4>Replay: the slips Pick4Me would have built</h4><p class="body">Needs a few days of ratings recorded on this device first. Each day the app saves its ratings with the real lines, so this fills in on its own.</p>`;
+  const row = (k) => { const x = R[k], S = STYLES[k]; if (!x.length) return ""; const w = x.filter(d => d.won).length, e = x.reduce((s, d) => s + d.ch, 0), back = x.reduce((s, d) => s + (d.won ? d.pay : 0), 0);
+    return `<tr><td>${S.icon} ${S.name}</td><td><b>${w} won of ${x.length}</b> <small>(expected ${e.toFixed(1)})</small></td><td><small>$${x.length} in → $${back.toFixed(2)} back</small></td></tr>`; };
+  const k0 = R.safe.length ? "safe" : Object.keys(R).find(k => R[k].length);
+  return `<h4>Replay: the slips Pick4Me would have built</h4>
+    <p class="note">For every past day recorded on this device, the best lineup for each style was rebuilt from the ratings exactly as made before the games (real PrizePicks lines), then graded against what happened. $1 per slip, Power Play. Goblin/demon payouts are typical estimates.</p>
+    <table class="trk2">${["safe", "mid", "big"].map(row).join("")}</table>
+    <p class="note">${STYLES[k0].name} slips day by day:</p>
+    ${R[k0].slice(0, 10).map(d => `<div class="slipc ${d.won ? "won" : "lost"}"><div class="sliph"><b>${d.won ? "Won" : "Lost"}</b><span>${d.day} · ${SPORTS[d.sport]?.label || d.sport} · ${d.n}-pick · ~${d.pay.toFixed(1)}× · predicted ${pct(d.ch)}</span></div>
+      ${d.L.map(l => `<div class="slipl">${l.hit ? "✅" : "❌"} ${esc(l.player)} ${l.side === "M" ? "Over" : "Under"} ${l.line} ${esc(l.stat)}${l.type !== "standard" ? ` <small>(${l.type})</small>` : ""} <small>· said ${pct(l.p)}</small></div>`).join("")}</div>`).join("")}`;
+}
+function trackDashboard(){ return slipsHTML() + slipReplayHTML() + replayHTML() + trackDashboard0(); }
 function trackDashboard0(){
   const all = Object.keys(SPORTS).flatMap(s => trackLoad(s).map(r => ({s, r}))), done = all.filter(x => x.r[6] != null);
   const rate = xs => xs.length ? `${pct(xs.filter(x => x.r[6]).length / xs.length)} <small>(${xs.filter(x => x.r[6]).length}/${xs.length})</small>` : `<small>no results yet</small>`;
