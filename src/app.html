@@ -283,7 +283,12 @@ select,input[type=text],input[type=number],textarea{background:rgba(15,23,42,.55
 .evrow{display:grid;grid-template-columns:96px 1fr 42px;gap:4px 8px;align-items:center;font-size:13px;margin:6px 0}
 .evrow i{height:6px;border-radius:3px;background:linear-gradient(90deg,#3b82f6 var(--w),rgba(148,163,184,.18) var(--w))}.evrow b{text-align:right}.evrow small{grid-column:1/-1;color:var(--mut);margin-top:-2px}
 .trk2{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0 12px}.trk2 td,.trk2 th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}.trk2 td:last-child,.trk2 th:last-child{text-align:right}
-.tpills{display:flex;gap:8px;margin:2px 0 16px}.bfilters{margin:4px 0 14px}.bfilters .tpills{margin:0 0 12px}#bShow{flex-wrap:wrap}#bShow .tpill{flex:1 1 30%}.playas{font-size:15px;margin:10px 0 4px;color:#e2e8f0}.pnote{font-size:13px;color:#fcd34d;margin:0 0 10px}.bfilters .frow{margin:0 0 12px}.pq{width:100%;min-height:52px;font-size:17px;box-sizing:border-box}
+.tpills{display:flex;gap:8px;margin:2px 0 16px}.bfilters{margin:4px 0 14px}.bfilters .tpills{margin:0 0 12px}#bShow{flex-wrap:wrap}#bShow .tpill{flex:1 1 30%}.styles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:6px 0 14px}.stybtn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:14px 6px;border-radius:16px;border:1px solid var(--line);background:rgba(15,23,42,.6);color:#e2e8f0;cursor:pointer;text-align:center}
+.stybtn b{font-size:16px}.stybtn small{font-size:11.5px;color:var(--mut);line-height:1.3}.sti{font-size:26px}.stybtn.on{border-color:#3b82f6;background:rgba(59,130,246,.18);box-shadow:0 0 18px rgba(59,130,246,.35)}
+.stysum{margin:8px 0 26px;padding:10px 12px;font-size:14px;border-radius:14px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.35)}.stysum.alt{background:rgba(148,163,184,.07);border-color:var(--line)}
+.stynums{display:grid;grid-template-columns:1fr 1fr 1fr;text-align:center}.stynums b{font-size:22px;display:block}.stynums small{font-size:11.5px;color:var(--mut)}.stytxt{font-size:14px;margin:10px 0 0}
+.adv{margin:22px 0 10px;border-top:1px solid var(--line);padding-top:12px}.adv summary{cursor:pointer;color:var(--mut);font-size:14px;margin-bottom:10px}
+.playas{font-size:15px;margin:10px 0 4px;color:#e2e8f0}.pnote{font-size:13px;color:#fcd34d;margin:0 0 10px}.bfilters .frow{margin:0 0 12px}.pq{width:100%;min-height:52px;font-size:17px;box-sizing:border-box}
 .tpill{flex:1;min-height:44px;border-radius:12px;border:1px solid rgba(148,163,184,.25);background:transparent;color:#8ea3cc;font-weight:700;font-size:15px;transition:.15s}
 .tpill.on{color:#fff;border-color:transparent}
 .tpill.goblin.on{background:rgba(52,211,153,.18);box-shadow:inset 0 0 0 1.5px #34d399}
@@ -1791,8 +1796,69 @@ function renderCoach(){
   const when = st => st ? new Date(st).toLocaleString([], {weekday: "short", hour: "numeric", minute: "2-digit"}) : "";
   const gameRow = `<div class="frow"><label class="fl">${unit === "match" ? "Match" : unit === "game" ? "Game" : "Event"}<select id="coachGame"><option value="">All ${unit}s (${gameList.length})</option>${gameList.map(x => `<option value="${esc(x.g)}" ${x.g === cg ? "selected" : ""}>${esc(x.g)}${x.start ? " · " + esc(when(x.start)) : ""}</option>`).join("")}</select></label></div>`;
   if (!BET && store.get("mult", "")) BET = {M: +store.get("mult", ""), entries: +store.get("entries", "1") || 1, yellow: store.get("useYellow", "0") === "1"};
-  $("#coachView").innerHTML = `<h2 class="mid ptitle">Build your <span>lineup</span></h2>` + gameRow + betPanel() + `<div id="betOut"></div>`;
-  bindCoach(); renderBet();
+  const st = store.get("style", "");
+  $("#coachView").innerHTML = `<h2 class="mid ptitle">Pick <span>for me</span></h2><p class="note">Tap how you like to bet. I'll find the lineup most likely to hit for that kind of payout, using only picks I'd actually bet.</p>`
+    + `<div class="styles">${Object.entries(STYLES).map(([k, v]) => `<button type="button" class="stybtn ${st === k ? "on" : ""}" data-style="${k}"><span class="sti">${v.icon}</span><b>${v.name}</b><small>${v.blurb}</small></button>`).join("")}</div>`
+    + gameRow + `<div id="styleOut"></div>`
+    + `<details class="adv" ${store.get("advOpen", "") ? "open" : ""}><summary>Advanced: set your own payout or hit rate</summary>${betPanel()}<div id="betOut"></div></details>`;
+  bindCoach(); renderBet(); renderStyle();
+  document.querySelectorAll("[data-style]").forEach(b => b.onclick = () => { store.set("style", b.dataset.style); document.querySelectorAll("[data-style]").forEach(x => x.classList.toggle("on", x === b)); renderStyle(); $("#styleOut").scrollIntoView({behavior: "smooth", block: "start"}); });
+  const ad = $(".adv"); if (ad) ad.ontoggle = () => store.set("advOpen", ad.open ? "1" : "");
+}
+// ---------- STYLES: the main Pick4Me. Each style = a payout floor and a pick count; we find the lineup with the
+// highest chance of winning that still pays at least that much, using only legs I'd bet (no PASS calls, no
+// all-or-nothing lines, best side only). Exhaustive search with pruning, so it's the true best for the style.
+const STYLES = {
+  safe: {icon: "🛡️", name: "Safe", blurb: "2–3 picks · pays 2.5× or more · wins most often", ns: [2, 3], pay: 2.5, K: 40},
+  mid: {icon: "⚖️", name: "Balanced", blurb: "3–4 picks · pays 5× or more · the middle ground", ns: [3, 4], pay: 5, K: 34},
+  big: {icon: "🚀", name: "Big swing", blurb: "4–6 picks · pays 20× or more · $2 for a big hit", ns: [4, 5, 6], pay: 20, K: 26},
+};
+function styleLegs(){
+  // eligible = the number can be trusted: no red flag at all (the only thing allowed "against" it is being under 70%)
+  return buildLegs().filter(l => { if (l.side !== l.pk.best || l.pk.live || l.pe < 0.55) return false; const b = godBlock(l.pk); return b === null || b === "under 7 in 10"; });
+}
+function bestForStyle(S, legs, avoid){
+  let best = null;
+  for (const n of S.ns) {
+    const pool = legs.filter(l => !avoid.has(l.pk.player)).sort((a, b) => b.pe * Math.pow(b.f, 0.6) - a.pe * Math.pow(a.f, 0.6)).slice(0, S.K)
+      .sort((a, b) => b.pe - a.pe);
+    const maxF = pool.reduce((m, l) => Math.max(m, l.f), 0), t0 = performance.now();
+    const L = [];
+    const rec = (start, ch, F) => {
+      if (performance.now() - t0 > 900) return;
+      if (L.length === n) {
+        const pay = POWER[n] * F; if (pay < S.pay - 1e-9 || !valid(L, n)) return;
+        if (!best || ch > best.ch + 1e-9 || (Math.abs(ch - best.ch) < 1e-9 && pay > best.pay)) best = {L: [...L], ch, pay, n};
+        return;
+      }
+      const rem = n - L.length;
+      for (let i = start; i <= pool.length - rem; i++) {
+        const l = pool[i];
+        if (best && ch * Math.pow(l.pe, rem) <= best.ch) break;          // sorted by chance: nothing later can beat it
+        if (POWER[n] * F * l.f * Math.pow(maxF, rem - 1) < S.pay - 1e-9) continue;   // can't reach the payout
+        if (L.some(x => x.pk.player === l.pk.player)) continue;
+        L.push(l); rec(i + 1, ch * l.pe, F * l.f); L.pop();
+      }
+    };
+    rec(0, 1, 1);
+  }
+  return best;
+}
+function renderStyle(){
+  const box = $("#styleOut"); if (!box) return;
+  const k = store.get("style", ""), S = STYLES[k];
+  if (!S) { box.innerHTML = ""; return; }
+  const legs = styleLegs();
+  if (legs.length < 2) { box.innerHTML = `<p class="note">There aren't enough picks I'd bet on this board yet. Check back closer to game time.</p>`; return; }
+  const avoid = new Set(), out = [];
+  for (let i = 0; i < 3; i++) { const b = bestForStyle(S, legs, avoid); if (!b) break; out.push(b); b.L.forEach(l => avoid.add(l.pk.player)); }
+  if (!out.length) { box.innerHTML = `<p class="note">Nothing on tonight's board reaches ${S.pay}× using only picks I'd bet. Try ${k === "big" ? "Balanced" : "Safe"}.</p>`; return; }
+  box.innerHTML = out.map((b, i) => {
+    const st = lineupStats(b.L, false), fx = FLEX[b.n] && st.flex > st.power, ev = Math.max(st.power, st.flex);
+    const card = lineupCard({id: "sty" + i, title: `${i === 0 ? "⭐ Best" : i === 1 ? "2nd" : "3rd"} ${S.name.toLowerCase()} lineup`, sub: i ? "No players shared with the ones above" : "Highest chance of winning for this payout", mode: fx ? "flex" : "power"}, b.L, i === 0);
+    return `${card.html}<div class="stysum ${i ? "alt" : ""}">💵 ${ev >= 1.05 ? `<b>Worth playing.</b> On average it pays back $${ev.toFixed(2)} per $1.` : ev >= 0.95 ? `<b>About break-even</b> ($${ev.toFixed(2)} back per $1 on average). Fine for a small bet.` : `<b>Best this style can do tonight, but it loses money on average</b> ($${ev.toFixed(2)} back per $1). Treat it as a $2 sweat.`}</div>`;
+  }).join("") + `<p class="gfine">Chances come from real game logs and are checked against the track record. Picks with any red flag (injury tags, bad news, teammate changes against it, cold recent games, one-play lines like under 0.5 steals) are never used.</p>`;
+  bindCoach();
 }
 function bindCoach(){
   const gs = $("#coachGame");
