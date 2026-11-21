@@ -1,4 +1,4 @@
-// PickPrizer website (Cloudflare Worker). Serves the app and fetches sports data for it.
+// PickHit website (Cloudflare Worker). Serves the app and fetches sports data for it.
 // Setup: dash.cloudflare.com -> Workers & Pages -> Create -> Worker -> Deploy -> Edit code ->
 // replace everything with this file -> Deploy. Your site is the *.workers.dev link it gives you.
 
@@ -147,7 +147,7 @@ const json = (o, status) => new Response(JSON.stringify(o), { status, headers: {
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 
 const MANIFEST = JSON.stringify({
-  name: "PickPrizer", short_name: "PickPrizer", start_url: "/", display: "standalone",
+  name: "PickHit", short_name: "PickHit", start_url: "/", display: "standalone",
   background_color: "#040823", theme_color: "#040823",
   icons: [{ src: "/icon.png", sizes: "512x512", type: "image/png", purpose: "any" }],
 });
