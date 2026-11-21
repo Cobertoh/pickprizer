@@ -382,6 +382,10 @@ header h1 img.hw{width:auto!important;height:30px!important;border-radius:0!impo
 .oddsbox{margin-top:12px;padding:14px;border-radius:18px;background:rgba(20,12,16,.55);border:1px solid var(--line);text-align:left}
 .oddsrow{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:14px 0 4px;text-align:center}.oddsrow i{color:#f78fb3;font-style:normal;font-size:20px}
 .oddsrow b{display:block;font-size:26px;color:#fff}.oddsrow div:first-child b{color:#f78fb3}.oddsrow span{font-size:12px;color:var(--mut)}
+
+.whybox{margin:14px 0 4px;padding:12px 14px;border-radius:16px;background:rgba(247,143,179,.08);border:1px solid rgba(247,143,179,.3)}
+.whyp{display:flex;gap:8px;margin-bottom:8px}.whyp span{flex:1;text-align:center;padding:8px 4px;border-radius:12px;background:rgba(6,3,5,.5)}
+.whyp b{display:block;font-size:22px;color:#34d399}.whyp small{font-size:11.5px;color:var(--mut)}.whybox p{margin:0;font-size:14.5px;line-height:1.45;color:#ded2d7}
 </style>
 </head>
 <body>
@@ -392,7 +396,7 @@ header h1 img.hw{width:auto!important;height:30px!important;border-radius:0!impo
   <button id="menuBtn" aria-label="Menu"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
 </header>
 <div id="menu" class="hide"><div class="msheet">
-  <button data-mgo="home">Home</button><button data-mgo="coach">Pick4Me</button><button data-mgo="board">All picks</button><button data-mgo="mine">My lineup</button>
+  <button data-mgo="home">Home</button><button data-mgo="coach">Hit Picks</button><button data-mgo="board">All picks</button><button data-mgo="mine">My lineup</button>
   <button data-mgo="track">Track record</button><button data-mgo="lines">Update PrizePicks lines</button><button data-mgo="safe">Play it safe</button><button data-mgo="help">Having trouble? Run a check</button></div></div>
 <main>
   <section id="homeView"></section>
@@ -465,7 +469,7 @@ header h1 img.hw{width:auto!important;height:30px!important;border-radius:0!impo
 </main>
 <nav class="tabs" id="tabs">
   <button data-tab="home" class="on"><svg class="ti" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>Home</button>
-  <button data-tab="coach"><svg class="ti" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>Pick4Me</button>
+  <button data-tab="coach"><svg class="ti" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>Hit Picks</button>
   <button data-tab="board"><svg class="ti" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM8.5 11h7M8.5 14.5h7M8.5 18h4"/></svg>All picks</button>
   <button data-tab="mine"><svg class="ti" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>My lineup</button>
 </nav>
@@ -729,7 +733,7 @@ function provenHTML(){
   if (rows.length >= 20) items.unshift([`${rows.filter(r => r[6]).length}/${rows.length}`, "of our Strong picks hit, last 3 weeks"]);
   return (items.length ? `<div class="bignums">${items.slice(0, 3).map(([a, b]) => `<div><b>${a}</b><span>${b}</span></div>`).join("")}</div>`
     : loaderHTML("Testing today's board against past games…")) +
-    `<p class="body">Before any pick gets a rating, PickHit replays it against thousands of real games to measure how often picks like it actually hit. Strong picks hit most of the time. No pick is ever guaranteed, and each extra pick in a lineup is one more chance to miss, so Pick4Me shows the real chance before you play.</p>`;
+    `<p class="body">Before any pick gets a rating, PickHit replays it against thousands of real games to measure how often picks like it actually hit. Strong picks hit most of the time. No pick is ever guaranteed, and each extra pick in a lineup is one more chance to miss, so Hit Picks shows the real chance before you play.</p>`;
 }
 function sharedHitLine(){
   const rows = (SHARED_TRACK && Object.values(SHARED_TRACK).flat()) || []; if (rows.length < 100) return "";
@@ -739,7 +743,7 @@ function sharedHitLine(){
 function renderHome(){
   const sp = SPORTS[SPORT], d = DATA[SPORT];
   const _unused = d ? `<span class="livechip ok"><i></i>${sp.label} picks ready · ${d.picks.length.toLocaleString()} checked</span>`
-    : NEEDPASTE[SPORT] ? `<span class="livechip need"><i></i>${sp.label} picks need one tap · open Pick4Me</span>`
+    : NEEDPASTE[SPORT] ? `<span class="livechip need"><i></i>${sp.label} picks need one tap · open Hit Picks</span>`
     : `<span class="livechip"><i></i>Getting today's ${sp.name} picks…</span>`;
   const sh = sharedHitLine();
   $("#homeView").innerHTML = `
@@ -756,8 +760,8 @@ function renderHome(){
       <div class="nchead">👋 New here? PickHit in 30 seconds</div>
       <div class="ncstep"><span class="nci">🔍</span><div><b>We check every pick for you</b><p>Each player's real game history, who he's playing, who's injured, and the latest news. You don't need to know anything about sports.</p></div></div>
       <div class="ncstep"><span class="nci">✅</span><div><b>You get a simple answer</b><p>Every pick gets a grade (A+ to D), its chance to hit, and my call: <span class="call bet">BET</span> <span class="call lean">LEAN</span> or <span class="call pass">PASS</span>, with the reason why.</p></div></div>
-      <div class="ncstep"><span class="nci">🎯</span><div><b>Or let it build the whole lineup</b><p>Open <b>Pick4Me</b>, tap how you like to bet (Safe, Balanced or Big swing), and it builds the lineup most likely to hit for that payout.</p></div></div>
-      <button class="pri wide" data-go-tab="coach" style="margin-top:6px">Try Pick4Me</button>
+      <div class="ncstep"><span class="nci">🎯</span><div><b>Or let it build the whole lineup</b><p>Open <b>Hit Picks</b>, tap how you like to bet (Safe, Balanced or Big swing), and it builds the lineup most likely to hit for that payout.</p></div></div>
+      <button class="pri wide" data-go-tab="coach" style="margin-top:6px">Try Hit Picks</button>
     </div>
   </section>
   ${d && d.picks.length ? `<section class="hsect hgod">${godHTML(d.picks, {per: 5, lineup: true})}<button class="alt2" data-go-tab="board">See every pick</button></section>` : ""}
@@ -773,8 +777,8 @@ function renderHome(){
   <section class="hsect">
     <h2 class="mid">Understanding <span>the grades</span></h2>
     <div class="legend2">
-      <span class="grd ap">A+</span><b>God pick</b><span>7+ in 10, nothing against it, and pays big</span>
-      <span class="grd a">A</span><b>God pick</b><span>7+ in 10, nothing against it, pays well</span>
+      <span class="grd ap">A+</span><b>Top pick</b><span>7+ in 10, nothing against it, and pays big</span>
+      <span class="grd a">A</span><b>Top pick</b><span>7+ in 10, nothing against it, pays well</span>
       <span class="grd s">A−</span><b>Safe leg</b><span>Very likely, but pays little</span>
       <span class="grd b">B</span><b>Decent</b><span>About 6 in 10, or 7+ with a warning</span>
       <span class="grd c">C</span><b>Coin-flip range</b><span>About 5 in 10</span>
@@ -1299,7 +1303,7 @@ function slipResult(sl){
 }
 function slipsHTML(){
   const a = slipsLoad().slice().reverse();
-  if (!a.length) return `<h4>Your slips</h4><p class="body">No slips saved yet. When you play a lineup, tap <b>"✅ I played this"</b> on it (Pick4Me or My lineup). The app grades it after the games and shows here whether it's actually working for you, not just in theory.</p>`;
+  if (!a.length) return `<h4>Your slips</h4><p class="body">No slips saved yet. When you play a lineup, tap <b>"✅ I played this"</b> on it (Hit Picks or My lineup). The app grades it after the games and shows here whether it's actually working for you, not just in theory.</p>`;
   const fin = a.filter(sl => slipResult(sl).k !== "open"), won = fin.filter(sl => slipResult(sl).k === "won").length, exp = fin.reduce((s, sl) => s + (sl.pred || 0), 0);
   const legs = fin.flatMap(sl => sl.legs).filter(l => l.hit === 0 || l.hit === 1), lh = legs.filter(l => l.hit === 1).length, lp = legs.reduce((s, l) => s + l.p, 0);
   const verdict = fin.length < 5 ? `Too few finished slips to judge yet (${fin.length}). Give it at least 10.` :
@@ -1634,7 +1638,7 @@ document.addEventListener("click", e => {
   const b = e.target.closest("[data-played]"); if (!b) return;
   e.stopPropagation(); const L = CARD_L[b.dataset.played]; if (!L) return;
   if (b.dataset.done) return;
-  const src = b.dataset.played === "mine" ? "My lineup" : /^sty/.test(b.dataset.played) ? "Pick4Me " + (STYLES[store.get("style", "")]?.name || "") : "Pick4Me";
+  const src = b.dataset.played === "mine" ? "My lineup" : /^sty/.test(b.dataset.played) ? "Hit Picks " + (STYLES[store.get("style", "")]?.name || "") : "Hit Picks";
   slipSave(L, src.trim()); b.dataset.done = "1"; b.textContent = "Saved ✓ (graded after the games)";
 });
 function lineupCard(def, L, best){
@@ -1702,12 +1706,12 @@ function betPanel(){
       : `<label class="fl">Payout<span class="xin"><input type="number" inputmode="decimal" id="multIn" min="1.5" step="any" value="${esc(m)}" placeholder="10"><i>×</i></span></label>`}
     <label class="fl">Picks<select id="npIn">${["", "2", "3", "4", "5", "6"].map(v => `<option value="${v}" ${store.get("npicks", "") === v ? "selected" : ""}>${v || "Best"}</option>`).join("")}</select></label>
     <label class="fl">Entries<input type="number" inputmode="numeric" id="entriesIn" min="1" max="20" step="1" value="${esc(en)}"></label></div>
-    <div class="frow"><label class="fl">Use only<select id="cconfIn">${[["", "Any rating"], ["god", "👑 God picks (7 in 10+)"], ["g", "🟢 Strong only"], ["gy", "🟢 + 🟡"], ["top", "⭐ Top picks"], ["safe", "Safe picks"], ["value", "Value picks"]].map(([v, t]) => `<option value="${v}" ${store.get("cconf", "") === v ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
+    <div class="frow"><label class="fl">Use only<select id="cconfIn">${[["", "Any rating"], ["god", "👑 Top picks (7 in 10+)"], ["g", "🟢 Strong only"], ["gy", "🟢 + 🟡"], ["top", "⭐ Top picks"], ["safe", "Safe picks"], ["value", "Value picks"]].map(([v, t]) => `<option value="${v}" ${store.get("cconf", "") === v ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
     <div class="tpills">${["goblin", "standard", "demon"].map(t => `<button type="button" class="tpill ${t} ${ptypeOn(t) ? "on" : ""}" data-pt="${t}" aria-pressed="${ptypeOn(t)}">${t === "goblin" ? "Goblins" : t === "demon" ? "Demons" : "Standard"}</button>`).join("")}</div>
     <button type="submit" class="pri wide">Build my lineup</button></form>`;
 }
 const goalMode = () => store.get("goal", "pay");
-// which pick types Pick4Me may use (all on by default)
+// which pick types Hit Picks may use (all on by default)
 const ptypeOn = t => store.get("pt_" + t, "1") === "1";
 // EXACT search: the lineup of exactly n picks with the highest chance that still pays at least M (Power).
 // Depth-first over picks sorted safest-first, skipping branches that provably can't beat the best found so far
@@ -1831,7 +1835,7 @@ function renderBet(){
   const M = BET.M, entries = clip(Math.round(BET.entries || 1), 1, 20);
   if (BET.S) return renderSafe(box, BET.S, entries);
   if (!(M >= 1.5)) { box.innerHTML = `<p class="note">Type the payout you want, like 5 or 25.</p>`; return; }
-  if (false) { box.innerHTML = `<p class="note">${SPORTS[SPORT].name} doesn't have game stats in PickHit yet, so Pick4Me can't stand behind a lineup here. Browse the picks in All picks instead.</p>`; return; }
+  if (false) { box.innerHTML = `<p class="note">${SPORTS[SPORT].name} doesn't have game stats in PickHit yet, so Hit Picks can't stand behind a lineup here. Browse the picks in All picks instead.</p>`; return; }
   // every rated pick is fair game (Strong, Unsure, goblins, demons); the builder just finds the best chance of hitting
   // safest picks first; riskier ones (most demons) only join when the payout can't be reached without them
   if (!["goblin", "standard", "demon"].some(ptypeOn)) { box.innerHTML = `<p class="note">Turn on at least one pick type above.</p>`; return; }
@@ -1891,7 +1895,7 @@ function renderCoach(){
   const gameRow = `<div class="frow"><label class="fl">${unit === "match" ? "Match" : unit === "game" ? "Game" : "Event"}<select id="coachGame"><option value="">All ${unit}s (${gameList.length})</option>${gameList.map(x => `<option value="${esc(x.g)}" ${x.g === cg ? "selected" : ""}>${esc(x.g)}${x.start ? " · " + esc(when(x.start)) : ""}</option>`).join("")}</select></label></div>`;
   if (!BET && store.get("mult", "")) BET = {M: +store.get("mult", ""), entries: +store.get("entries", "1") || 1, yellow: store.get("useYellow", "0") === "1"};
   const st = store.get("style", "");
-  $("#coachView").innerHTML = `<h2 class="mid ptitle">Pick <span>for me</span></h2><p class="note">Tap how you like to bet. I'll find the lineup most likely to hit for that kind of payout, using only picks I'd actually bet.</p>`
+  $("#coachView").innerHTML = `<h2 class="mid ptitle">Hit <span>picks</span></h2><p class="note">Tap how you like to bet. I'll find the lineup most likely to hit for that kind of payout, using only picks I'd actually bet.</p>`
     + `<div class="styles">${Object.entries(STYLES).map(([k, v]) => `<button type="button" class="stybtn ${st === k ? "on" : ""}" data-style="${k}"><span class="sti">${v.icon}</span><b>${v.name}</b><small>${v.blurb}</small></button>`).join("")}</div>`
     + gameRow + `<div id="styleOut"></div>`
     + `<details class="adv" ${store.get("advOpen", "") ? "open" : ""}><summary>Advanced: set your own payout or hit rate</summary>${betPanel()}<div id="betOut"></div></details>`;
@@ -1899,11 +1903,11 @@ function renderCoach(){
   document.querySelectorAll("[data-style]").forEach(b => b.onclick = () => { store.set("style", b.dataset.style); document.querySelectorAll("[data-style]").forEach(x => x.classList.toggle("on", x === b)); renderStyle(); $("#styleOut").scrollIntoView({behavior: "smooth", block: "start"}); });
   const ad = $(".adv"); if (ad) ad.ontoggle = () => store.set("advOpen", ad.open ? "1" : "");
 }
-// ---------- STYLES: the main Pick4Me. Each style = a payout floor and a pick count; we find the lineup with the
+// ---------- STYLES: the main Hit Picks. Each style = a payout floor and a pick count; we find the lineup with the
 // highest chance of winning that still pays at least that much, using only legs I'd bet (no PASS calls, no
 // all-or-nothing lines, best side only). Exhaustive search with pruning, so it's the true best for the style.
 const STYLES = {
-  safe: {icon: "🛡️", name: "Safe", blurb: "2–3 picks · pays 2.5× or more · wins most often", ns: [2, 3], pay: 2.5, K: 40},
+  safe: {icon: "🛡️", name: "Safe", blurb: "2–3 picks · pays 2× or more · wins most often", ns: [2, 3], pay: 2, minEV: 1.02, K: 40},
   mid: {icon: "⚖️", name: "Balanced", blurb: "3–4 picks · pays 5× or more · the middle ground", ns: [3, 4], pay: 5, K: 34},
   big: {icon: "🚀", name: "Big swing", blurb: "4–6 picks · pays 20× or more · $2 for a big hit", ns: [4, 5, 6], pay: 20, K: 26},
 };
@@ -1921,7 +1925,7 @@ function bestForStyle(S, legs, avoid){
     const rec = (start, ch, F) => {
       if (performance.now() - t0 > 900) return;
       if (L.length === n) {
-        const pay = POWER[n] * F; if (pay < S.pay - 1e-9 || !valid(L, n)) return;
+        const pay = POWER[n] * F; if (pay < S.pay - 1e-9 || (S.minEV && ch * pay < S.minEV) || !valid(L, n)) return;
         if (!best || ch > best.ch + 1e-9 || (Math.abs(ch - best.ch) < 1e-9 && pay > best.pay)) best = {L: [...L], ch, pay, n};
         return;
       }
@@ -1945,12 +1949,16 @@ function renderStyle(){
   const legs = styleLegs();
   if (legs.length < 2) { box.innerHTML = `<p class="note">There aren't enough picks I'd bet on this board yet. Check back closer to game time.</p>`; return; }
   const avoid = new Set(), out = [];
-  for (let i = 0; i < 3; i++) { const b = bestForStyle(S, legs, avoid); if (!b) break; out.push(b); b.L.forEach(l => avoid.add(l.pk.player)); }
+  for (let i = 0; i < 3; i++) { const b = bestForStyle(S, legs, avoid) || (S.minEV ? bestForStyle({...S, minEV: 0}, legs, avoid) : null); if (!b) break; out.push(b); b.L.forEach(l => avoid.add(l.pk.player)); }
   if (!out.length) { box.innerHTML = `<p class="note">Nothing on tonight's board reaches ${S.pay}× using only picks I'd bet. Try ${k === "big" ? "Balanced" : "Safe"}.</p>`; return; }
   box.innerHTML = out.map((b, i) => {
     const st = lineupStats(b.L, false), fx = FLEX[b.n] && st.flex > st.power, ev = Math.max(st.power, st.flex);
+    const all = st.d[b.n], pay = fx ? st.flexPay : st.powerPay, be = 1 / st.powerPay;
+    const why = `<div class="whybox"><div class="whyp">${b.L.map(l => `<span><b>${pct(l.p)}</b><small>${esc(l.pk.player.split(" ").slice(-1)[0])}</small></span>`).join("")}</div>
+      <p>Each pick on its own is <b>${b.L.map(l => pct(l.p)).join(", ")}</b>. ${b.n === 2 ? "Both" : `All ${b.n}`} have to hit, so the whole slip is <b>${pct(all)}</b>${fx ? `, and as a Flex it still pays if you miss one` : ""}.
+      ${!fx && all > be * 1.05 ? `That sounds low, but at ${st.powerPay.toFixed(1)}× you only need to win <b>${pct(be)}</b> of the time to break even, so winning ${pct(all)} puts you ahead over time.` : ""}</p></div>`;
     const card = lineupCard({id: "sty" + i, title: `${i === 0 ? "⭐ Best" : i === 1 ? "2nd" : "3rd"} ${S.name.toLowerCase()} lineup`, sub: i ? "No players shared with the ones above" : "Highest chance of winning for this payout", mode: fx ? "flex" : "power"}, b.L, i === 0);
-    return `${card.html}<div class="stysum ${i ? "alt" : ""}">💵 ${ev >= 1.05 ? `<b>Worth playing.</b> On average it pays back $${ev.toFixed(2)} per $1.` : ev >= 0.95 ? `<b>About break-even</b> ($${ev.toFixed(2)} back per $1 on average). Fine for a small bet.` : `<b>Best this style can do tonight, but it loses money on average</b> ($${ev.toFixed(2)} back per $1). Treat it as a $2 sweat.`}</div>`;
+    return `${i === 0 ? why : ""}${card.html}<div class="stysum ${i ? "alt" : ""}">💵 ${ev >= 1.05 ? `<b>Worth playing.</b> On average it pays back $${ev.toFixed(2)} per $1.` : ev >= 0.95 ? `<b>About break-even</b> ($${ev.toFixed(2)} back per $1 on average). Fine for a small bet.` : `<b>Best this style can do tonight, but it loses money on average</b> ($${ev.toFixed(2)} back per $1). Treat it as a $2 sweat.`}</div>`;
   }).join("") + `<p class="gfine">Chances come from real game logs and are checked against the track record. Picks with any red flag (injury tags, bad news, teammate changes against it, cold recent games, one-play lines like under 0.5 steals) are never used.</p>`;
   bindCoach();
 }
@@ -2070,7 +2078,7 @@ function card(p, i){
   if (ed != null) chips.unshift(`<span class="chip ${ed >= 0.04 ? "up" : ed <= -0.04 ? "dn" : ""}">Needs ${pct(breakeven(p))} · ${ed >= 0 ? "+" : ""}${Math.round(ed * 100)} edge</span>`);
   if (p.buzz) chips.push(`<span class="chip ${p.buzzSent > 0.2 ? "up" : p.buzzSent < -0.2 ? "dn" : ""}">Reddit ${p.buzz}${p.buzzSent > 0.2 ? " ▲" : p.buzzSent < -0.2 ? " ▼" : ""}</span>`);
   return `<div class="pick" data-pk="${esc(p.sport + "|" + p.id)}"><div class="rank">${i}</div><div class="info">
-    <div class="name">${gradeBadge(p)}${isGod(p) ? `<span class="cls god">👑 God pick</span>` : isSafeLeg(p) ? `<span class="cls safe">Safe leg</span>` : ""}<span class="tag ${p.type}">${p.type.toUpperCase()}</span>${p.live ? `<span class="cls live">LIVE</span>` : ""}${p.cls && !isGod(p) && p.cls !== "top" ? `<span class="cls ${p.cls}">${CLS_LAB[p.cls]}</span>` : ""}${esc(p.player)} <small>${vsText(p)}</small></div>
+    <div class="name">${gradeBadge(p)}${isGod(p) ? `<span class="cls god">👑 Top pick</span>` : isSafeLeg(p) ? `<span class="cls safe">Safe leg</span>` : ""}<span class="tag ${p.type}">${p.type.toUpperCase()}</span>${p.live ? `<span class="cls live">LIVE</span>` : ""}${p.cls && !isGod(p) && p.cls !== "top" ? `<span class="cls ${p.cls}">${CLS_LAB[p.cls]}</span>` : ""}${esc(p.player)} <small>${vsText(p)}</small></div>
     <div><b>${side}</b> than <b>${p.line}</b> ${esc(p.stat)}</div>
     ${p.verdict ? (() => { const k = callOf(p); return `<div class="callrow"><span class="call ${k.c}">${k.lab}</span><span>${esc(k.txt)}</span></div>`; })() : ""}
     <div class="chips">${chips.join("")}</div>
@@ -2089,10 +2097,10 @@ function payTxt(p, short){
   const f = legFactor(p), d = f - 1, r = Math.abs(d) >= 0.095 ? d.toFixed(1) : d.toFixed(2);
   return short ? `${d >= 0 ? "+" : ""}${r}× payout` : `${d >= 0 ? "Adds" : "Cuts"} roughly ${Math.abs(+r)}× of payout (×${f.toFixed(2)})`;
 }
-// ---------- GRADES. A God pick is a pick we'd expect to hit at least 7 times in 10, with nothing serious against it
+// ---------- GRADES. A Top pick is a pick we'd expect to hit at least 7 times in 10, with nothing serious against it
 // and his recent games agreeing. Grades come from the calibrated chance, so an A+ should hit 8+ in 10 over time.
 const probOf = p => (p.best === "More" ? p.pMore : p.pLess);
-function godBlock(p){   // why a 70%+ pick is NOT a God pick (null = it is one)
+function godBlock(p){   // why a 70%+ pick is NOT a Top pick (null = it is one)
   const prob = probOf(p), side = p.best;
   if (prob == null || prob < 0.7) return "under 7 in 10";
   if (p.lineOnly || p.games < 8) return "too few games to trust";
@@ -2114,13 +2122,13 @@ function godBlock(p){   // why a 70%+ pick is NOT a God pick (null = it is one)
 // that cuts the payout to ×0.47 = 0.45 (safe but pays pennies); a demon at 72% that adds ×1.6 = 1.15 (the real prize).
 const valueOf = p => { const pr = probOf(p); return pr == null ? 0 : pr * legFactor(p); };
 const passesChecks = p => !p.live ? godBlock(p) === null : probOf(p) >= 0.9;
-// A God pick passes every check (7 in 10 minimum, nothing against it) AND pays at least like a 70% standard.
+// A Top pick passes every check (7 in 10 minimum, nothing against it) AND pays at least like a 70% standard.
 // High goblins count (a shallow goblin at 85% that keeps ×0.75+ of the payout); deep "can't miss" goblins don't.
 const isGod = p => passesChecks(p) && legFactor(p) >= 0.7 && valueOf(p) >= 0.62;
 const isSafeLeg = p => passesChecks(p) && !isGod(p);
 function gradeOf(p){
   const prob = probOf(p); if (prob == null) return {g: "–", c: "n", t: "Not rated"};
-  if (isGod(p)) return valueOf(p) >= 0.85 ? {g: "A+", c: "ap", t: "God pick: likely AND pays well"} : {g: "A", c: "a", t: "God pick"};
+  if (isGod(p)) return valueOf(p) >= 0.85 ? {g: "A+", c: "ap", t: "Top pick: likely AND pays well"} : {g: "A", c: "a", t: "Top pick"};
   if (isSafeLeg(p)) return {g: "A−", c: "s", t: "Safe, but pays little"};
   const capped = p.verdict?.c === "r" ? Math.min(prob, 0.55) : prob;
   return capped >= 0.6 ? {g: "B", c: "b", t: "Decent"} : capped >= 0.5 ? {g: "C", c: "c", t: "Coin-flip range"} : {g: "D", c: "d", t: "Skip"};
@@ -2182,9 +2190,9 @@ function godRow(p, i){
   const prob = probOf(p);
   return `<div class="grow2" data-pk="${esc(p.sport + "|" + p.id)}"><span class="gi">${i}</span>${gradeBadge(p)}<div class="gtx"><b>${esc(p.player)}</b> <span class="gside">${p.best === "More" ? "Over" : "Under"} ${p.line} ${esc(p.stat)}</span>${p.type !== "standard" ? ` <span class="tag ${p.type}">${p.type.toUpperCase()}</span> <span class="gpay">${payTxt(p, true)}</span>` : ""}<small>${callBadge(p)} ${esc(callOf(p).txt)}</small></div><div class="gpct">${pct(prob)}<small>hits ${inTen(prob)}</small><small class="gx">×${legFactor(p).toFixed(2)} pay</small></div></div>`;
 }
-// a small all-God lineup: different players and games where possible, chance shown honestly
+// a small all-Top-pick lineup: different players and games where possible, chance shown honestly
 function godLineup(list){
-  // best all-God lineups: for 2 and 3 picks, the best expected return (chance × payout) with at least a 40% chance
+  // best all-Top-pick lineups: for 2 and 3 picks, the best expected return (chance × payout) with at least a 40% chance
   const pool = godList(list).filter(p => !p.live).slice(0, 30), out = [];
   for (const n of [2, 3]) {
     let best = null;
@@ -2214,15 +2222,15 @@ function godHTML(list, opts = {}){
   if (!total) {
     const near = list.filter(p => p.verdict && !p.lineOnly && ["bet", "lean"].includes(callOf(p).c) && callOf(p).lab !== "SAFE LEG").sort((a, b) => valueOf(b) - valueOf(a));
     const uniq = near.filter((p, i) => near.findIndex(q => q.player === p.player) === i).slice(0, 5);
-    return `<div class="godbox"><div class="ghd">👑 God picks<small>7 in 10 or better and worth the payout</small></div>${uniq.length
-      ? `${heldBackTxt(list)}<p class="note">No God picks on this board yet. These are the best plays I'd still make, best value first:</p>${uniq.map((p, i) => godRow(p, i + 1)).join("")}`
-      : `<p class="note">No God picks on this board, and nothing else I'd put money on either. Check back closer to game time, when injury news and lines settle.</p>`}</div>`;
+    return `<div class="godbox"><div class="ghd">👑 Top picks<small>7 in 10 or better and worth the payout</small></div>${uniq.length
+      ? `${heldBackTxt(list)}<p class="note">No Top picks on this board yet. These are the best plays I'd still make, best value first:</p>${uniq.map((p, i) => godRow(p, i + 1)).join("")}`
+      : `<p class="note">No Top picks on this board, and nothing else I'd put money on either. Check back closer to game time, when injury news and lines settle.</p>`}</div>`;
   }
   const lus = opts.lineup ? godLineup(list) : [];
-  return `<div class="godbox"><div class="ghd">👑 God picks<small>${total} pick${total > 1 ? "s" : ""} that hit 7 in 10+ AND pay well, best value first</small></div>
-    ${opts.lineup && !lus.length ? `<p class="gmore">No lineup made only of God picks has a solid chance and a real payout right now. Pick4Me can build one that mixes in the next-best picks.</p>` : ""}
-    ${lus.map(u => `<div class="glu"><div class="gluh"><b>${u.L.length}-pick God lineup</b><span>pays about ${u.pay.toFixed(1)}× · all hit about <b>${inTen(u.ch)}</b> nights (${pct(u.ch)})</span></div>${u.L.map(p => `<div class="glul" data-pk="${esc(p.sport + "|" + p.id)}">${gradeBadge(p)} ${esc(p.player)} · ${p.best === "More" ? "Over" : "Under"} ${p.line} ${esc(p.stat)}</div>`).join("")}</div>`).join("")}
-    ${cats.filter(([, l]) => l.length).map(([lab, l]) => `<h3 class="gcat">${lab} <small>${l.length}</small></h3>${l.filter((p, i) => l.findIndex(q => q.player === p.player) === i).slice(0, per).map((p, i) => godRow(p, i + 1)).join("")}${l.length > per ? `<p class="gmore">+${l.length - per} more ${lab.toLowerCase()} God picks in All picks</p>` : ""}`).join("")}
+  return `<div class="godbox"><div class="ghd">👑 Top picks<small>${total} pick${total > 1 ? "s" : ""} that hit 7 in 10+ AND pay well, best value first</small></div>
+    ${opts.lineup && !lus.length ? `<p class="gmore">No lineup made only of Top picks has a solid chance and a real payout right now. Hit Picks can build one that mixes in the next-best picks.</p>` : ""}
+    ${lus.map(u => `<div class="glu"><div class="gluh"><b>${u.L.length}-pick Top-pick lineup</b><span>pays about ${u.pay.toFixed(1)}× · all hit about <b>${inTen(u.ch)}</b> nights (${pct(u.ch)})</span></div>${u.L.map(p => `<div class="glul" data-pk="${esc(p.sport + "|" + p.id)}">${gradeBadge(p)} ${esc(p.player)} · ${p.best === "More" ? "Over" : "Under"} ${p.line} ${esc(p.stat)}</div>`).join("")}</div>`).join("")}
+    ${cats.filter(([, l]) => l.length).map(([lab, l]) => `<h3 class="gcat">${lab} <small>${l.length}</small></h3>${l.filter((p, i) => l.findIndex(q => q.player === p.player) === i).slice(0, per).map((p, i) => godRow(p, i + 1)).join("")}${l.length > per ? `<p class="gmore">+${l.length - per} more ${lab.toLowerCase()} Top picks in All picks</p>` : ""}`).join("")}
     <p class="gfine">Ranked by value: chance × payout. A demon that hits 7½ in 10 beats a goblin that hits 9½ but pays pennies. Safe low-paying goblins are still in All picks, marked A− "safe leg". Estimates from real games, not guarantees: even an A+ misses some nights.</p></div>`;
 }
 function edgeOf(p){ const prob = (p.best === "More" ? p.pMore : p.pLess); return prob == null ? null : prob - breakeven(p); }
@@ -2246,7 +2254,7 @@ function bestStripHTML(list){
 const isValuePick = p => { const pr = probOf(p); return pr != null && pr >= 0.6 && !p.live && valueOf(p) >= 0.68 && legFactor(p) >= 0.85 && p.verdict?.c !== "r" && !["serious news", "injury tag", "line far from his average", "too few games to trust", "scoring unconfirmed", "all-or-nothing stat"].includes(godBlock(p)); };
 const BMODES = {
   "": {lab: "All picks", txt: "highest chance first", ok: () => true, key: p => probOf(p) ?? -1},
-  god: {lab: "👑 God", txt: "God picks only, best first", ok: isGod, key: valueOf},
+  god: {lab: "👑 Top", txt: "Top picks only, best first", ok: isGod, key: valueOf},
   bet: {lab: "✅ I'd bet", txt: "picks I'd bet, most likely to hit first", ok: p => p.verdict && ["bet", "lean"].includes(callOf(p).c) && callOf(p).lab !== "SAFE LEG", key: p => probOf(p) ?? -1},
   value: {lab: "💎 Value", txt: "likely AND pays well, best value first", ok: isValuePick, key: valueOf},
   picked: {lab: "🔥 Most picked", txt: "most picked first", ok: p => p.trending != null, key: p => p.trending ?? -1},
@@ -2258,7 +2266,7 @@ function render(){
   const ok = p => btOn(p.type) && M.ok(p) && (!g || gameOf(p) === g) && (!s || p.stat === s) && (!q || norm(p.player).includes(q));
   const pb = p => probOf(p) ?? -1;
   const list = ALL.filter(ok), by = (a, b) => M.key(b) - M.key(a) || pb(b) - pb(a);
-  const empty = {god: "No God picks with these filters right now. The bar isn't lowered just to fill the list.", bet: "Nothing I'd bet with these filters right now.", value: "No value picks with these filters right now.", picked: "PrizePicks hasn't shown pick counts for these yet."}[mode] || "No picks match these filters.";
+  const empty = {god: "No Top picks with these filters right now. The bar isn't lowered just to fill the list.", bet: "Nothing I'd bet with these filters right now.", value: "No value picks with these filters right now.", picked: "PrizePicks hasn't shown pick counts for these yet."}[mode] || "No picks match these filters.";
   const top = (mode === "picked" ? `<p class="pnote">🔥 Most picked doesn't mean it will hit. It just means it's popular.</p>` : "") +
     (mode === "value" ? `<p class="pnote">💎 Value picks hit at least 6 in 10 and pay at least like a 68% standard: a good chance <i>and</i> a good payout.</p>` : "");
   let h = "";
@@ -2275,7 +2283,7 @@ function render(){
   }
   $("#out").innerHTML = top + (h || `<p class="note">${empty}</p>`);
 }
-// All picks: tap-to-toggle pick types (separate from Pick4Me's) and a quick "show" switch
+// All picks: tap-to-toggle pick types (separate from Hit Picks's) and a quick "show" switch
 const btOn = t => store.get("bt_" + t, "1") === "1";
 function drawBoardPills(){
   const sh = store.get("bshow", "");
@@ -3185,7 +3193,7 @@ function classify(picks){
     p.cls = top ? "top" : safe ? "safe" : value ? "value" : null;
   }
 }
-const CLS_LAB = {top: "Top pick", safe: "Safe", value: "Value"};
+const CLS_LAB = {top: "Strong value", safe: "Safe", value: "Value"};
 
 // ---------- 4) NEWS INTELLIGENCE helpers: source credibility, duplicates, freshness, rumor vs confirmed
 const SRC_TIER = [[/nba\.com|nfl\.com|nhl\.com|mlb\.com|wnba\.com|ncaa\.com|ufc\.com|pgatour\.com|atptour\.com|wtatennis\.com|espn\.com|apnews\.com|reuters\.com/i, 3],
@@ -3341,7 +3349,7 @@ function sharedTrackHTML(){
   const hi = rows.filter(x => x.pr >= 0.75), hiHit = hi.length ? hi.filter(x => x.h).length / hi.length : null;
   return `<h4>Everyone using PickHit</h4><p class="body">${rows.length.toLocaleString()} graded picks: hit <b>${pct(hit)}</b>, predicted ${pct(pr)}.${hi.length ? ` Picks rated 75%+: hit <b>${pct(hiHit)}</b> of ${hi.length}.` : ""} These results also correct the app's chances automatically.</p>`;
 }
-// ---------- SLIP REPLAY: for every past day this device recorded, rebuild the lineups Pick4Me would have made from
+// ---------- SLIP REPLAY: for every past day this device recorded, rebuild the lineups Hit Picks would have made from
 // the ratings exactly as they were made then (real PrizePicks lines, only what was known before the games), then grade them.
 const TYPE_F = {standard: 1, goblin: 0.62, demon: 1.6};   // rough: old rows don't keep the standard line, so goblin/demon pay is typical
 function slipReplay(){
@@ -3374,11 +3382,11 @@ function slipReplay(){
 }
 function slipReplayHTML(){
   const R = slipReplay(), any = Object.values(R).some(x => x.length);
-  if (!any) return `<h4>Replay: the slips Pick4Me would have built</h4><p class="body">Needs a few days of ratings recorded on this device first. Each day the app saves its ratings with the real lines, so this fills in on its own.</p>`;
+  if (!any) return `<h4>Replay: the slips Hit Picks would have built</h4><p class="body">Needs a few days of ratings recorded on this device first. Each day the app saves its ratings with the real lines, so this fills in on its own.</p>`;
   const row = (k) => { const x = R[k], S = STYLES[k]; if (!x.length) return ""; const w = x.filter(d => d.won).length, e = x.reduce((s, d) => s + d.ch, 0), back = x.reduce((s, d) => s + (d.won ? d.pay : 0), 0);
     return `<tr><td>${S.icon} ${S.name}</td><td><b>${w} won of ${x.length}</b> <small>(expected ${e.toFixed(1)})</small></td><td><small>$${x.length} in → $${back.toFixed(2)} back</small></td></tr>`; };
   const k0 = R.safe.length ? "safe" : Object.keys(R).find(k => R[k].length);
-  return `<h4>Replay: the slips Pick4Me would have built</h4>
+  return `<h4>Replay: the slips Hit Picks would have built</h4>
     <p class="note">For every past day recorded on this device, the best lineup for each style was rebuilt from the ratings exactly as made before the games (real PrizePicks lines), then graded against what happened. $1 per slip, Power Play. Goblin/demon payouts are typical estimates.</p>
     <table class="trk2">${["safe", "mid", "big"].map(row).join("")}</table>
     <p class="note">${STYLES[k0].name} slips day by day:</p>
@@ -4036,7 +4044,7 @@ async function checkMine(){
     <table class="sumtab"><tr><td class="note">Play as</td><td class="note">Chance to win</td><td class="note">Pays</td></tr>
     <tr><td>Power (all ${n} must hit)</td><td style="font-weight:800">${pct1(raw.d[n])}</td><td><b>${raw.powerPay.toFixed(1)}×</b></td></tr>
     ${ft ? `<tr><td>Flex (profit on ${Math.min(...ft.map((m, k) => m > 1 ? k : 99))}+ hits)</td><td style="font-weight:800">${pct1(flexProfit)}</td><td><b>${raw.flexPay.toFixed(1)}×</b> top</td></tr>` : ""}</table>
-    ${Math.max(raw.power, raw.flex) < 0.95 ? `<p class="playas">🛑 <b>I wouldn't play this one as is.</b> Either way it pays back only about $${Math.max(raw.power, raw.flex).toFixed(2)} per $1 on average${L.filter(l => l.pk.type === "goblin").length >= 2 ? ": the goblins cut the payout more than they raise your chance" : ""}. Swap a leg or two for a standard or a God pick.</p>` : ft ? (() => { const fx = raw.flex >= raw.power, f1 = ft[n - 1] * raw.F;
+    ${Math.max(raw.power, raw.flex) < 0.95 ? `<p class="playas">🛑 <b>I wouldn't play this one as is.</b> Either way it pays back only about $${Math.max(raw.power, raw.flex).toFixed(2)} per $1 on average${L.filter(l => l.pk.type === "goblin").length >= 2 ? ": the goblins cut the payout more than they raise your chance" : ""}. Swap a leg or two for a standard or a Top pick.</p>` : ft ? (() => { const fx = raw.flex >= raw.power, f1 = ft[n - 1] * raw.F;
       return `<p class="playas">👉 <b>Play it as ${fx ? "Flex" : "Power"}.</b> ${fx
         ? `With these odds, missing one is the most likely bad outcome, and Flex still pays about ${f1.toFixed(1)}× if ${n - 1} of ${n} hit. Average return per $1: Flex $${raw.flex.toFixed(2)} vs Power $${raw.power.toFixed(2)}.`
         : `The bigger Power payout is worth more than Flex's safety net here. Average return per $1: Power $${raw.power.toFixed(2)} vs Flex $${raw.flex.toFixed(2)}.`}</p>`; })() : ""}
