@@ -2110,7 +2110,7 @@ function godBlock(p){   // why a 70%+ pick is NOT a Top pick (null = it is one)
   if (prob == null || prob < 0.7) return "under 7 in 10";
   if (p.lineOnly || p.games < 8) return "too few games to trust";
   if (isSwingy(p)) return "all-or-nothing stat";
-  if (p.best === "Less" && segGap(p.sport, "side|L") <= -0.08) return "unders have been missing lately";
+  if (p.best === "Less" && segGap(p.sport, "side|L|" + p.type) <= -0.08) return "unders have been missing lately";
   if (UNVERIFIED.has(p.sport + "|" + p.stat)) return "scoring unconfirmed";
   if (p.newsFlag || p.news?.some(n => n.tone === "bad")) return "serious news";
   if (p.inj && /question|day|doubt|out|suspen|reserve/i.test(p.inj.status || "")) return "injury tag";
@@ -3306,8 +3306,9 @@ function segGap(sport, key){
   const T = SEG[sport] ||= (() => {
     const t = {}, add = (k, r) => { (t[k] ||= {n: 0, pr: 0, h: 0}); t[k].n++; t[k].pr += r[7]; t[k].h += r[6]; };
     for (const r of trackLoad(sport)) if (r[6] != null && r[7] != null) {
-      const side = r[3]; add("side|" + side, r);
-      if (/\+/.test(r[1] || "")) add("combo|" + side, r);
+      // learn per side AND pick type: deep goblins missing shouldn't drag down standards and demons
+      const side = r[3], ty = r[11] || "standard"; add("side|" + side + "|" + ty, r);
+      if (/\+/.test(r[1] || "")) add("combo|" + side + "|" + ty, r);
     }
     return t;
   })();
@@ -3318,8 +3319,8 @@ function segAdjust(p){
   if (p.pMore == null || p.live) return;
   p.segShift = 0;
   for (const side of ["M", "L"]) {
-    let d = segGap(p.sport, "side|" + side);
-    if (/\+/.test(p.stat)) d += segGap(p.sport, "combo|" + side) * 0.7;
+    let d = segGap(p.sport, "side|" + side + "|" + p.type);
+    if (/\+/.test(p.stat)) d += segGap(p.sport, "combo|" + side + "|" + p.type) * 0.7;
     if (!d) continue;
     if (side === "M") { p.pMore = clip(p.pMore + d, 0.03, 0.95); if (p.pLess != null && p.type === "standard") p.pLess = clip(p.pLess - d, 0.03, 0.95); }
     else if (p.pLess != null) { p.pLess = clip(p.pLess + d, 0.03, 0.95); if (p.type === "standard") p.pMore = clip(p.pMore - d, 0.03, 0.95); }
@@ -3662,7 +3663,7 @@ function packRated(sport){
       const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
       if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
     }
-    return JSON.stringify({v: 11, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+    return JSON.stringify({v: 12, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
   } catch (e) { console.warn("couldn't save ratings", e); return null; }
 }
 function unpackRated(js){
@@ -3679,7 +3680,7 @@ async function loadRated(sport){
   const got = [];
   const mine = await IDB.get("rated:" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
   if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
-  return got.filter(j => j && j.v === 11 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+  return got.filter(j => j && j.v === 12 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
 }
 const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
 async function quickStart(force){
