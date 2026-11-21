@@ -549,8 +549,12 @@ const STATS = {
   "Rebs+Asts":{REB:1,AST:1},"Blocked Shots":{BLK:1},"Steals":{STL:1},"Blks+Stls":{BLK:1,STL:1},
   "Turnovers":{TOV:1},"Fantasy Score":{PTS:1,REB:1.2,AST:1.5,STL:3,BLK:3,TOV:-1},
   "FG Made":{FGM:1},"FG Attempted":{FGA:1},"Free Throws Made":{FTM:1},"Free Throws Attempted":{FTA:1},
-  "3-PT Attempted":{FG3A:1},"Personal Fouls":{PF:1}
+  "3-PT Attempted":{FG3A:1},"Personal Fouls":{PF:1},
+  // 2-pointers = all shots minus threes (PrizePicks has used a few spellings)
+  "Two Pointers Made":{FGM:1,FG3M:-1},"Two Pointers Attempted":{FGA:1,FG3A:-1},"2-PT Made":{FGM:1,FG3M:-1},"2-PT Attempted":{FGA:1,FG3A:-1},
+  "2PT Made":{FGM:1,FG3M:-1},"2PT Attempted":{FGA:1,FG3A:-1},"Two Pointers":{FGM:1,FG3M:-1}
 };
+const UNRATED = {};   // board picks in stats we can't rate yet, so search can still say they exist
 const VOLATILE = new Set(["Blocked Shots","Steals","Blks+Stls","Turnovers","3-PT Made","Personal Fouls"]);
 const ODDS_MARKETS = {"Points":"player_points","Rebounds":"player_rebounds","Assists":"player_assists",
   "3-PT Made":"player_threes","Pts+Rebs+Asts":"player_points_rebounds_assists","Pts+Rebs":"player_points_rebounds",
@@ -824,6 +828,7 @@ function renderHome(){
 
 // ---------- PrizePicks
 function parseBoard(js, sport = SPORT){
+  UNRATED[sport] = [];
   const people = {}, leagues = {};
   for (const i of js.included || []) {
     if (i.type === "new_player" || i.type === "player") people[i.id] = i.attributes || {};
@@ -870,7 +875,7 @@ function parseBoard(js, sport = SPORT){
         const t = ALIASES[tok.toUpperCase()] || tok.toUpperCase();
         if (t !== team && TEAMS[t]) { opp = t; break; }
       }
-      if (!STATS[a.stat_type]) continue;
+      if (!STATS[a.stat_type]) { (UNRATED[sport] ||= []).push({player: name, stat: a.stat_type, line: +a.line_score, type}); continue; }
     }
     picks.push({live, id: p.id, sport, player:name, team, opp, stat:a.stat_type, line:+a.line_score, type, start:a.start_time || "",
                 trending: typeof a.trending_count === "number" ? a.trending_count : null});
@@ -2263,13 +2268,21 @@ function render(){
   drawBoardPills();
   const g = $("#gameSel").value, s = $("#statSel").value, mode = BMODES[store.get("bshow", "")] ? store.get("bshow", "") : "", M = BMODES[mode];
   const q = norm($("#playerQ").value);
-  const ok = p => btOn(p.type) && M.ok(p) && (!g || gameOf(p) === g) && (!s || p.stat === s) && (!q || norm(p.player).includes(q));
+  const ok = q ? (p => norm(p.player).includes(q) && (!g || gameOf(p) === g) && (!s || p.stat === s))   // searching a player shows ALL his picks
+    : (p => btOn(p.type) && M.ok(p) && (!g || gameOf(p) === g) && (!s || p.stat === s));
   const pb = p => probOf(p) ?? -1;
   const list = ALL.filter(ok), by = (a, b) => M.key(b) - M.key(a) || pb(b) - pb(a);
   const empty = {god: "No Top picks with these filters right now. The bar isn't lowered just to fill the list.", bet: "Nothing I'd bet with these filters right now.", value: "No value picks with these filters right now.", picked: "PrizePicks hasn't shown pick counts for these yet."}[mode] || "No picks match these filters.";
   const top = (mode === "picked" ? `<p class="pnote">🔥 Most picked doesn't mean it will hit. It just means it's popular.</p>` : "") +
     (mode === "value" ? `<p class="pnote">💎 Value picks hit at least 6 in 10 and pay at least like a 68% standard: a good chance <i>and</i> a good payout.</p>` : "");
   let h = "";
+  if (q) {
+    const un = (UNRATED[SPORT] || []).filter(u => norm(u.player).includes(q));
+    const unTxt = un.length ? `<p class="pnote">PrizePicks also has ${un.length} pick${un.length > 1 ? "s" : ""} for ${esc(un[0].player)} in stats PickHit doesn't rate yet: ${esc([...new Set(un.map(u => `${u.stat} ${u.line}`))].join(", "))}.</p>` : "";
+    $("#out").innerHTML = `<p class="pnote">🔎 Showing every pick for this search, whatever buttons are on.</p>` + unTxt + (list.length ? list.sort((a, b) => pb(b) - pb(a)).map((p, i) => card(p, i + 1)).join("")
+      : un.length ? "" : `<p class="note">No pick for that name on today's ${SPORTS[SPORT].name} board. PrizePicks may not have posted one yet, or he plays in another league tab.</p>`);
+    return;
+  }
   if (!g) {
     $("#out").innerHTML = top + (list.length ? (mode === "" ? godHTML(list, {per: 3}) : "") + `<h2>All games <small>${list.length} picks · ${M.txt}</small></h2>` +
       list.sort(by).slice(0, 300).map((p, i) => card(p, i + 1)).join("") : `<p class="note">${empty}</p>`);
@@ -3649,7 +3662,7 @@ function packRated(sport){
       const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
       if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
     }
-    return JSON.stringify({v: 10, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+    return JSON.stringify({v: 11, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
   } catch (e) { console.warn("couldn't save ratings", e); return null; }
 }
 function unpackRated(js){
@@ -3666,7 +3679,7 @@ async function loadRated(sport){
   const got = [];
   const mine = await IDB.get("rated:" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
   if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
-  return got.filter(j => j && j.v === 10 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+  return got.filter(j => j && j.v === 11 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
 }
 const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
 async function quickStart(force){
