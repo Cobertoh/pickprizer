@@ -387,6 +387,64 @@ header h1 img.hw{width:auto!important;height:30px!important;border-radius:0!impo
 .whyp{display:flex;gap:8px;margin-bottom:8px}.whyp span{flex:1;text-align:center;padding:8px 4px;border-radius:12px;background:rgba(6,3,5,.5)}
 .whyp b{display:block;font-size:22px;color:#34d399}.whyp small{font-size:11.5px;color:var(--mut)}.whybox p{margin:0;font-size:14.5px;line-height:1.45;color:#ded2d7}
 .lbig3{grid-template-columns:1fr 1fr 1fr!important}.lbig3 b{font-size:24px!important}.lbig3 span{font-size:11.5px!important}
+
+.hpmode{margin:4px 0 14px}.spcard{margin:14px 0;padding:16px;border-radius:20px;border:1px solid rgba(247,143,179,.4);background:linear-gradient(180deg,rgba(247,143,179,.09),rgba(20,12,16,.6));text-align:left}
+.sphead{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.sprank{font-size:12px;color:var(--mut);margin-right:auto}
+.spname{font-size:22px;font-weight:800;margin:10px 0 2px}.spname small{font-size:13px;color:var(--mut);font-weight:500}.spline2{font-size:17px;margin-bottom:10px}
+.spnums{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;text-align:center;margin:8px 0 12px}.spnums b{display:block;font-size:24px;color:#fff}.spnums div:first-child b{color:#34d399}.spnums span{font-size:11px;color:var(--mut)}
+.spbars{position:relative;display:flex;align-items:flex-end;gap:5px;height:110px;padding:0 2px;margin:6px 0 0;border-bottom:1px solid var(--line)}
+.spb{flex:1;border-radius:6px 6px 2px 2px;position:relative;min-width:0}.spb.h{background:linear-gradient(180deg,#34d399,#0f766e)}.spb.m{background:rgba(170,152,160,.35)}
+.spb i{position:absolute;top:-16px;left:0;right:0;text-align:center;font-style:normal;font-size:10px;color:var(--mut)}
+.spline{position:absolute;left:0;right:0;border-top:2px dashed #f78fb3}.spline span{position:absolute;right:0;top:-18px;font-size:11px;color:#f78fb3;background:rgba(6,3,5,.8);padding:0 4px;border-radius:4px}
+.sptxt{font-size:14.5px;margin:12px 0 6px}.spwarn{font-size:13.5px;color:#fde68a;background:rgba(250,204,21,.08);border:1px solid rgba(250,204,21,.3);border-radius:10px;padding:8px 10px;margin:10px 0 0}
+
+/* ---------- landing page ---------- */
+.lp-hero{display:grid;gap:26px;padding:22px 2px 30px;align-items:center}
+@media (min-width:860px){.lp-hero{grid-template-columns:1.05fr 1fr;padding:46px 4px 56px}}
+.lp-eyebrow,.lp-kicker{display:inline-block;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#f78fb3}
+.lp-eyebrow{padding:6px 12px;border-radius:999px;border:1px solid rgba(247,143,179,.4);background:rgba(247,143,179,.08)}
+.lp-h1{font-size:clamp(38px,9vw,60px);line-height:1.02;letter-spacing:-1.5px;margin:16px 0 14px;color:#fff;font-weight:900}
+.lp-h1 span{background:linear-gradient(90deg,#f78fb3,#ffc2d8);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lp-sub{font-size:17px;line-height:1.5;color:#cbbfc4;max-width:470px;margin:0 0 22px}
+.lp-ctas{display:flex;gap:10px;flex-wrap:wrap}.lp-ctas .pri{padding:16px 22px;font-size:17px}
+.lp-status{margin:16px 0 0;font-size:13.5px;color:var(--mut);display:flex;align-items:center;gap:8px}.lp-status i{width:8px;height:8px;border-radius:50%;background:#facc15}.lp-status.ok i{background:#34d399;box-shadow:0 0 10px #34d399}.lp-status.need i{background:#f87171}
+.lp-stage{position:relative;display:flex;justify-content:center;padding-bottom:150px}
+@media (min-width:860px){.lp-stage{padding-bottom:120px;justify-content:flex-start}}
+.lp-card{background:linear-gradient(180deg,#1d1218,#120a0e);border:1px solid rgba(247,143,179,.28);border-radius:22px;padding:16px;box-shadow:0 24px 60px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.02) inset;text-align:left}
+.lp-stage .lp-lu{width:min(330px,88%);transform:rotate(-3deg);animation:lpf 7s ease-in-out infinite}
+.lp-stage .lp-sp{position:absolute;right:0;bottom:0;width:min(210px,56%);transform:rotate(4deg);animation:lpf 8s ease-in-out -2s infinite}
+.lp-stage .lp-sp .lp-bars{height:46px}
+@keyframes lpf{0%,100%{translate:0 0}50%{translate:0 -10px}}
+.lp-live{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#86efac;margin-bottom:8px}.lp-live i{width:7px;height:7px;border-radius:50%;background:#34d399}.lp-live.ex{color:var(--mut)}
+.lp-luh{display:flex;justify-content:space-between;font-weight:800;margin-bottom:6px}.lp-luh span:last-child{color:var(--mut);font-weight:600;font-size:13px}
+.lp-pr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid rgba(247,143,179,.12)}.lp-pr b{display:block;font-size:15px}.lp-pr span{font-size:13px;color:var(--mut)}.lp-pr em{font-style:normal;font-weight:900;font-size:19px;color:#34d399}
+.lp-nums{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;padding:10px;border-radius:14px;background:rgba(247,143,179,.08);text-align:center}.lp-nums b{display:block;font-size:19px;color:#fff}.lp-nums span{font-size:10.5px;color:var(--mut)}
+.lp-sph{display:flex;align-items:center;gap:4px}.lp-sph small{margin-left:auto;color:var(--mut);font-size:11px}
+.lp-spn{display:block;font-size:17px;margin-top:10px}.lp-spl{font-size:13px;color:var(--mut)}
+.lp-bars{position:relative;display:flex;align-items:flex-end;gap:4px;height:70px;margin:12px 0 8px}.lp-bars i{flex:1;border-radius:4px 4px 1px 1px;background:rgba(170,152,160,.3)}.lp-bars i.h{background:linear-gradient(180deg,#34d399,#0f766e)}
+.lp-bars b{position:absolute;left:0;right:0;border-top:2px dashed #f78fb3}
+.lp-spf{display:flex;align-items:baseline;gap:6px}.lp-spf em{font-style:normal;font-size:26px;font-weight:900;color:#34d399}.lp-spf span{font-size:12px;color:var(--mut)}
+.lp-sec{padding:44px 0;border-top:1px solid rgba(247,143,179,.1)}.lp-h2{text-transform:none!important;font-family:inherit;font-size:clamp(28px,6vw,40px);line-height:1.08;letter-spacing:-.8px;color:#fff;margin:8px 0 22px;font-weight:900}
+.lp-show{display:grid;gap:18px;align-items:center;margin:0 0 36px}.lp-show h3{text-transform:none;letter-spacing:-.3px;font-size:22px;margin:0 0 8px;color:#fff}.lp-show p,.lp-why p,.lp-how p,.lp-trust p,.lp-record p,.lp-price p{color:#cbbfc4;line-height:1.5;margin:0}
+@media (min-width:860px){.lp-show{grid-template-columns:1fr 1fr;gap:40px}.lp-show.rev .lp-txt{order:2}}
+.lp-vis{display:flex;flex-direction:column;align-items:center;gap:12px}.lp-vis .lp-card{width:min(340px,100%)}
+.lp-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}.lp-chips span{font-size:12.5px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:rgba(20,12,16,.7)}
+.lp-brow{display:grid;grid-template-columns:110px 1fr 44px;gap:10px;align-items:center;margin:8px 0;font-size:13px;color:#cbbfc4}.lp-brow em{font-style:normal;font-weight:800;color:#fff;text-align:right}
+.lp-meter{position:relative;height:12px;border-radius:999px;background:rgba(170,152,160,.18);overflow:visible}.lp-meter i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#0f766e,#34d399)}.lp-meter.dim i{background:rgba(247,143,179,.45)}
+.lp-meter b{position:absolute;top:-4px;bottom:-4px;width:2px;background:#f78fb3}
+.lp-types{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;margin-top:14px;font-size:12.5px;color:var(--mut)}
+.lp-why,.lp-trust{display:grid;gap:12px}@media (min-width:640px){.lp-why,.lp-trust{grid-template-columns:1fr 1fr}}
+.lp-why>div,.lp-trust>div{padding:18px;border-radius:18px;border:1px solid var(--line);background:rgba(20,12,16,.55)}.lp-why i{font-style:normal;font-size:28px}.lp-why b,.lp-trust b{display:block;font-size:17px;color:#fff;margin:6px 0 4px}
+.lp-how{display:grid;gap:12px;margin-bottom:20px}@media (min-width:760px){.lp-how{grid-template-columns:1fr 1fr 1fr}}
+.lp-how>div{position:relative;padding:20px 18px;border-radius:18px;background:linear-gradient(180deg,rgba(247,143,179,.1),rgba(20,12,16,.4));border:1px solid rgba(247,143,179,.22)}
+.lp-how em{font-style:normal;display:inline-flex;width:38px;height:38px;border-radius:12px;align-items:center;justify-content:center;font-weight:900;font-size:18px;color:#1a0710;background:linear-gradient(135deg,#ec6a9b,#ffc2d8)}.lp-how b{display:block;font-size:17px;margin:10px 0 4px;color:#fff}
+.lp-record{margin:14px 0;padding:16px 18px;border-radius:18px;border:1px solid rgba(52,211,153,.35);background:rgba(52,211,153,.06)}.lp-record b{color:#86efac}
+.lp-more{margin:8px 0;padding:12px 16px;border-radius:14px;border:1px solid var(--line);background:rgba(20,12,16,.5)}.lp-more summary{cursor:pointer;font-weight:700;color:#efe5e9}
+.lp-price{padding:26px;border-radius:20px;border:1px dashed rgba(247,143,179,.45);text-align:center}.lp-price b{display:block;font-size:20px;color:#fff;margin-bottom:6px}
+.lp-final{text-align:center;padding:50px 0 30px}.lp-final .lp-h2{margin-bottom:18px}
+.lp-foot{padding:18px 0 8px;border-top:1px solid rgba(247,143,179,.1);font-size:13.5px;color:var(--mut)}
+.rv{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}.rv.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}.lp-stage .lp-lu,.lp-stage .lp-sp{animation:none}}
 </style>
 </head>
 <body>
@@ -748,84 +806,125 @@ function sharedHitLine(){
 }
 function renderHome(){
   const sp = SPORTS[SPORT], d = DATA[SPORT];
-  const _unused = d ? `<span class="livechip ok"><i></i>${sp.label} picks ready · ${d.picks.length.toLocaleString()} checked</span>`
-    : NEEDPASTE[SPORT] ? `<span class="livechip need"><i></i>${sp.label} picks need one tap · open Hit Picks</span>`
-    : `<span class="livechip"><i></i>Getting today's ${sp.name} picks…</span>`;
   const sh = sharedHitLine();
+  // real picks from tonight's board when we have them; otherwise a clearly labeled example
+  const tops = d ? godList(d.picks).filter((p, i, a) => a.findIndex(q => q.player === p.player) === i) : [];
+  const live = tops.length >= 2;
+  const ex = (player, line, stat, prob, type) => ({player, line, stat, best: "More", type, ex: true, prob});
+  const P1 = live ? tops[0] : ex("Your top pick", 24.5, "Points", 0.62, "standard"), P2 = live ? tops[1] : ex("Your second pick", 8.5, "Rebounds", 0.6, "standard");
+  const pr = p => p.ex ? p.prob : probOf(p), lf = p => p.ex ? 1 : legFactor(p);
+  const adj = p => 0.5 + 0.7 * (pr(p) - 0.5);   // same selection correction the lineup engine uses
+  const luCh = adj(P1) * adj(P2), luPay = POWER[2] * lf(P1) * lf(P2);
+  const side = p => (p.best === "More" ? "Over" : "Under");
+  const tag = live ? `<span class="lp-live"><i></i>From tonight's ${esc(sp.name)} board</span>` : `<span class="lp-live ex">Example layout</span>`;
+  const ser = live ? seriesFor(P1).slice(0, 10).reverse() : [18, 27, 22, 31, 26, 19, 29, 25, 33, 28].map(v => ({v}));
+  const mx = Math.max(P1.line * 1.6, ...ser.map(x => x.v), 1);
+  const bars = `<div class="lp-bars">${ser.map(x => { const h = P1.best === "More" ? x.v > P1.line : x.v < P1.line; return `<i class="${h ? "h" : ""}" style="height:${Math.max(8, x.v / mx * 100)}%"></i>`; }).join("")}<b style="bottom:${P1.line / mx * 100}%"></b></div>`;
+  const pickRow = p => `<div class="lp-pr"><div><b>${esc(p.player)}</b><span>${side(p)} ${p.line} ${esc(p.stat)}</span></div><em>${pct(pr(p))}</em></div>`;
+  const luCard = `<div class="lp-card lp-lu">${tag}<div class="lp-luh"><span>🛡️ Safe lineup</span><span>2 picks</span></div>${pickRow(P1)}${pickRow(P2)}
+    <div class="lp-nums"><div><b>${pct(luCh)}</b><span>entry hits</span></div><div><b>${luPay.toFixed(1)}×</b><span>payout</span></div><div><b>$${(luCh * luPay * 10).toFixed(2)}</b><span>avg back per $10</span></div></div></div>`;
+  const spCard = `<div class="lp-card lp-sp"><div class="lp-sph"><span class="grd ap">A+</span><span class="call bet">BET</span><small>#1 pick</small></div><b class="lp-spn">${esc(P1.player)}</b><span class="lp-spl">${side(P1)} ${P1.line} ${esc(P1.stat)}</span>${bars}<div class="lp-spf"><em>${pct(pr(P1))}</em><span>chance to hit</span></div></div>`;
+  const statusLine = `<p class="lp-status ${d ? "ok" : NEEDPASTE[SPORT] ? "need" : ""}"><i></i>${d ? `${sp.name} board ready · ${d.picks.length.toLocaleString()} picks rated` : NEEDPASTE[SPORT] ? `${sp.name} lines need updating: ☰ → Update PrizePicks lines` : `Rating today's ${sp.name} picks…`}</p>`;
   $("#homeView").innerHTML = `
-  <section class="hero">
-    <div class="hero-logo"><img alt="PickHit" src="${$("header h1 img").src}"></div>
-    <h1>Pick smarter.<br><span>Hit more.</span></h1>
-    <p class="lead">PickHit checks every PrizePicks pick against real games, injuries and matchups, then tells you in plain words which ones are worth playing.</p>
-    <button class="pri wide" data-go-tab="coach">🎯 Build me a lineup</button>
-    <button class="alt2" data-go-tab="board">See today's picks</button>
-    <p class="live ${d ? "ok" : NEEDPASTE[SPORT] ? "need" : ""}"><i></i>${d ? `${sp.name} picks ready · ${d.picks.length.toLocaleString()} checked` : NEEDPASTE[SPORT] ? `${sp.name} lines need updating: ☰ → Update PrizePicks lines` : `Getting today's ${sp.name} picks…`}</p>
+  <section class="lp-hero">
+    <div class="lp-copy">
+      <span class="lp-eyebrow">PrizePicks analytics</span>
+      <h1 class="lp-h1">Every line.<br><span>Run through the numbers.</span></h1>
+      <p class="lp-sub">PickHit rates every pick on the board with real game data, then builds the lineups most likely to hit for the payout you want.</p>
+      <div class="lp-ctas"><button class="pri" data-go-tab="coach">🎯 Generate my picks</button><button class="alt2" data-go-tab="board">See the board</button></div>
+      ${statusLine}
+    </div>
+    <div class="lp-stage" aria-hidden="true">${luCard}${spCard}</div>
   </section>
-  <section class="hsect">
-    <div class="newcard">
-      <div class="nchead">👋 New here? PickHit in 30 seconds</div>
-      <div class="ncstep"><span class="nci">🔍</span><div><b>We check every pick for you</b><p>Each player's real game history, who he's playing, who's injured, and the latest news. You don't need to know anything about sports.</p></div></div>
-      <div class="ncstep"><span class="nci">✅</span><div><b>You get a simple answer</b><p>Every pick gets a grade (A+ to D), its chance to hit, and my call: <span class="call bet">BET</span> <span class="call lean">LEAN</span> or <span class="call pass">PASS</span>, with the reason why.</p></div></div>
-      <div class="ncstep"><span class="nci">🎯</span><div><b>Or let it build the whole lineup</b><p>Open <b>Hit Picks</b>, tap how you like to bet (Safe, Balanced or Big swing), and it builds the lineup most likely to hit for that payout.</p></div></div>
-      <button class="pri wide" data-go-tab="coach" style="margin-top:6px">Try Hit Picks</button>
+
+  <section class="lp-sec rv">
+    <span class="lp-kicker">The product</span><h2 class="lp-h2">See exactly what you get</h2>
+    <div class="lp-show">
+      <div class="lp-txt"><h3>Lineups built for your payout</h3><p>Pick a style. PickHit checks every 2–6 pick combination and hands you the one most likely to hit at that payout, plus two more with no shared players.</p></div>
+      <div class="lp-vis"><div class="lp-chips"><span>🛡️ Safe · ~3×</span><span>⚖️ Balanced · 5×+</span><span>🔥 Bold · 8–15×</span><span>🚀 Big swing · 20×+</span></div>${luCard}</div>
+    </div>
+    <div class="lp-show rev">
+      <div class="lp-txt"><h3>One pick at a time</h3><p>Single Pick ranks every goblin, standard or demon on the board. Tap Generate for the best one, tap again for the next. Each comes with its reasons and risks.</p></div>
+      <div class="lp-vis">${spCard}</div>
+    </div>
+    <div class="lp-show">
+      <div class="lp-txt"><h3>Every number, explained</h3><p>You always see four separate things: one pick's chance, the whole entry's chance, the payout, and what it returns on average. They're never mixed up.</p></div>
+      <div class="lp-vis"><div class="lp-card lp-break">
+        <div class="lp-brow"><span>This pick hits</span><div class="lp-meter"><i style="width:${Math.round(pr(P1) * 100)}%"></i><b style="left:57.7%"></b></div><em>${pct(pr(P1))}</em></div>
+        <div class="lp-brow"><span>Needed to profit</span><div class="lp-meter dim"><i style="width:57.7%"></i></div><em>58%</em></div>
+        <div class="lp-types"><span class="tag goblin">GOBLIN</span><small>likelier, pays less</small><span class="tag standard">STANDARD</span><small>normal pay</small><span class="tag demon">DEMON</span><small>harder, pays more</small></div>
+      </div></div>
     </div>
   </section>
-  ${d && d.picks.length ? `<section class="hsect hgod">${godHTML(d.picks, {per: 5, lineup: true})}<button class="alt2" data-go-tab="board">See every pick</button></section>` : ""}
-  <section class="hsect">
-    <h2 class="mid">How often does it <span>hit?</span></h2>
-    <div class="oddsbox">
-      <p class="body" style="margin-top:0">${sh || "When PickHit says a pick is 80%, picks like it have hit about 8 times in 10 on real games. Every rating is graded after the games, so these numbers stay honest."}</p>
-      <div class="oddsrow"><div><b>80%</b><span>one pick</span></div><i>→</i><div><b>64%</b><span>2 picks, both must hit</span></div><i>→</i><div><b>51%</b><span>3 picks</span></div></div>
-      <p class="body">Each extra pick is one more thing that has to go right, so a whole slip is always less likely than any single pick on it. That's why bigger slips pay more, and why PickHit shows you the real chance before you play. No pick is ever guaranteed.</p>
+
+  <section class="lp-sec rv">
+    <span class="lp-kicker">Why PickHit</span><h2 class="lp-h2">Built like a sharp bettor thinks</h2>
+    <div class="lp-why">
+      <div><i>📊</i><b>Real analysis</b><p>Minutes, usage, matchups, team defense, injuries and teammates, each weighed by how much it actually predicts.</p></div>
+      <div><i>🧪</i><b>Tested, not guessed</b><p>Checked on 600,000+ picks across simulated seasons with known odds, and every real pick is graded after the game.</p></div>
+      <div><i>⚙️</i><b>Optimized lineups</b><p>Searches every combination, not just the first good one, and accounts for picks that work against each other.</p></div>
+      <div><i>🎛️</i><b>Your way</b><p>Safe to big swing, goblins to demons, any sport, game or stat.</p></div>
     </div>
   </section>
-  <div class="glowline"></div>
-  <section class="hsect">
-    <h2 class="mid">Understanding <span>the grades</span></h2>
-    <div class="legend2">
+
+  <section class="lp-sec rv">
+    <span class="lp-kicker">How it works</span><h2 class="lp-h2">Three taps to tonight's picks</h2>
+    <div class="lp-how">
+      <div><em>1</em><b>Set your preferences</b><p>Choose a payout style or a pick type, plus any game or stat.</p></div>
+      <div><em>2</em><b>PickHit does the work</b><p>Every pick is rated and every combination is compared in seconds.</p></div>
+      <div><em>3</em><b>Play your strongest picks</b><p>Get the best lineups or single picks, with the honest odds and why.</p></div>
+    </div>
+    <button class="pri wide" data-go-tab="coach">Try Hit Picks</button>
+  </section>
+
+  ${d && d.picks.length ? `<section class="lp-sec rv hgod"><span class="lp-kicker">Live</span>${godHTML(d.picks, {per: 3, lineup: false})}<button class="alt2" data-go-tab="board">See every pick</button></section>` : ""}
+
+  <section class="lp-sec rv">
+    <span class="lp-kicker">Trust</span><h2 class="lp-h2">Honest numbers, shown openly</h2>
+    <div class="lp-trust">
+      <div><b>Calibrated chances</b><p>When PickHit says 60%, picks like it should hit about 60%. That's checked against simulated seasons with known true odds, and against real graded results.</p></div>
+      <div><b>No look-ahead</b><p>Every test only uses games played before the pick, the same as you'd have had.</p></div>
+      <div><b>Picks vs. entries</b><p>An entry needs every pick to hit, so its chance is always shown separately and is always lower.</p></div>
+      <div><b>Red flags filtered</b><p>Injury tags, bad news, one-play lines like under 0.5 steals and teammate changes keep a pick out of lineups.</p></div>
+    </div>
+    <div class="lp-record"><b>Real graded record</b><p>${sh || "Results fill in as picks are graded after each game. Nothing is shown until there's enough to be meaningful."}</p></div>
+    <details class="lp-more"><summary>Full track record</summary>${provenHTML()}</details>
+    <details class="lp-more"><summary>What the grades mean</summary><div class="legend2">
       <span class="grd ap">A+</span><b>Top pick</b><span>Likely, no red flags, and pays clearly more than it risks</span>
       <span class="grd a">A</span><b>Top pick</b><span>Likely, no red flags, and pays enough to come out ahead</span>
       <span class="grd s">A−</span><b>Safe leg</b><span>Very likely, but pays little</span>
-      <span class="grd b">B</span><b>Decent</b><span>About 6 in 10, or 7+ with a warning</span>
-      <span class="grd c">C</span><b>Coin-flip range</b><span>About 5 in 10</span>
-      <span class="grd d">D</span><b>Skip</b><span>Less likely than not</span>
-    </div>
-  </section>
-  <div class="glowline"></div>
-  <section class="hsect">
-    <h2 class="mid">Proven on <span>real games</span></h2>
-    ${provenHTML()}
-  </section>
-  <div class="glowline"></div>
-  <section class="hsect" id="safeSec">
-    <h2 class="mid">Play it <span>safe</span></h2>
-    <ul class="safe2">
-      <li>Set a budget before you start and stick to it.</li>
-      <li>Only play with money you can afford to lose. Never chase losses.</li>
-      <li>Take breaks. It's entertainment, not income.</li>
-      <li>If it stops being fun, call or text <b>1-800-GAMBLER</b>. It's free and confidential.</li>
-    </ul>
-  </section>
-  <div class="glowline"></div>
-  <section class="hsect">
-    <h2 class="mid">What we <span>look through</span></h2>
-    <p class="body">Every rating pulls from all of these, every time you open the app.</p>
-    <ul class="srcs">
+      <span class="grd b">B</span><b>Playable</b><span>Slightly better than what the payout needs</span>
+      <span class="grd c">C</span><b>Coin-flip range</b><span>About 5 in 10, or has a red flag</span>
+      <span class="grd d">D</span><b>Skip</b><span>Less likely than not</span></div></details>
+    <details class="lp-more"><summary>Where the data comes from</summary><ul class="srcs">
       <li><b>PrizePicks' board</b><span>Every line, goblin and demon, plus the most-picked props</span></li>
       <li><b>Game odds</b><span>ESPN's point spread and total for every game: blowout risk and pace</span></li>
-      <li><b>Years of game logs</b><span>Up to 5 seasons per player from ESPN, NBA.com and NHL.com; Sofascore for tennis and soccer; UFC Stats for every UFC fight; ESPN leaderboards for every golf round</span></li>
-      <li><b>Matchups</b><span>How each player has done against tonight's opponent</span></li>
-      <li><b>Teammates</b><span>Who's out or returning, and what that did to his numbers before</span></li>
-      <li><b>Injury reports</b><span>Official statuses, updated through the day</span></li>
-      <li><b>News and headlines</b><span>ESPN and Google News: trades, suspensions, legal or personal issues</span></li>
-      <li><b>The community</b><span>Reddit's PrizePicks, fantasy and team communities</span></li>
-      <li><b>A real-game backtest</b><span>Each rating is checked against thousands of past games</span></li>
-    </ul>
+      <li><b>Years of game logs</b><span>Up to 5 seasons per player from ESPN, NBA.com and NHL.com, plus ESPN tennis, soccer, UFC and golf data</span></li>
+      <li><b>Matchups and defense</b><span>Each player against tonight's opponent, and how that defense treats everyone</span></li>
+      <li><b>Teammates and injuries</b><span>Who's out or returning, and what that did to his numbers before</span></li>
+      <li><b>News</b><span>ESPN and Google News headlines: trades, suspensions, injuries</span></li></ul></details>
   </section>
-  <p class="hfoot">PickHit is an independent tool and isn't affiliated with PrizePicks. Must be of legal age where you live. · <a href="#" id="helpLink">Having trouble? Run a check</a></p>`;
+
+  <section class="lp-sec rv">
+    <span class="lp-kicker">Plans</span><h2 class="lp-h2">Pricing</h2>
+    <div class="lp-price"><b>Coming soon</b><p>Plans are still being worked out. Everything is open while PickHit is in early access.</p></div>
+  </section>
+
+  <section class="lp-final rv">
+    <h2 class="lp-h2">Tonight's strongest picks are ready.</h2>
+    <button class="pri wide" data-go-tab="coach">🎯 Generate my picks</button>
+  </section>
+
+  <section class="lp-foot" id="safeSec">
+    <p><b>Play it safe.</b> Set a budget, only bet what you can afford to lose, and never chase losses. If it stops being fun, call or text <b>1-800-GAMBLER</b>.</p>
+    <p class="hfoot">PickHit is an independent tool and isn't affiliated with PrizePicks. No pick is guaranteed. Must be of legal age where you live. · <a href="#" id="helpLink">Having trouble? Run a check</a></p>
+  </section>`;
   document.querySelectorAll("[data-go-tab]").forEach(b => b.onclick = () => goTab(b.dataset.goTab));
-  const hl = document.querySelector(".hero-logo"); if (hl) hl.style.setProperty("--logo", `url("${$("header h1 img").src}")`);
   $("#helpLink").onclick = e => { e.preventDefault(); $("#helpPanel").classList.remove("hide"); $("#helpPanel").scrollIntoView({behavior: "smooth"}); dataCheck(); };
+  // reveal sections as they scroll into view
+  const els = document.querySelectorAll("#homeView .rv");
+  if ("IntersectionObserver" in window) { const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), {threshold: 0.12}); els.forEach(el => io.observe(el)); }
+  else els.forEach(el => el.classList.add("in"));
 }
 
 // ---------- PrizePicks
@@ -1942,14 +2041,82 @@ function renderCoach(){
   const when = st => st ? new Date(st).toLocaleString([], {weekday: "short", hour: "numeric", minute: "2-digit"}) : "";
   const gameRow = `<div class="frow"><label class="fl">${unit === "match" ? "Match" : unit === "game" ? "Game" : "Event"}<select id="coachGame"><option value="">All ${unit}s (${gameList.length})</option>${gameList.map(x => `<option value="${esc(x.g)}" ${x.g === cg ? "selected" : ""}>${esc(x.g)}${x.start ? " · " + esc(when(x.start)) : ""}</option>`).join("")}</select></label></div>`;
   if (!BET && store.get("mult", "")) BET = {M: +store.get("mult", ""), entries: +store.get("entries", "1") || 1, yellow: store.get("useYellow", "0") === "1"};
-  const st = store.get("style", "");
-  $("#coachView").innerHTML = `<h2 class="mid ptitle">Hit <span>picks</span></h2><p class="note">Tap how you like to bet. I'll find the lineup most likely to hit for that kind of payout, using only picks I'd actually bet.</p>`
+  const st = store.get("style", ""), mode = store.get("hpmode", "lu");
+  const modeRow = `<div class="tpills hpmode">${[["lu", "🎯 Lineups"], ["one", "☝️ Single pick"]].map(([v, t]) => `<button type="button" class="tpill gl ${mode === v ? "on" : ""}" data-hpmode="${v}">${t}</button>`).join("")}</div>`;
+  if (mode === "one") {
+    $("#coachView").innerHTML = `<h2 class="mid ptitle">Hit <span>picks</span></h2>` + modeRow + singleHTML(gameRow);
+    bindSingle(); return;
+  }
+  $("#coachView").innerHTML = `<h2 class="mid ptitle">Hit <span>picks</span></h2>` + modeRow + `<p class="note">Tap how you like to bet. I'll find the lineup most likely to hit for that kind of payout, using only picks without red flags.</p>`
     + `<div class="styles">${Object.entries(STYLES).map(([k, v]) => `<button type="button" class="stybtn ${st === k ? "on" : ""}" data-style="${k}"><span class="sti">${v.icon}</span><b>${v.name}</b><small>${v.blurb}</small></button>`).join("")}</div>`
     + gameRow + `<div id="styleOut"></div>`
     + `<details class="adv" ${store.get("advOpen", "") ? "open" : ""}><summary>Advanced: set your own payout or hit rate</summary>${betPanel()}<div id="betOut"></div></details>`;
   bindCoach(); renderBet(); renderStyle();
   document.querySelectorAll("[data-style]").forEach(b => b.onclick = () => { store.set("style", b.dataset.style); document.querySelectorAll("[data-style]").forEach(x => x.classList.toggle("on", x === b)); renderStyle(); $("#styleOut").scrollIntoView({behavior: "smooth", block: "start"}); });
   const ad = $(".adv"); if (ad) ad.ontoggle = () => store.set("advOpen", ad.open ? "1" : "");
+  bindModeRow();
+}
+function bindModeRow(){ document.querySelectorAll("[data-hpmode]").forEach(b => b.onclick = () => { store.set("hpmode", b.dataset.hpmode); renderCoach(); }); }
+// ---------- SINGLE PICK: an endless ranked list. Same engine and same trust rules as Top picks: clean picks only
+// (no red flags, 8+ games), ranked by the cautious chance (both methods must agree) × payout. Generate = next best.
+const SP_SEEN = {};
+function spKey(){ return [SPORT, store.get("sptype", "standard"), coachGame(), store.get("spstat", "")].join("|"); }
+function spRanked(){
+  const ty = store.get("sptype", "standard"), g = coachGame(), st = store.get("spstat", "");
+  return ALL.filter(p => p.type === ty && !p.live && probOf(p) != null && probOf(p) >= 0.5 && (p.games || 0) >= 8 && godBlock(p) === null
+      && (!g || gameOf(p) === g) && (!st || p.stat === st))
+    // goblins are safe legs, so the most likely one ranks first; standards and demons rank by cautious chance × payout
+    .sort(ty === "goblin" ? ((a, b) => (bothSay(b) ?? probOf(b)) - (bothSay(a) ?? probOf(a)) || probOf(b) - probOf(a)) : ((a, b) => trustV(b) - trustV(a) || probOf(b) - probOf(a)));
+}
+function similarRecord(p){   // how picks rated about the same have actually done (graded results, this device + everyone)
+  const pr = probOf(p), rows = [];
+  for (const r of trackLoad(p.sport)) if (r[6] != null && r[7] != null && Math.abs(r[7] - pr) <= 0.025) rows.push([r[7], r[6]]);
+  for (const r of (SHARED_TRACK && SHARED_TRACK[p.sport]) || []) if (Math.abs(r[0] - pr) <= 0.025) rows.push(r);
+  if (rows.length < 30) return null;
+  return {n: rows.length, hit: rows.reduce((a, r) => a + r[1], 0) / rows.length};
+}
+function singleHTML(gameRow){
+  const ty = store.get("sptype", "standard"), stats = [...new Set(ALL.filter(p => p.type === ty).map(p => p.stat))].sort();
+  return `<p class="note">Pick a type and any filters, then tap Generate. You get the strongest pick on the board; tap again for the next best. Only picks with enough games and no red flags are used.</p>
+    <div class="tpills">${["goblin", "standard", "demon"].map(t => `<button type="button" class="tpill ${t} ${ty === t ? "on" : ""}" data-sptype="${t}">${t === "goblin" ? "Goblin" : t === "demon" ? "Demon" : "Standard"}</button>`).join("")}</div>
+    ${gameRow.replace("</div>", `</label><label class="fl">Stat<select id="spStat"><option value="">All stats</option>${stats.map(x => `<option ${store.get("spstat", "") === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></div>`).replace(/<\/label><\/label>/, "</label>")}
+    <button class="pri wide" id="spGo">✨ Generate pick</button>
+    <div id="spOut"></div>`;
+}
+function bindSingle(){
+  bindModeRow();
+  document.querySelectorAll("[data-sptype]").forEach(b => b.onclick = () => { store.set("sptype", b.dataset.sptype); store.set("spstat", ""); renderCoach(); });
+  const cgs = $("#coachGame"); if (cgs) cgs.onchange = () => { store.set("cgame_" + SPORT, cgs.value); renderCoach(); };
+  const ss = $("#spStat"); if (ss) ss.onchange = () => { store.set("spstat", ss.value); renderCoach(); };
+  $("#spGo").onclick = () => spNext();
+  const seen = SP_SEEN[spKey()]; if (seen && seen.length) spShow();
+}
+function spNext(){ const k = spKey(), R = spRanked(), seen = SP_SEEN[k] ||= [];
+  const nx = R.find(p => !seen.includes(p.id)); if (nx) seen.push(nx.id); spShow(!nx); }
+function spShow(done){
+  const k = spKey(), R = spRanked(), seen = SP_SEEN[k] || [], out = $("#spOut"); if (!out) return;
+  const cur = R.find(p => p.id === seen[seen.length - 1]);
+  if (!R.length) { out.innerHTML = `<p class="note">No ${store.get("sptype", "standard")} picks pass the checks with these filters right now. Try another type or stat, or check back closer to game time.</p>`; return; }
+  if (!cur) { out.innerHTML = ""; return; }
+  const rank = R.indexOf(cur) + 1, prob = probOf(cur), l = {pk: cur, side: cur.best}, r = reasons(l), rec = similarRecord(cur), k2 = callOf(cur);
+  const ser = seriesFor(cur).slice(0, 10).reverse(), mx = Math.max(cur.line * 1.6, ...ser.map(x => x.v), 1);
+  const bars = ser.length ? `<div class="spbars">${ser.map(x => { const hit = cur.best === "More" ? x.v > cur.line : x.v < cur.line; return `<div class="spb ${hit ? "h" : "m"}" style="height:${Math.max(6, x.v / mx * 100)}%" title="${esc(x.opp)}: ${x.v}"><i>${x.v}</i></div>`; }).join("")}<div class="spline" style="bottom:${cur.line / mx * 100}%"><span>${cur.line}</span></div></div><p class="note" style="text-align:center;margin-top:4px">Last ${ser.length} games (green = would have hit)</p>` : "";
+  out.innerHTML = `<div class="spcard">
+    <div class="sphead"><span class="sprank">#${rank} of ${R.length}</span>${gradeBadge(cur)}<span class="call ${k2.c}">${k2.lab}</span><span class="tag ${cur.type}">${cur.type.toUpperCase()}</span></div>
+    <div class="spname">${esc(cur.player)} <small>${vsText(cur)}</small></div>
+    <div class="spline2"><b>${cur.best === "More" ? "Over" : "Under"} ${cur.line}</b> ${esc(cur.stat)}</div>
+    <div class="spnums"><div><b>${pct(prob)}</b><span>estimated chance this pick hits</span></div><div><b>×${legFactor(cur).toFixed(2)}</b><span>effect on a lineup's payout</span></div><div><b>${cur.proj ?? "–"}</b><span>projected ${esc(cur.stat)}</span></div></div>
+    ${bars}
+    ${k2.c === "pass" ? `<p class="spwarn">This is the best ${cur.type} available with these filters, but it isn't one I'd bet on its own.</p>` : ""}
+    <p class="sptxt"><b>My call:</b> ${esc(k2.txt)}</p>
+    ${r.why.slice(0, 3).map(t => `<div class="why">${esc(t)}</div>`).join("")}${r.risk.slice(0, 2).map(t => `<div class="risk">${esc(t)}</div>`).join("")}
+    <p class="note">${rec ? `<b>Track record:</b> picks rated about ${pct(prob)} have actually hit <b>${pct(rec.hit)}</b> of ${rec.n.toLocaleString()} graded times.` : `<b>Track record:</b> not enough graded picks at this rating yet to compare. The chance above is the engine's estimate.`}</p>
+    <button type="button" class="alt2" data-pk="${esc(cur.sport + "|" + cur.id)}">Full breakdown</button>
+  </div>
+  <div class="frow"><button class="pri" id="spGo2" ${done || seen.length >= R.length ? "disabled" : ""}>${seen.length >= R.length ? "That's every pick" : "Next best pick →"}</button><button class="alt2" id="spReset">Start over</button></div>
+  <p class="note">${seen.length} of ${R.length} shown for these filters.</p>`;
+  $("#spGo2").onclick = () => spNext();
+  $("#spReset").onclick = () => { delete SP_SEEN[k]; out.innerHTML = ""; };
 }
 // ---------- STYLES: the main Hit Picks. Each style = a payout floor and a pick count; we find the lineup with the
 // highest chance of winning that still pays at least that much, using only legs I'd bet (no PASS calls, no
