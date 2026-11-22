@@ -283,7 +283,7 @@ select,input[type=text],input[type=number],textarea{background:rgba(26,16,21,.55
 .evrow{display:grid;grid-template-columns:96px 1fr 42px;gap:4px 8px;align-items:center;font-size:13px;margin:6px 0}
 .evrow i{height:6px;border-radius:3px;background:linear-gradient(90deg,#f78fb3 var(--w),rgba(170,152,160,.18) var(--w))}.evrow b{text-align:right}.evrow small{grid-column:1/-1;color:var(--mut);margin-top:-2px}
 .trk2{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0 12px}.trk2 td,.trk2 th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}.trk2 td:last-child,.trk2 th:last-child{text-align:right}
-.tpills{display:flex;gap:8px;margin:2px 0 16px}.bfilters{margin:4px 0 14px}.bfilters .tpills{margin:0 0 12px}#bShow{flex-wrap:wrap}#bShow .tpill{flex:1 1 30%}.styles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:6px 0 14px}.stybtn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:14px 6px;border-radius:16px;border:1px solid var(--line);background:rgba(26,16,21,.6);color:#efe5e9;cursor:pointer;text-align:center}
+.tpills{display:flex;gap:8px;margin:2px 0 16px}.bfilters{margin:4px 0 14px}.bfilters .tpills{margin:0 0 12px}#bShow{flex-wrap:wrap}#bShow .tpill{flex:1 1 30%}.styles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 14px}.stybtn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:14px 6px;border-radius:16px;border:1px solid var(--line);background:rgba(26,16,21,.6);color:#efe5e9;cursor:pointer;text-align:center}
 .stybtn b{font-size:16px}.stybtn small{font-size:11.5px;color:var(--mut);line-height:1.3}.sti{font-size:26px}.stybtn.on{border-color:#f78fb3;background:rgba(247,143,179,.18);box-shadow:0 0 18px rgba(247,143,179,.35)}
 .stysum{margin:8px 0 26px;padding:10px 12px;font-size:14px;border-radius:14px;background:rgba(247,143,179,.1);border:1px solid rgba(247,143,179,.35)}.stysum.alt{background:rgba(170,152,160,.07);border-color:var(--line)}
 .stynums{display:grid;grid-template-columns:1fr 1fr 1fr;text-align:center}.stynums b{font-size:22px;display:block}.stynums small{font-size:11.5px;color:var(--mut)}.stytxt{font-size:14px;margin:10px 0 0}
@@ -386,6 +386,7 @@ header h1 img.hw{width:auto!important;height:30px!important;border-radius:0!impo
 .whybox{margin:14px 0 4px;padding:12px 14px;border-radius:16px;background:rgba(247,143,179,.08);border:1px solid rgba(247,143,179,.3)}
 .whyp{display:flex;gap:8px;margin-bottom:8px}.whyp span{flex:1;text-align:center;padding:8px 4px;border-radius:12px;background:rgba(6,3,5,.5)}
 .whyp b{display:block;font-size:22px;color:#34d399}.whyp small{font-size:11.5px;color:var(--mut)}.whybox p{margin:0;font-size:14.5px;line-height:1.45;color:#ded2d7}
+.lbig3{grid-template-columns:1fr 1fr 1fr!important}.lbig3 b{font-size:24px!important}.lbig3 span{font-size:11.5px!important}
 </style>
 </head>
 <body>
@@ -1446,7 +1447,19 @@ function anchorToMarket(p, std){
   if (p.pLess != null) p.pLess = clip((1 - m) + w * (p.pLess - (1 - m)), 0.03, 0.95);
   p.mktShift = +(p.pMore - raw).toFixed(3);
 }
+// LINE MOVES: remember the first line seen today for each pick and show when PrizePicks moves it. Shown as
+// information only: there's no data here to prove a move predicts anything, so it doesn't change any chance.
+function noteLineMoves(picks){
+  if (!picks.length) return;
+  const day = new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10), key = "pp_lines_" + picks[0].sport;
+  let M = {}; try { M = JSON.parse(localStorage.getItem(key) || "{}"); } catch {}
+  if (M._d !== day) M = {_d: day};
+  for (const p of picks) { if (p.type === "standard" || p.type) { const k = p.player + "|" + p.stat + "|" + p.type;
+    if (M[k] == null) M[k] = p.line; else if (M[k] !== p.line) p.lineFrom = M[k]; } }
+  try { localStorage.setItem(key, JSON.stringify(M)); } catch {}
+}
 function finalize(picks){
+  try { noteLineMoves(picks); } catch {}
   const stdOf = {}; for (const q of picks) if (q.type === "standard") stdOf[q.player + "|" + q.stat] = q;
   const trend = picks.map(p => p.trending).filter(t => t != null).sort((a, b) => a - b);
   for (const p of picks) {
@@ -1508,7 +1521,12 @@ function buildLegs(){
       const fluke = long != null && hh && [hh.l5, hh.season, hh.l10].some(x => rt(x) != null && rt(x) - long >= 0.25) ? 0.04 : 0;
       const pen = (p.conf === "Low" ? 0.05 : p.conf === "Med" ? 0.015 : 0) + (p.inj && /question|day/i.test(p.inj.status) ? 0.12 : 0)
         + (p.news?.some(n => n.tone === "bad") ? 0.05 : 0) + fluke;
-      const pe = clip(prob - pen, 0.01, 0.97);
+      // entry chance uses a selection correction: legs picked as the best of hundreds are slightly overrated on
+      // average (winner's curse). Pulling 30% further toward the market's own chance made simulated lineup chances
+      // match reality (said ~40% vs truly ~34% before; ~35% vs ~34% after). Each pick's own row still shows `p`.
+      const mk = p.type === "standard" ? 0.5 : (p.mkt != null ? (side === "More" ? p.mkt : 1 - p.mkt) : null);
+      let pe = clip(prob - pen, 0.01, 0.97);
+      if (mk != null && !p.live) pe = clip(mk + 0.7 * (pe - mk), 0.01, 0.97);
       legs.push({pk: p, side, p: prob, pe, f: legFactor(p), key: p.id + side, v: p.vd ? p.vd[side] : verdictOf(p, side)});
     }
   }
@@ -1677,7 +1695,9 @@ function lineupCard(def, L, best){
   const pay = usePower ? raw.powerPay : raw.flexPay;
   const profitTiers = ft ? ft.map((m, k) => m > 1 ? k : -1).filter(k => k >= 0) : [];
   const cs = n >= 2 ? corrSim(L) : null, dd = cs ? cs.d : raw.d;
-  const hit = usePower ? dd[n] : profitTiers.reduce((s, k) => s + dd[k], 0), hitInd = usePower ? raw.d[n] : profitTiers.reduce((s, k) => s + raw.d[k], 0);
+  const hitInd = usePower ? e.d[n] : profitTiers.reduce((s, k) => s + e.d[k], 0);
+  // honest entry chance: built from each pick's effective chance; correlation can lower it but never raise it
+  const hit = Math.min(hitInd, usePower ? dd[n] : profitTiers.reduce((s, k) => s + dd[k], 0));
   const hitLbl = usePower ? `chance all ${n} hit` : `chance of ${Math.min(...profitTiers)}+ of ${n} hitting (Flex profit)`;
   const hitCol = hit >= 0.3 ? "var(--good)" : hit >= 0.12 ? "var(--mid)" : "var(--bad)";
   const hitWord = hit >= 0.5 ? "Strong" : hit >= 0.3 ? "Solid" : hit >= 0.12 ? "Risky" : "Long shot";
@@ -1714,7 +1734,8 @@ function lineupCard(def, L, best){
   const html = `<div class="lineup${best ? " best" : ""}" id="lu-${def.id}">
     <div class="lhead"><div><h3>${title}</h3><div class="sub">${sub}</div></div>
       <span class="lbtns"><button class="copy" data-copy="${esc(plain)}">Copy</button><button type="button" class="copy played" data-played="${esc(def.id)}">✅ I played this</button></span></div>
-    <div class="lbig"><div><b style="color:${hitCol}">${pct1(hit)}</b><span>chance it hits</span></div><div><b>${pay.toFixed(1)}×</b><span>${usePower ? "Power" : "Flex"} payout (est.)</span></div></div>
+    <div class="lbig lbig3"><div><b style="color:${hitCol}">${pct1(hit)}</b><span>chance the whole entry ${usePower ? "hits" : "profits"}</span></div><div><b>${pay.toFixed(1)}×</b><span>${usePower ? "Power" : "Flex"} payout (est.)</span></div><div><b style="color:${(usePower ? hit * pay : ev) >= 1 ? "var(--good)" : "var(--mid)"}">$${((usePower ? hit * pay : ev) * 10).toFixed(2)}</b><span>average back per $10 (expected value)</span></div></div>
+    <p class="note">Each pick's own chance is on its row below. The entry chance is lower because every pick has to hit. It also includes a small correction: picks chosen as the best of hundreds tend to be a little overrated, and picks that work against each other count against the entry.</p>
     ${usePower ? (() => { const fair = 1 / pay, edge = hit / fair; return `<p class="note">${edge >= 1.05 ? `Break-even at ${pay.toFixed(1)}× is ${pct1(fair)}. This lineup is <b>${edge.toFixed(1)}×</b> that, so the odds lean your way` : `Break-even at ${pay.toFixed(1)}× is ${pct1(fair)}, about what this lineup has. Lower the payout for odds that lean your way`}</p>`; })() : ""}
     ${usePower && L.some(l => l.pk.type !== "standard") ? `<p class="note"><a href="#" class="payfix" data-n="${n}" data-ln="${L.reduce((t, l) => t + Math.log(l.f), 0)}">PrizePicks shows a different payout? Tap to correct</a></p>` : ""}
     ${legs}
@@ -1934,38 +1955,57 @@ function renderCoach(){
 // highest chance of winning that still pays at least that much, using only legs I'd bet (no PASS calls, no
 // all-or-nothing lines, best side only). Exhaustive search with pruning, so it's the true best for the style.
 const STYLES = {
-  safe: {icon: "🛡️", name: "Safe", blurb: "2–3 picks · pays 2.5× or more · wins most often", ns: [2, 3], pay: 2.5, K: 40},
+  // Safe needs ~3×: tested on three simulated leagues, 2.8×+ won as often as 2.5×+ and paid back $0.98–1.14 per $1
+  // vs $0.83–0.91 (a shallow goblin cuts the payout more than it adds in chance)
+  safe: {icon: "🛡️", name: "Safe", blurb: "2–3 picks · pays about 3× · wins most often", ns: [2, 3], pay: 2.8, K: 40},
   mid: {icon: "⚖️", name: "Balanced", blurb: "3–4 picks · pays 5× or more · the middle ground", ns: [3, 4], pay: 5, K: 34},
+  bold: {icon: "🔥", name: "Bold", blurb: "3–5 picks · pays 8–15× · where strong demon combos live", ns: [3, 4, 5], pay: 8, maxPay: 15, K: 30},
   big: {icon: "🚀", name: "Big swing", blurb: "4–6 picks · pays 20× or more · $2 for a big hit", ns: [4, 5, 6], pay: 20, K: 26},
 };
 function styleLegs(){
   // eligible = the number can be trusted: no red flag at all (the only thing allowed "against" it is being under 70%)
-  return buildLegs().filter(l => l.side === l.pk.best && !l.pk.live && l.pe >= 0.55 && godBlock(l.pk) === null);
+  return buildLegs().filter(l => l.side === l.pk.best && !l.pk.live && l.p >= 0.55 && godBlock(l.pk) === null);
 }
 function bestForStyle(S, legs, avoid){
-  let best = null;
+  const top = [];
   for (const n of S.ns) {
-    const pool = legs.filter(l => !avoid.has(l.pk.player)).sort((a, b) => b.pe * Math.pow(b.f, 0.6) - a.pe * Math.pow(a.f, 0.6)).slice(0, S.K)
-      .sort((a, b) => b.pe - a.pe);
+    // candidate pool from several angles so one kind of pick can't crowd out the rest (it once filled all 40
+    // slots with goblins that could never reach the payout): best value, safest that can still reach the
+    // payout, and the biggest boosters
+    const ok = legs.filter(l => !avoid.has(l.pk.player));
+    const maxAll = ok.reduce((m, l) => Math.max(m, l.f), 0);
+    const reach = ok.filter(l => POWER[n] * l.f * Math.pow(maxAll, n - 1) >= S.pay - 1e-9);
+    const byV = reach.slice().sort((a, b) => b.pe * b.f - a.pe * a.f).slice(0, S.K);
+    const byP = reach.slice().sort((a, b) => b.pe - a.pe).slice(0, S.K);
+    const byF = reach.filter(l => l.f > 1).sort((a, b) => b.f * b.pe - a.f * a.pe).slice(0, 12);
+    const pool = [...new Set([...byV, ...byP, ...byF])].sort((a, b) => b.pe - a.pe);
     const maxF = pool.reduce((m, l) => Math.max(m, l.f), 0), t0 = performance.now();
     const L = [];
     const rec = (start, ch, F) => {
       if (performance.now() - t0 > 900) return;
       if (L.length === n) {
-        const pay = POWER[n] * F; if (pay < S.pay - 1e-9 || (S.minEV && ch * pay < S.minEV) || !valid(L, n)) return;
-        if (!best || ch > best.ch + 1e-9 || (Math.abs(ch - best.ch) < 1e-9 && pay > best.pay)) best = {L: [...L], ch, pay, n};
+        const pay = POWER[n] * F; if (pay < S.pay - 1e-9 || (S.maxPay && pay > S.maxPay + 1e-9) || (S.minEV && ch * pay < S.minEV) || !valid(L, n)) return;
+        top.push({L: [...L], ch, pay, n}); top.sort((a, b) => b.ch - a.ch || b.pay - a.pay); if (top.length > 12) top.pop();
         return;
       }
-      const rem = n - L.length;
+      const rem = n - L.length, floor = top.length >= 12 ? top[top.length - 1].ch : 0;
       for (let i = start; i <= pool.length - rem; i++) {
         const l = pool[i];
-        if (best && ch * Math.pow(l.pe, rem) <= best.ch) break;          // sorted by chance: nothing later can beat it
+        if (floor && ch * Math.pow(l.pe, rem) <= floor) break;           // sorted by chance: nothing later can make the top 12
         if (POWER[n] * F * l.f * Math.pow(maxF, rem - 1) < S.pay - 1e-9) continue;   // can't reach the payout
         if (L.some(x => x.pk.player === l.pk.player)) continue;
         L.push(l); rec(i + 1, ch * l.pe, F * l.f); L.pop();
       }
     };
     rec(0, 1, 1);
+  }
+  if (!top.length) return null;
+  // re-rank the finalists for picks that work AGAINST each other. Correlation may only lower a lineup's chance: on the
+  // simulated league, letting assumed positive links raise it made lineups look ~8 points better than they were.
+  let best = null;
+  for (const c of top) {
+    const cs = c.n >= 2 ? corrSim(c.L.map(l => ({...l, p: l.pe})), 3000) : null, cch = cs ? Math.min(c.ch, cs.d[c.n]) : c.ch;
+    if (!best || cch > best.ch + 1e-9) best = {...c, ch: cch, chInd: c.ch};
   }
   return best;
 }
@@ -1978,7 +2018,7 @@ function renderStyle(){
   if (legs.length < 2) { box.innerHTML = `<p class="note">There aren't enough picks I'd bet on this board yet. Check back closer to game time.</p>`; return; }
   const avoid = new Set(), out = [];
   for (let i = 0; i < 3; i++) { const b = bestForStyle(S, legs, avoid) || (S.minEV ? bestForStyle({...S, minEV: 0}, legs, avoid) : null); if (!b) break; out.push(b); b.L.forEach(l => avoid.add(l.pk.player)); }
-  if (!out.length) { box.innerHTML = `<p class="note">Nothing on tonight's board reaches ${S.pay}× using only picks I'd bet. Try ${k === "big" ? "Balanced" : "Safe"}.</p>`; return; }
+  if (!out.length) { box.innerHTML = `<p class="note">Nothing on tonight's board reaches ${S.pay}×${S.maxPay ? `–${S.maxPay}×` : ""} using only picks without red flags, so I won't make one up.${k === "safe" ? " Lines and injury news usually firm up closer to game time; check back then." : ` Try ${k === "big" || k === "bold" ? "Balanced" : "Safe"}.`}</p>`; return; }
   box.innerHTML = out.map((b, i) => {
     const st = lineupStats(b.L, false), fx = FLEX[b.n] && st.flex > st.power, ev = Math.max(st.power, st.flex);
     const all = st.d[b.n], pay = fx ? st.flexPay : st.powerPay, be = 1 / st.powerPay;
@@ -2102,6 +2142,7 @@ function card(p, i){
   const chips = [p.proj != null ? `Projected ${p.proj}${gp ? ` (${gp > 0 ? "+" : ""}${gp} vs line)` : ""}` : null, h.l5 ? `Last 5: ${h.l5}` : null, h.l10 ? `Last 10: ${h.l10}` : null,
     p.vsN >= 3 ? `vs ${p.opp} ${Math.round((side === "More" ? p.vsMore : p.vsLess) * p.vsN)}/${p.vsN}` : null,
     pickedTxt(p)].filter(Boolean).map(t => `<span class="chip">${esc(t)}</span>`);
+  if (p.lineFrom != null) chips.unshift(`<span class="chip">Line moved ${p.lineFrom} → ${p.line} today</span>`);
   chips.unshift(`<span class="chip ${p.type === "demon" ? "up" : ""}">${p.type === "standard" ? "Pay ×1.00 (standard)" : `Pay ×${legFactor(p).toFixed(2)} (${payTxt(p, true)} roughly)`}</span>`);
   if (ed != null) chips.unshift(`<span class="chip ${ed >= 0.04 ? "up" : ed <= -0.04 ? "dn" : ""}">Needs ${pct(breakeven(p))} · ${ed >= 0 ? "+" : ""}${Math.round(ed * 100)} edge</span>`);
   if (p.buzz) chips.push(`<span class="chip ${p.buzzSent > 0.2 ? "up" : p.buzzSent < -0.2 ? "dn" : ""}">Reddit ${p.buzz}${p.buzzSent > 0.2 ? " ▲" : p.buzzSent < -0.2 ? " ▼" : ""}</span>`);
@@ -3455,7 +3496,7 @@ function slipReplayHTML(){
   const k0 = R.safe.length ? "safe" : Object.keys(R).find(k => R[k].length);
   return `<h4>Replay: the slips Hit Picks would have built</h4>
     <p class="note">For every past day recorded on this device, the best lineup for each style was rebuilt from the ratings exactly as made before the games (real PrizePicks lines), then graded against what happened. $1 per slip, Power Play. Goblin/demon payouts are typical estimates.</p>
-    <table class="trk2">${["safe", "mid", "big"].map(row).join("")}</table>
+    <table class="trk2">${["safe", "mid", "bold", "big"].map(row).join("")}</table>
     <p class="note">${STYLES[k0].name} slips day by day:</p>
     ${R[k0].slice(0, 10).map(d => `<div class="slipc ${d.won ? "won" : "lost"}"><div class="sliph"><b>${d.won ? "Won" : "Lost"}</b><span>${d.day} · ${SPORTS[d.sport]?.label || d.sport} · ${d.n}-pick · ~${d.pay.toFixed(1)}× · predicted ${pct(d.ch)}</span></div>
       ${d.L.map(l => `<div class="slipl">${l.hit ? "✅" : "❌"} ${esc(l.player)} ${l.side === "M" ? "Over" : "Under"} ${l.line} ${esc(l.stat)}${l.type !== "standard" ? ` <small>(${l.type})</small>` : ""} <small>· said ${pct(l.p)}</small></div>`).join("")}</div>`).join("")}`;
@@ -3530,6 +3571,7 @@ async function oppModel(picks, sport){
     const k = Math.min(gs.length, C.rateN);
     let rate = (k * rRecent + 8 * rLong) / (k + 8);   // lighter pull to the long run, so improving young players aren't dragged back
     if (p.ctxF && p.ctxF !== 1) rate *= 1 + 0.4 * (p.ctxF - 1);   // the other 40% of a teammate effect: more shots / touches per minute
+    if (p.defF && p.defF !== 1) rate *= p.defF;                     // opponent defense acts on production per minute
     // ---- 3) how noisy he is beyond minutes (overdispersion): >1 means streakier than a pure-chance stat
     const res = gs.slice(0, 40).map(g => { const mu = rate * g[C.key]; return mu > 0.3 ? (f(g) - mu) ** 2 / mu : null; }).filter(x => x != null);
     const phi = clip(avg(res) ?? 1.5, 1, 6);
@@ -4248,6 +4290,33 @@ async function analyzeNBA(picks){
     f = 1 + (d[0] || 0) + 0.3 * (d[1] || 0) + 0.1 * (d[2] || 0);
     return {f: clip(f, 0.8, 1.4), notes};
   };
+  // OPPONENT DEFENSE: how players do against each team compared with their own average, measured across every
+  // player-game in tonight's loaded logs (past games only). Heavily shrunk toward "average defense", capped ±8%.
+  const DEF = (() => {
+    let off = false; try { off = localStorage.getItem("pp_nodef") === "1"; } catch {}
+    if (off) return {};
+    const K = {PTS: 2, REB: 1, AST: 1, FG3M: 0.5}, acc = {};
+    for (const nm of Object.keys(flat)) {
+      const G = flat[nm].filter(g => g.MIN >= 10 && g.opp); if (G.length < 10) continue;
+      const mMin = G.reduce((a, g) => a + g.MIN, 0) / G.length; if (mMin < 15) continue;
+      for (const c of Object.keys(K)) {
+        const pm = G.reduce((a, g) => a + (g[c] || 0) / g.MIN, 0) / G.length;   // per-minute, so minutes don't leak in
+        for (const g of G) { const o = (acc[g.opp] ||= {})[c] ||= {s: 0, n: 0};
+          o.s += Math.log(((g[c] || 0) + K[c]) / (pm * g.MIN + K[c])); o.n++; }
+      }
+    }
+    const out = {};
+    for (const [opp, cs] of Object.entries(acc)) { out[opp] = {};
+      for (const [c, o] of Object.entries(cs)) out[opp][c] = clip(Math.exp(o.s / o.n * o.n / (o.n + 300)), 0.92, 1.08); }
+    return out;
+  })();
+  const defFor = (p, l) => {
+    const D = DEF[p.opp], comps = STATS[p.stat]; if (!D || !comps || !l) return 1;
+    const G = l.flat().slice(0, 25); if (!G.length) return 1;
+    let num = 0, den = 0;
+    for (const [c, w] of Object.entries(comps)) { const mu = G.reduce((a, g) => a + (g[c] || 0), 0) / G.length * w; const fc = D[c] ?? 1; num += mu * fc; den += mu; }
+    return den > 0 ? clip(num / den, 0.92, 1.08) : 1;
+  };
   let _yk = 0;
   for (const p of picks) {
     if (++_yk % 25 === 0) await yieldUI();
@@ -4256,7 +4325,10 @@ async function analyzeNBA(picks){
     p.found = !r.missing; p.statSrc = r.src;
     const cx = STATS[p.stat] ? ctxFor(p.player, p.team, p.stat) : {f: 1, notes: []};
     p.ctxF = cx.f; p.ctxNotes = cx.notes;
-    if (l && l.flat().length) scoreStats(p, l, depth, cx.f);
+    p.defF = l && l.flat().length ? defFor(p, l) : 1;
+    if (Math.abs(p.defF - 1) >= 0.03) p.ctxNotes = [...(p.ctxNotes || []), {dir: p.defF > 1 ? 1 : -1, size: Math.abs(p.defF - 1) * 0.5,
+      t: `${p.opp}'s defense ${p.defF > 1 ? "gives up" : "holds players to"} about ${Math.round(Math.abs(p.defF - 1) * 100)}% ${p.defF > 1 ? "more" : "less"} than usual in this stat`}];
+    if (l && l.flat().length) scoreStats(p, l, depth, cx.f * p.defF);
     p.inj = inj[norm(p.player)] || null;
     p.teammatesOut = (outByTeam[p.team] || []).filter(n => norm(n) !== norm(p.player));
     const nm = norm(p.player);

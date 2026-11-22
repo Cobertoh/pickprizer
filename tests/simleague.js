@@ -35,14 +35,16 @@ function makeLeague(seed){
 function playSeason(seed,players,S){
   const r=mulberry(seed*7+1),slots=[];const form={},outLeft={};for(const p of players){form[p.id]=1;outLeft[p.id]=0}
   const str={};for(const t of TEAMS)str[t]=gauss(r)*4;
+  // team defenses (only when DEF=1, so earlier runs stay comparable): ~±4% on what opponents produce
+  const dr=mulberry(seed*31+5),DEFS={};for(const t of TEAMS)DEFS[t]=process.env.DEF==='1'?{PTS:Math.exp(0.04*gauss(dr)),REB:Math.exp(0.035*gauss(dr)),AST:Math.exp(0.04*gauss(dr)),FG3:Math.exp(0.05*gauss(dr))}:{PTS:1,REB:1,AST:1,FG3:1};
   for(let s=0;s<S;s++){
     const pairs=[];const order=[...TEAMS];const k=s%9;const rot=[order[0],...order.slice(1).slice(k),...order.slice(1).slice(0,k)];
     for(let i=0;i<5;i++)pairs.push([rot[i],rot[9-i]]);
     // pre-game known info: who is out, today's true form
     const out=new Set();
     for(const p of players){form[p.id]=1+0.85*(form[p.id]-1)+0.025*gauss(r);if(outLeft[p.id]>0){outLeft[p.id]--;out.add(p.id)}else if(r()<p.injP){outLeft[p.id]=Math.floor(r()*4);out.add(p.id)}}
-    const ctx={pairs,out:new Set(out),form:{...form},spread:{}};
-    for(const [a,b] of pairs){ctx.spread[a]=str[a]-str[b];ctx.spread[b]=str[b]-str[a]}
+    const ctx={pairs,out:new Set(out),form:{...form},spread:{},oppDef:{}};
+    for(const [a,b] of pairs){ctx.spread[a]=str[a]-str[b];ctx.spread[b]=str[b]-str[a];ctx.oppDef[a]=DEFS[b];ctx.oppDef[b]=DEFS[a]}
     ctx.box=simSlot(r,players,ctx);slots.push(ctx);
   }
   return slots;
@@ -56,10 +58,10 @@ function teamAdj(players,ctx,t){ // how much a team's missing stars shift minute
 function oneGame(r,p,ctx,adj){
   const blow=Math.abs(ctx.spread[p.team]||0)>6&&r()<0.35||r()<0.08;
   let m=p.min+Math.min(6,adj.minBoost*0.8)+p.minSd*gauss(r);if(blow&&p.starter)m-=6+r()*4;if(blow&&!p.starter)m+=4;
-  m=Math.max(0,Math.min(44,m));const f=ctx.form[p.id];
+  m=Math.max(0,Math.min(44,m));const f=ctx.form[p.id];const D=(ctx.oppDef&&ctx.oppDef[p.team])||{PTS:1,REB:1,AST:1,FG3:1};
   const use=adj.useBoost*f;
-  const FGA=pois(r,p.fga*m*use*gam(r,8)),A3=binom(r,FGA,p.p3s),M3=binom(r,A3,p.p3),M2=binom(r,FGA-A3,p.p2),FTA=pois(r,p.fta*m*use*gam(r,4)),FTM=binom(r,FTA,p.pft);
-  const REB=pois(r,p.reb*m*f*gam(r,6)),AST=pois(r,p.ast*m*(0.5+0.5*use)*gam(r,6)),STL=pois(r,p.stl*m),BLK=pois(r,p.blk*m),TOV=pois(r,p.tov*m*use),PF=pois(r,p.pf*m);
+  const FGA=pois(r,p.fga*m*use*D.PTS*gam(r,8)),A3=binom(r,FGA,Math.min(0.95,p.p3s*D.FG3)),M3=binom(r,A3,p.p3),M2=binom(r,FGA-A3,p.p2),FTA=pois(r,p.fta*m*use*D.PTS*gam(r,4)),FTM=binom(r,FTA,p.pft);
+  const REB=pois(r,p.reb*m*f*D.REB*gam(r,6)),AST=pois(r,p.ast*m*(0.5+0.5*use)*D.AST*gam(r,6)),STL=pois(r,p.stl*m),BLK=pois(r,p.blk*m),TOV=pois(r,p.tov*m*use),PF=pois(r,p.pf*m);
   return {MIN:Math.round(m),FGM:M2+M3,FGA,FG3M:M3,FG3A:A3,FTM,FTA,REB,AST,STL,BLK,TOV,PF,PTS:2*M2+3*M3+FTM};
 }
 function simSlot(r,players,ctx){const box={};const adj={};for(const t of TEAMS)adj[t]=teamAdj(players,ctx,t);

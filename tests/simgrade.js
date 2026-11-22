@@ -24,6 +24,6 @@ for(const c of ['BET','LEAN BET','SAFE LEG','SMALL PLAY','PASS']){const x=P.filt
   console.log(`  ${c.padEnd(10)} n=${String(x.length).padStart(6)} engine ${f(x.reduce((s,p)=>s+p.e,0)/x.length)} TRUE ${f(x.reduce((s,p)=>s+p.tr,0)/x.length)} actual ${f(h.reduce((s,p)=>s+p.hit,0)/h.length)}`)}
 // lineups
 console.log('\nHIT PICKS lineups (top lineup per style per day):');
-for(const k of ['safe','mid','big']){const L=R.map(d=>d.lus[k]&&d.lus[k][0]).filter(Boolean);if(!L.length)continue;
+for(const k of ['safe','mid','bold','big']){const L=R.map(d=>d.lus[k]&&d.lus[k][0]).filter(Boolean);if(!L.length)continue;
   let pe=0,tr=0,won=0,ret=0,pay=0;for(const lu of L){pe+=lu.ch;const t=lu.legs.reduce((s,l)=>s*(l.side==='More'?l.t.pOver:l.t.pUnder),1);tr+=t;const w=lu.legs.every(l=>l.side==='More'?l.t.actual>l.t.line:l.t.actual<l.t.line);won+=w;ret+=w?lu.pay:0;pay+=lu.pay}
   console.log(`  ${k.padEnd(5)} ${L.length} days · avg pays ${(pay/L.length).toFixed(1)}x · engine says ${f(pe/L.length)}% · TRUE ${f(tr/L.length)}% · won ${won}/${L.length} · $${L.length} in -> $${ret.toFixed(1)} back · true EV/$ ${(L.reduce((s,lu)=>s+lu.pay*lu.legs.reduce((a,l)=>a*(l.side==='More'?l.t.pOver:l.t.pUnder),1),0)/L.length).toFixed(2)}`)}
