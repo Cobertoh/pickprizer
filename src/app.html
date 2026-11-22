@@ -1274,7 +1274,7 @@ function trackUpdate(sport, picks){
     if (!have.has(k)) { have.add(k); rows.push(r); }
   }
   trackSave(sport, rows);
-  if (newlyGraded.length) { shareGraded(sport, newlyGraded); delete LEARN[sport]; }
+  if (newlyGraded.length) { shareGraded(sport, newlyGraded); delete LEARN[sport]; delete SEG[sport]; }
 }
 // ---------- MY SLIPS: the slips the user actually played, graded automatically, compared with what the app predicted
 function slipsLoad(){ try { return JSON.parse(localStorage.getItem("pp_slips") || "[]"); } catch { return []; } }
@@ -3304,7 +3304,9 @@ const LEARN = {};
 const SEG = {};
 function segGap(sport, key){
   const T = SEG[sport] ||= (() => {
-    const t = {}, add = (k, r) => { (t[k] ||= {n: 0, pr: 0, h: 0}); t[k].n++; t[k].pr += r[7]; t[k].h += r[6]; };
+    // measure each kind's miss AFTER the overall calibration (learnAdj) has already corrected it, so the same
+    // misses are never subtracted twice; only what's special about this kind of pick is left
+    const t = {}, add = (k, r) => { (t[k] ||= {n: 0, pr: 0, h: 0}); t[k].n++; t[k].pr += learnAdj(sport, r[7]); t[k].h += r[6]; };
     for (const r of trackLoad(sport)) if (r[6] != null && r[7] != null) {
       // learn per side AND pick type: deep goblins missing shouldn't drag down standards and demons
       const side = r[3], ty = r[11] || "standard"; add("side|" + side + "|" + ty, r);
@@ -3313,7 +3315,7 @@ function segGap(sport, key){
     return t;
   })();
   const x = T[key]; if (!x || x.n < 15) return 0;
-  return clip((x.h - x.pr) / x.n * x.n / (x.n + 40), -0.25, 0.1);
+  return clip((x.h - x.pr) / x.n * x.n / (x.n + 40), -0.12, 0.08);
 }
 function segAdjust(p){
   if (p.pMore == null || p.live) return;
@@ -3338,7 +3340,7 @@ function learnAdj(sport, p){
 }
 async function loadSharedTrack(){
   if (!IS_WEB) return;
-  try { const r = await tFetch("/track", {}, 6000); if (r.ok) { SHARED_TRACK = await r.json(); for (const k in LEARN) delete LEARN[k]; } } catch {}
+  try { const r = await tFetch("/track", {}, 6000); if (r.ok) { SHARED_TRACK = await r.json(); for (const k in LEARN) delete LEARN[k]; for (const k in SEG) delete SEG[k]; } } catch {}
 }
 function shareGraded(sport, rows){
   if (!IS_WEB || !rows.length) return;
@@ -3663,7 +3665,7 @@ function packRated(sport){
       const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
       if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
     }
-    return JSON.stringify({v: 12, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+    return JSON.stringify({v: 13, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
   } catch (e) { console.warn("couldn't save ratings", e); return null; }
 }
 function unpackRated(js){
@@ -3680,7 +3682,7 @@ async function loadRated(sport){
   const got = [];
   const mine = await IDB.get("rated:" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
   if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
-  return got.filter(j => j && j.v === 12 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+  return got.filter(j => j && j.v === 13 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
 }
 const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
 async function quickStart(force){
