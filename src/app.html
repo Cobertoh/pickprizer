@@ -782,8 +782,8 @@ function renderHome(){
   <section class="hsect">
     <h2 class="mid">Understanding <span>the grades</span></h2>
     <div class="legend2">
-      <span class="grd ap">A+</span><b>Top pick</b><span>7+ in 10, nothing against it, and pays big</span>
-      <span class="grd a">A</span><b>Top pick</b><span>7+ in 10, nothing against it, pays well</span>
+      <span class="grd ap">A+</span><b>Top pick</b><span>Likely, no red flags, and pays clearly more than it risks</span>
+      <span class="grd a">A</span><b>Top pick</b><span>Likely, no red flags, and pays enough to come out ahead</span>
       <span class="grd s">A−</span><b>Safe leg</b><span>Very likely, but pays little</span>
       <span class="grd b">B</span><b>Decent</b><span>About 6 in 10, or 7+ with a warning</span>
       <span class="grd c">C</span><b>Coin-flip range</b><span>About 5 in 10</span>
@@ -1426,7 +1426,28 @@ function swingyShrink(p){
   const k = p.line <= 0.5 ? 0.7 : 0.8;
   p.pMore = 0.5 + k * (p.pMore - 0.5); if (p.pLess != null) p.pLess = 0.5 + k * (p.pLess - 0.5);
 }
+// MARKET ANCHOR (beats the winner's curse). PrizePicks sets lines close to the truth, so when the engine disagrees
+// hugely with a line it is usually the engine that's wrong, and the picks that LOOK best are mostly the ones it
+// overestimated. Final chance = the market's own chance for that line + part of the engine's disagreement.
+// The weight was measured on a simulated league with known true odds (see the test notes in the repo).
+const MKT_W = {standard: 0.6, goblin: 0.6, demon: 0.45};
+function marketChance(p, std){   // PrizePicks' implied chance of MORE for this line (standard line = coin flip)
+  if (p.type === "standard" || !std || std.line == null) return p.type === "standard" ? 0.5 : null;
+  // 20% wider than the game-log bell curve: blowouts, foul trouble and early exits give goblins a fatter left tail
+  const sd = 1.2 * Math.max(0.8, std.sd || 0.28 * std.line);
+  return clip(phi((std.line - p.line) / sd), 0.03, 0.97);
+}
+function anchorToMarket(p, std){
+  if (p.live || p.pMore == null || p.pMore >= 0.99) return;
+  const m = marketChance(p, std); if (m == null) return;
+  let w = MKT_W[p.type] ?? 0.6; try { const o = +localStorage.getItem("pp_mw"); if (o > 0 && o <= 1) w = o; } catch {}
+  const raw = p.pMore; p.mkt = +m.toFixed(3);
+  p.pMore = clip(m + w * (p.pMore - m), 0.03, 0.95);
+  if (p.pLess != null) p.pLess = clip((1 - m) + w * (p.pLess - (1 - m)), 0.03, 0.95);
+  p.mktShift = +(p.pMore - raw).toFixed(3);
+}
 function finalize(picks){
+  const stdOf = {}; for (const q of picks) if (q.type === "standard") stdOf[q.player + "|" + q.stat] = q;
   const trend = picks.map(p => p.trending).filter(t => t != null).sort((a, b) => a - b);
   for (const p of picks) {
     const crowd = 0.03 * (p.buzzSent || 0) * Math.min(1, (p.buzz || 0) / 5);
@@ -1441,7 +1462,7 @@ function finalize(picks){
     const done = p.liveCur != null && p.liveCur > p.line;   // live and already past the line
     p.pMore = bm == null ? null : done ? 0.99 : clip(learnAdj(p.sport, bm + crowd + tr), 0.03, 0.9);   // never claim more than 90%: injuries, blowouts and foul trouble exist
     p.pLess = p.type !== "standard" || bl == null ? null : done ? 0.01 : clip(learnAdj(p.sport, bl - crowd), 0.03, 0.9);
-    if (!p.live && p.pMore != null && p.pMore < 0.99) { realityCheck(p); liftStrong(p, bm, bl, crowd, tr); swingyShrink(p); segAdjust(p); }
+    if (!p.live && p.pMore != null && p.pMore < 0.99) { realityCheck(p); liftStrong(p, bm, bl, crowd, tr); swingyShrink(p); segAdjust(p); anchorToMarket(p, stdOf[p.player + "|" + p.stat]); }
     let conf = p.mMore != null && p.games >= 15 ? "High" : (p.games >= 8 || p.mMore != null) ? "Med" : "Low";
     if (p.inj && /question|day|doubt/i.test(p.inj.status)) conf = "Low";
     p.conf = p.pMore == null ? "" : conf;
@@ -1712,7 +1733,7 @@ function betPanel(){
       : `<label class="fl">Payout<span class="xin"><input type="number" inputmode="decimal" id="multIn" min="1.5" step="any" value="${esc(m)}" placeholder="10"><i>×</i></span></label>`}
     <label class="fl">Picks<select id="npIn">${["", "2", "3", "4", "5", "6"].map(v => `<option value="${v}" ${store.get("npicks", "") === v ? "selected" : ""}>${v || "Best"}</option>`).join("")}</select></label>
     <label class="fl">Entries<input type="number" inputmode="numeric" id="entriesIn" min="1" max="20" step="1" value="${esc(en)}"></label></div>
-    <div class="frow"><label class="fl">Use only<select id="cconfIn">${[["", "Any rating"], ["god", "👑 Top picks (7 in 10+)"], ["g", "🟢 Strong only"], ["gy", "🟢 + 🟡"], ["top", "⭐ Top picks"], ["safe", "Safe picks"], ["value", "Value picks"]].map(([v, t]) => `<option value="${v}" ${store.get("cconf", "") === v ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
+    <div class="frow"><label class="fl">Use only<select id="cconfIn">${[["", "Any rating"], ["god", "👑 Top picks only"], ["g", "🟢 Strong only"], ["gy", "🟢 + 🟡"], ["top", "⭐ Top picks"], ["safe", "Safe picks"], ["value", "Value picks"]].map(([v, t]) => `<option value="${v}" ${store.get("cconf", "") === v ? "selected" : ""}>${t}</option>`).join("")}</select></label></div>
     <div class="tpills">${["goblin", "standard", "demon"].map(t => `<button type="button" class="tpill ${t} ${ptypeOn(t) ? "on" : ""}" data-pt="${t}" aria-pressed="${ptypeOn(t)}">${t === "goblin" ? "Goblins" : t === "demon" ? "Demons" : "Standard"}</button>`).join("")}</div>
     <button type="submit" class="pri wide">Build my lineup</button></form>`;
 }
@@ -1919,7 +1940,7 @@ const STYLES = {
 };
 function styleLegs(){
   // eligible = the number can be trusted: no red flag at all (the only thing allowed "against" it is being under 70%)
-  return buildLegs().filter(l => { if (l.side !== l.pk.best || l.pk.live || l.pe < 0.55) return false; const b = godBlock(l.pk); return b === null || b === "under 7 in 10"; });
+  return buildLegs().filter(l => l.side === l.pk.best && !l.pk.live && l.pe >= 0.55 && godBlock(l.pk) === null);
 }
 function bestForStyle(S, legs, avoid){
   let best = null;
@@ -2107,9 +2128,12 @@ function payTxt(p, short){
 // ---------- GRADES. A Top pick is a pick we'd expect to hit at least 7 times in 10, with nothing serious against it
 // and his recent games agreeing. Grades come from the calibrated chance, so an A+ should hit 8+ in 10 over time.
 const probOf = p => (p.best === "More" ? p.pMore : p.pLess);
-function godBlock(p){   // why a 70%+ pick is NOT a Top pick (null = it is one)
-  const prob = probOf(p), side = p.best;
-  if (prob == null || prob < 0.7) return "under 7 in 10";
+function godBlock(p){   // a RED FLAG that keeps a pick out of Top picks and lineups (null = clean)
+  // Tested on a simulated league with known true odds: these flags matter in real life (late news, injuries,
+  // role changes). "Cold last 10" and "recent games disagree" were dropped as blockers: they already lower the
+  // chance itself (reality check), and blocking on top of that punished the same thing twice.
+  const side = p.best;
+  if (probOf(p) == null) return "not rated";
   if (p.lineOnly || p.games < 8) return "too few games to trust";
   if (isSwingy(p)) return "all-or-nothing stat";
   if (p.best === "Less" && segGap(p.sport, "side|L" + (ENGINE() === "nov20" ? "" : "|" + p.type)) <= -0.08) return "unders have been missing lately";
@@ -2119,9 +2143,6 @@ function godBlock(p){   // why a 70%+ pick is NOT a Top pick (null = it is one)
   if (p.trap) return "line far from his average";
   if (p.oppHard && side === "More") return "small role for this line";
   if (p.verdict?.c === "r") return "flagged as risky";
-  if (Math.abs(p.realityShift || 0) >= 0.05) return "his recent games disagree";
-  const h = p.hits ? p.hits(side) : null, [a, b] = String(h?.l10 || "").split("/").map(Number);
-  if (b >= 5 && a / b < 0.6) return `only ${a}/${b} lately`;
   if ((p.ctxNotes || []).some(n => (n.dir === 1 || n.dir === -1) && (n.dir > 0) !== (side === "More") && (n.size || 0) >= 0.06)) return "a teammate change points the other way";
   return null;
 }
@@ -2129,16 +2150,37 @@ function godBlock(p){   // why a 70%+ pick is NOT a Top pick (null = it is one)
 // that cuts the payout to ×0.47 = 0.45 (safe but pays pennies); a demon at 72% that adds ×1.6 = 1.15 (the real prize).
 const valueOf = p => { const pr = probOf(p); return pr == null ? 0 : pr * legFactor(p); };
 const passesChecks = p => !p.live ? godBlock(p) === null : probOf(p) >= 0.9;
-// A Top pick passes every check (7 in 10 minimum, nothing against it) AND pays at least like a 70% standard.
+// What a pick needs to come out ahead: in a 2-pick Power Play (3×) each pick must hit 57.7% (value 0.577).
+const BREAKEVEN_V = 0.577;
+// (see TOP PICK rule below)
 // High goblins count (a shallow goblin at 85% that keeps ×0.75+ of the payout); deep "can't miss" goblins don't.
-const isGod = p => passesChecks(p) && legFactor(p) >= 0.7 && valueOf(p) >= 0.62;
-const isSafeLeg = p => passesChecks(p) && !isGod(p);
+// TOP PICK = clean (no red flag), likely (58%+), not a deep goblin, and pays enough to clearly come out ahead
+// (value 0.60+, i.e. comfortably past the 0.577 break-even). On the simulated league these were ~6/day and
+// truly hit ~60% while paying enough to profit; the old "70%+" rule found none on most days.
+// TOP PICK (tested on two simulated leagues with known true odds): no red flag, not a deep goblin, and BOTH of the
+// engine's independent methods (opportunity model and game history) say 58%+ on their own. Ranked by that more
+// cautious number × payout. Picks that only look great because one method is excited were mostly overestimates.
+const bothSay = p => { const o = p.best === "More" ? p.oMore : p.oLess, h = p.best === "More" ? p.hMore : p.hLess;
+  return o != null && h != null ? Math.min(o, h) : null; };
+const trustV = p => { const b = bothSay(p); return (b ?? probOf(p) ?? 0) * legFactor(p); };
+const godEligible = p => passesChecks(p) && !p.live && legFactor(p) >= 0.7 && probOf(p) >= 0.56 &&
+  (bothSay(p) != null ? bothSay(p) >= 0.58 && trustV(p) >= 0.58 : probOf(p) >= 0.58 && valueOf(p) >= 0.6);
+// Only the best TOP_N per board make it: in testing, ~150 picks/day clear the bar, but the best 8 by the cautious
+// value truly hit ~61% (break-even is 57.7%), while the borderline ones barely beat a coin flip.
+const TOP_N = 8, TOPSETS = new WeakMap();
+function topSet(sport){
+  const arr = (DATA[sport] || CLASSIFY_PICKS[sport])?.picks; if (!arr) return new Set();
+  let t = TOPSETS.get(arr); if (t) return t;
+  t = new Set(arr.filter(godEligible).sort((a, b) => trustV(b) - trustV(a)).slice(0, TOP_N)); TOPSETS.set(arr, t); return t;
+}
+const isGod = p => (p.live && probOf(p) >= 0.9) || (!p.live && topSet(p.sport).has(p));
+const isSafeLeg = p => passesChecks(p) && !isGod(p) && probOf(p) >= 0.72;
 function gradeOf(p){
   const prob = probOf(p); if (prob == null) return {g: "–", c: "n", t: "Not rated"};
-  if (isGod(p)) return valueOf(p) >= 0.85 ? {g: "A+", c: "ap", t: "Top pick: likely AND pays well"} : {g: "A", c: "a", t: "Top pick"};
+  if (isGod(p)) return trustV(p) >= 0.63 ? {g: "A+", c: "ap", t: "Top pick: likely AND pays well"} : {g: "A", c: "a", t: "Top pick"};
   if (isSafeLeg(p)) return {g: "A−", c: "s", t: "Safe, but pays little"};
-  const capped = p.verdict?.c === "r" ? Math.min(prob, 0.55) : prob;
-  return capped >= 0.6 ? {g: "B", c: "b", t: "Decent"} : capped >= 0.5 ? {g: "C", c: "c", t: "Coin-flip range"} : {g: "D", c: "d", t: "Skip"};
+  if (godBlock(p)) return prob >= 0.5 ? {g: "C", c: "c", t: "Has a red flag"} : {g: "D", c: "d", t: "Skip"};
+  return valueOf(p) >= BREAKEVEN_V && prob >= 0.55 ? {g: "B", c: "b", t: "Playable"} : prob >= 0.5 ? {g: "C", c: "c", t: "Coin-flip range"} : {g: "D", c: "d", t: "Skip"};
 }
 const inTen = x => `${Math.max(1, Math.min(9, Math.round(x * 10)))} in 10`;
 const gradeBadge = p => { const g = gradeOf(p); return `<span class="grd ${g.c}" title="${esc(g.t)}">${g.g}</span>`; };
@@ -2181,17 +2223,17 @@ function callOf(p, side){
   const df = Math.abs(legFactor(p) - 1).toFixed(1);
   const gob = p.type === "goblin" ? ` Good as a safe leg, but it cuts the payout by about ${df}×.` : p.type === "demon" ? ` Bonus: it adds about ${df}× to the payout.` : "";
   if (p.live && prob >= 0.9) return {c: "bet", lab: "BET", txt: `He's already on pace live. ${why}`.trim()};
-  if (blk === null && !isGod(p)) return {c: "lean", lab: "SAFE LEG", txt: `Very likely to hit (${pct(prob)}), but it pays little: it cuts the payout to ×${legFactor(p).toFixed(2)}. Use it to steady a lineup, not as your main bet.`};
-  if (blk === null && (prob >= 0.78 || (p.type === "demon" && prob >= 0.72))) return {c: "bet", lab: "BET", txt: `${p.type === "demon" ? "I'd bet it. This is the kind of demon that looks too good to be true, but it checks out." : "I'd bet it."} ${why}${wo ? ` Only thing to watch: ${wo}.` : " Nothing in the news, lineup or matchup worries me."}${gob}`};
-  if (blk === null) return {c: "lean", lab: "LEAN BET", txt: `I'd play it, but it's not a lock (about ${inTen(prob)}). ${why}${wo ? ` Watch: ${wo}.` : ""}${gob}`};
-  if (blk === "under 7 in 10" && prob >= 0.64 && ed >= 0.06 && p.verdict?.c !== "r")
-    return {c: "lean", lab: "SMALL PLAY", txt: `Only ${pct(prob)}, so I wouldn't lean on it, but it beats what the payout needs (${pct(breakeven(p))}). Fine as a filler leg.${gob}`};
-  const reason = blk === "under 7 in 10" ? (prob < 0.56 ? `it's close to a coin flip (${pct(prob)})` : `about ${inTen(prob)} isn't safe enough`) : /^only /.test(blk) ? `he's only ${blk.slice(5)} on this side` : (BLOCK_TXT[blk] || blk);
-  return {c: "pass", lab: "PASS", txt: `I'd pass: ${reason}.${prob >= 0.7 ? ` The ${pct(prob)} looks good on paper, but I don't trust it.` : ""}`};
+  const v = valueOf(p);
+  if (blk) return {c: "pass", lab: "PASS", txt: `I'd pass: ${BLOCK_TXT[blk] || blk}.${prob >= 0.7 ? ` The ${pct(prob)} looks good on paper, but I don't trust it.` : ""}`};
+  if (isGod(p) && (trustV(p) >= 0.62 || (p.type === "demon" && prob >= 0.6))) return {c: "bet", lab: "BET", txt: `${p.type === "demon" ? "I'd bet it. A demon this likely is rare, and it checks out." : "I'd bet it."} Hits about ${inTen(prob)} and pays enough to come out ahead (a 2-pick only needs 58% per pick). ${why}${wo ? ` Only thing to watch: ${wo}.` : ""}${gob}`.trim()};
+  if (isGod(p)) return {c: "lean", lab: "LEAN BET", txt: `I'd play it. About ${inTen(prob)}, and it pays enough to come out ahead over time, just not by much. ${why}${wo ? ` Watch: ${wo}.` : ""}${gob}`.trim()};
+  if (isSafeLeg(p)) return {c: "lean", lab: "SAFE LEG", txt: `Very likely to hit (${pct(prob)}), but it pays little: it cuts the payout to ×${legFactor(p).toFixed(2)}. Use it to steady a lineup, not as your main bet.`};
+  if (v >= BREAKEVEN_V && prob >= 0.55) return {c: "lean", lab: "SMALL PLAY", txt: `About ${pct(prob)}. Slightly better than what the payout needs, so it's fine as a filler leg, but not one to lean on.${gob}`};
+  return {c: "pass", lab: "PASS", txt: `I'd pass: ${prob < 0.56 ? `it's close to a coin flip (${pct(prob)})` : `at ${pct(prob)} it doesn't pay enough to come out ahead`}.`};
 }
 const callBadge = p => { const k = callOf(p); return `<span class="call ${k.c}">${k.lab}</span>`; };
 function godList(list, type){
-  return list.filter(p => isGod(p) && (!type || p.type === type)).sort((a, b) => valueOf(b) - valueOf(a) || probOf(b) - probOf(a));
+  return list.filter(p => isGod(p) && (!type || p.type === type)).sort((a, b) => trustV(b) - trustV(a) || probOf(b) - probOf(a));
 }
 function godRow(p, i){
   const prob = probOf(p);
@@ -2219,9 +2261,9 @@ function godLineup(list){
 }
 function heldBackTxt(list){
   const c = {}; let n = 0;
-  for (const p of list) { if ((probOf(p) || 0) < 0.7 || p.live) continue; const b = godBlock(p); const k = b === null ? (legFactor(p) < 0.7 ? "pays too little (deep goblin)" : null) : /^only /.test(b) ? "recent games too cold" : b; if (!k) continue; c[k] = (c[k] || 0) + 1; n++; }
+  for (const p of list) { if ((probOf(p) || 0) < 0.62 || p.live) continue; const b = godBlock(p); const k = b === null ? (legFactor(p) < 0.7 ? "pays too little (deep goblin)" : null) : b; if (!k) continue; c[k] = (c[k] || 0) + 1; n++; }
   if (!n) return "";
-  return `<p class="gmore">${n} picks were 70%+ but held back: ${Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `${v} ${k}`).join(", ")}.</p>`;
+  return `<p class="gmore">${n} picks were 62%+ but held back: ${Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `${v} ${k}`).join(", ")}.</p>`;
 }
 function godHTML(list, opts = {}){
   const cats = [["demon", "Demons"], ["standard", "Standard"], ["goblin", "Goblins"]].map(([t, lab]) => [lab, godList(list, t)]);
@@ -2229,16 +2271,16 @@ function godHTML(list, opts = {}){
   if (!total) {
     const near = list.filter(p => p.verdict && !p.lineOnly && ["bet", "lean"].includes(callOf(p).c) && callOf(p).lab !== "SAFE LEG").sort((a, b) => valueOf(b) - valueOf(a));
     const uniq = near.filter((p, i) => near.findIndex(q => q.player === p.player) === i).slice(0, 5);
-    return `<div class="godbox"><div class="ghd">👑 Top picks<small>7 in 10 or better and worth the payout</small></div>${uniq.length
-      ? `${heldBackTxt(list)}<p class="note">No Top picks on this board yet. These are the best plays I'd still make, best value first:</p>${uniq.map((p, i) => godRow(p, i + 1)).join("")}`
+    return `<div class="godbox"><div class="ghd">👑 Top picks<small>Likely enough AND paying enough to come out ahead</small></div>${uniq.length
+      ? `${heldBackTxt(list)}<p class="note">No Top picks on this board yet. These are the next best plays, best value first:</p>${uniq.map((p, i) => godRow(p, i + 1)).join("")}`
       : `<p class="note">No Top picks on this board, and nothing else I'd put money on either. Check back closer to game time, when injury news and lines settle.</p>`}</div>`;
   }
   const lus = opts.lineup ? godLineup(list) : [];
-  return `<div class="godbox"><div class="ghd">👑 Top picks<small>${total} pick${total > 1 ? "s" : ""} that hit 7 in 10+ AND pay well, best value first</small></div>
+  return `<div class="godbox"><div class="ghd">👑 Top picks<small>${total} pick${total > 1 ? "s" : ""} likely enough AND paying enough to come out ahead, best first</small></div>
     ${opts.lineup && !lus.length ? `<p class="gmore">No lineup made only of Top picks has a solid chance and a real payout right now. Hit Picks can build one that mixes in the next-best picks.</p>` : ""}
     ${lus.map(u => `<div class="glu"><div class="gluh"><b>${u.L.length}-pick Top-pick lineup</b><span>pays about ${u.pay.toFixed(1)}× · all hit about <b>${inTen(u.ch)}</b> nights (${pct(u.ch)})</span></div>${u.L.map(p => `<div class="glul" data-pk="${esc(p.sport + "|" + p.id)}">${gradeBadge(p)} ${esc(p.player)} · ${p.best === "More" ? "Over" : "Under"} ${p.line} ${esc(p.stat)}</div>`).join("")}</div>`).join("")}
     ${cats.filter(([, l]) => l.length).map(([lab, l]) => `<h3 class="gcat">${lab} <small>${l.length}</small></h3>${l.filter((p, i) => l.findIndex(q => q.player === p.player) === i).slice(0, per).map((p, i) => godRow(p, i + 1)).join("")}${l.length > per ? `<p class="gmore">+${l.length - per} more ${lab.toLowerCase()} Top picks in All picks</p>` : ""}`).join("")}
-    <p class="gfine">Ranked by value: chance × payout. A demon that hits 7½ in 10 beats a goblin that hits 9½ but pays pennies. Safe low-paying goblins are still in All picks, marked A− "safe leg". Estimates from real games, not guarantees: even an A+ misses some nights.</p></div>`;
+    <p class="gfine">Ranked by value: chance × payout. A pick only has to hit 58% in a 2-pick to come out ahead, so a 64% standard is a strong bet, while a 95% goblin that pays pennies isn't. Safe low-paying goblins are still in All picks, marked A− "safe leg". Estimates from real games, not guarantees: even an A+ misses some nights.</p></div>`;
 }
 function edgeOf(p){ const prob = (p.best === "More" ? p.pMore : p.pLess); return prob == null ? null : prob - breakeven(p); }
 function betScore(p){
@@ -3514,6 +3556,7 @@ async function oppModel(picks, sport){
     p.opp2 = {mProj: +mProj.toFixed(1), m5: +m5.toFixed(1), m15: +m15.toFixed(1), rate: +rate.toFixed(3), phi: +phi.toFixed(2), mean: +mean.toFixed(1), med: q(0.5), p10: q(0.1), p90: q(0.9), notes, risks};
     // ---- 6) blend with the history model (the simulation leads; history keeps it honest)
     const W = oppW(sport);   // engine vs history mix, tuned by the replay test
+    p.oMore = oMore; p.hMore = p.sMore; p.oLess = oLess; p.hLess = p.sLess;   // each method's own answer (agreement = trust)
     p.sMore = clip(W * oMore + (1 - W) * p.sMore, 0.01, 0.99);
     if (p.sLess != null) p.sLess = clip(W * oLess + (1 - W) * p.sLess, 0.01, 0.99);
     p.proj = +(W * mean + (1 - W) * (p.proj ?? mean)).toFixed(1);
@@ -3535,7 +3578,9 @@ const FB_OPP = [
   [/^pass completions$/i, g => g.passAtt, g => g.passCmp, "binom", "pass attempts"],
   [/^rush\+rec yds$/i, g => g.rushAtt == null && g.tgt == null ? null : (g.rushAtt || 0) + (g.tgt || 0), g => g.rushYds == null && g.recYds == null ? null : (g.rushYds || 0) + (g.recYds || 0), "yards", "touches"],
 ];
-const oppW = sport => { const v = +(localStorage.getItem("pp_oppw_" + sport) || NaN); return isNaN(v) ? 0.6 : clip(v, 0, 1); };
+// Fixed 40% opportunity / 60% history. Tested against a simulated league with known true odds: 40/60 tracked the
+// truth best, 100/0 was worst. The replay used to auto-tune this on rebuilt (not real) lines, which drifted to 100/0.
+const oppW = sport => 0.4;
 function fbDist(gs, O, F, kind){   // gs: games newest first, all BEFORE the game being predicted
   const rows = gs.map(g => [O(g), F(g)]).filter(([o, v]) => o != null && v != null && o >= 0);
   if (rows.length < 4) return null;
@@ -3658,7 +3703,7 @@ function replayHTML(){
   if (!rs.length) return `<h4>Replay of past games</h4><p class="note">Runs automatically after a sport's picks load: every player's last 15 games are re-predicted using only what was known before each game.</p>`;
   return `<h4>Replay of past games</h4>` + rs.map(r => `<p class="body"><b>${esc(SPORTS[r.sport]?.label || r.sport)}</b>: ${r.n.toLocaleString()} past predictions (${r.players} player-stats).
     When it leaned 60%+ one way it was right <b>${r.acc60 != null ? pct(r.acc60) : "–"}</b> (${r.n60}); at 70%+, <b>${r.acc70 != null ? pct(r.acc70) : "–"}</b> (${r.n70}).
-    Best mix: ${Math.round(r.best.w * 100)}% opportunity engine / ${Math.round((1 - r.best.w) * 100)}% history${r.engine && r.hist ? ` (engine alone error ${r.engine.ll.toFixed(3)}, history alone ${r.hist.ll.toFixed(3)}, mix ${r.best.ll.toFixed(3)}; lower is better)` : ""}. Now in use.</p>
+    Best mix: ${Math.round(r.best.w * 100)}% opportunity engine / ${Math.round((1 - r.best.w) * 100)}% history${r.engine && r.hist ? ` (engine alone error ${r.engine.ll.toFixed(3)}, history alone ${r.hist.ll.toFixed(3)}, mix ${r.best.ll.toFixed(3)}; lower is better)` : ""}. In use: a fixed 40/60 mix, which tracked the truth best in testing.</p>
     <table class="trk2"><tr><th>Said</th><th>Times</th><th>Actually right</th></tr>${r.bins.map(b => `<tr><td>${Math.round(b.a * 100)}–${Math.round(Math.min(b.b, 0.9) * 100)}%</td><td>${b.n}</td><td>${b.n ? pct(b.act) : "–"}</td></tr>`).join("")}</table>`).join("") +
     `<p class="note">Old PrizePicks lines aren't published, so each replayed line is rebuilt from the player's average at the time (plus goblin- and demon-style lines). Teammate injuries and news from back then aren't replayed.</p>`;
 }
@@ -3674,7 +3719,7 @@ function packRated(sport){
       const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
       if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
     }
-    return JSON.stringify({v: 14, eng: ENGINE(), sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+    return JSON.stringify({v: 16, eng: ENGINE(), sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
   } catch (e) { console.warn("couldn't save ratings", e); return null; }
 }
 function unpackRated(js){
@@ -3691,7 +3736,7 @@ async function loadRated(sport){
   const got = [];
   const mine = await IDB.get("rated:" + ENGINE() + ":" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
   if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}${ENGINE() === "nov20" ? "" : "-" + ENGINE()}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
-  return got.filter(j => j && j.v === 14 && j.eng === ENGINE() && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+  return got.filter(j => j && j.v === 16 && j.eng === ENGINE() && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
 }
 const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
 async function quickStart(force){
