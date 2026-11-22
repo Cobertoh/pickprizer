@@ -137,7 +137,7 @@ async function rated(req, env, ctx, sport) {
   if (req.method === "GET") { const o = await kvGet(env, k); return o ? stored(o) : json({ message: "none yet" }, 404); }
   if (req.method !== "POST") return json({ message: "method" }, 405);
   const text = await req.text();
-  if (text.length > 6e6 || !text.startsWith('{"v":13,')) return json({ message: "bad" }, 400);
+  if (text.length > 6e6 || !text.startsWith('{"v":14,')) return json({ message: "bad" }, 400);
   const o = await kvGet(env, k);
   if (o && Date.now() - o.t < 4 * MIN * 1000) return json({ ok: true, skipped: true }, 200);   // someone just saved one
   await kvPut(env, ctx, k, text, 2 * DAY);
@@ -162,7 +162,7 @@ export default {
     if (url.pathname === "/track") return track(req, env, ctx);
     const sm = url.pathname.match(/^\/snap\/([a-z]{2,8})(?:\/(\d{4}-\d\d-\d\d))?$/);
     if (sm) return snap(req, env, sm[1], sm[2]);
-    const rm = url.pathname.match(/^\/rated\/([a-z]{2,8})$/);
+    const rm = url.pathname.match(/^\/rated\/([a-z]{2,8}(?:-nov21)?)$/);
     if (rm) return rated(req, env, ctx, rm[1]);
     if (url.pathname === "/manifest.json") return new Response(MANIFEST, { headers: { "content-type": "application/manifest+json" } });
     if (url.pathname === "/icon.png" || url.pathname === "/apple-touch-icon.png" || url.pathname === "/favicon.ico")

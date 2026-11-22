@@ -414,6 +414,7 @@ header h1 img.hw{width:auto!important;height:30px!important;border-radius:0!impo
     </div>
     <p class="note">PrizePicks doesn't publish exact goblin/demon multipliers. These are estimates used to compare lineups. Every lineup also shows the minimum payout it needs, so you can check it against the real number in the app.</p>
     <label><input type="checkbox" id="useBooks" style="width:auto"> Use sportsbook odds (each Refresh costs roughly 1 credit per stat type per game; results are reused for 20 min)</label>
+    <label class="fl">Engine<select id="engineSel"><option value="nov20">Nov 20 engine (the good-night version)</option><option value="nov21">Nov 21 engine (per-type correction)</option></select></label>
     <label><input type="checkbox" id="useReddit" style="width:auto"> Read Reddit (pick threads, fantasy and injury talk) for the community's opinion</label>
     <label>Games of history to use</label>
     <select id="depth"><option>60</option><option>100</option><option>200</option></select>
@@ -1269,7 +1270,7 @@ function trackUpdate(sport, picks){
     add[p.verdict.c].push(p);
   }
   for (const c of ["g", "y", "r"]) for (const p of add[c].sort((a, b) => b.verdict.prob - a.verdict.prob).slice(0, 80)) {
-    const r = [p.player, p.stat, p.line, p.best === "More" ? "M" : "L", c, p.start, null, +p.verdict.prob.toFixed(2), p.cls || null, p.ev?.score ?? null, p.proj ?? null, p.type, null];
+    const r = [p.player, p.stat, p.line, p.best === "More" ? "M" : "L", c, p.start, null, +p.verdict.prob.toFixed(2), p.cls || null, p.ev?.score ?? null, p.proj ?? null, p.type, null, ENGINE()];
     const k = r.slice(0, 4).join("|") + r[5];
     if (!have.has(k)) { have.add(k); rows.push(r); }
   }
@@ -1281,7 +1282,7 @@ function slipsLoad(){ try { return JSON.parse(localStorage.getItem("pp_slips") |
 function slipsSave(a){ try { localStorage.setItem("pp_slips", JSON.stringify(a.slice(-200))); } catch {} }
 function slipSave(L, src){
   const st = lineupStats(L, false), n = L.length, ft = FLEX[n], fx = ft && st.flex > st.power;
-  const slip = {id: Date.now().toString(36), at: new Date().toISOString(), src, mode: fx ? "flex" : "power", pay: fx ? st.flexPay : st.powerPay,
+  const slip = {id: Date.now().toString(36), at: new Date().toISOString(), src, engine: ENGINE(), mode: fx ? "flex" : "power", pay: fx ? st.flexPay : st.powerPay,
     pred: st.d[n], ev: fx ? st.flex : st.power,
     legs: L.map(l => ({sport: l.pk.sport, player: l.pk.player, stat: l.pk.stat, line: l.pk.line, side: l.side === "More" ? "M" : "L", type: l.pk.type, p: +l.p.toFixed(3), start: l.pk.start, hit: null, v: null}))};
   const a = slipsLoad(); a.push(slip); slipsSave(a); return slip;
@@ -1912,7 +1913,7 @@ function renderCoach(){
 // highest chance of winning that still pays at least that much, using only legs I'd bet (no PASS calls, no
 // all-or-nothing lines, best side only). Exhaustive search with pruning, so it's the true best for the style.
 const STYLES = {
-  safe: {icon: "🛡️", name: "Safe", blurb: "2–3 picks · pays 2× or more · wins most often", ns: [2, 3], pay: 2, minEV: 1.02, K: 40},
+  safe: {icon: "🛡️", name: "Safe", blurb: "2–3 picks · pays 2.5× or more · wins most often", ns: [2, 3], pay: 2.5, K: 40},
   mid: {icon: "⚖️", name: "Balanced", blurb: "3–4 picks · pays 5× or more · the middle ground", ns: [3, 4], pay: 5, K: 34},
   big: {icon: "🚀", name: "Big swing", blurb: "4–6 picks · pays 20× or more · $2 for a big hit", ns: [4, 5, 6], pay: 20, K: 26},
 };
@@ -1949,7 +1950,8 @@ function bestForStyle(S, legs, avoid){
 }
 function renderStyle(){
   const box = $("#styleOut"); if (!box) return;
-  const k = store.get("style", ""), S = STYLES[k];
+  const k = store.get("style", ""), S0 = STYLES[k];
+  const S = S0 && k === "safe" && ENGINE() !== "nov20" ? {...S0, pay: 2, minEV: 1.02} : S0;
   if (!S) { box.innerHTML = ""; return; }
   const legs = styleLegs();
   if (legs.length < 2) { box.innerHTML = `<p class="note">There aren't enough picks I'd bet on this board yet. Check back closer to game time.</p>`; return; }
@@ -2110,7 +2112,7 @@ function godBlock(p){   // why a 70%+ pick is NOT a Top pick (null = it is one)
   if (prob == null || prob < 0.7) return "under 7 in 10";
   if (p.lineOnly || p.games < 8) return "too few games to trust";
   if (isSwingy(p)) return "all-or-nothing stat";
-  if (p.best === "Less" && segGap(p.sport, "side|L|" + p.type) <= -0.08) return "unders have been missing lately";
+  if (p.best === "Less" && segGap(p.sport, "side|L" + (ENGINE() === "nov20" ? "" : "|" + p.type)) <= -0.08) return "unders have been missing lately";
   if (UNVERIFIED.has(p.sport + "|" + p.stat)) return "scoring unconfirmed";
   if (p.newsFlag || p.news?.some(n => n.tone === "bad")) return "serious news";
   if (p.inj && /question|day|doubt|out|suspen|reserve/i.test(p.inj.status || "")) return "injury tag";
@@ -2309,6 +2311,8 @@ document.addEventListener("click", e => {
   if (v) { store.set("bshow", v.dataset.bshow); render(); }
 });
 for (const id of ["#gameSel", "#statSel"]) $(id).onchange = render;
+$("#engineSel").value = ENGINE();
+$("#engineSel").onchange = () => { try { localStorage.setItem("pp_engine", $("#engineSel").value); } catch {} for (const k in SEG) delete SEG[k]; for (const k in DATA) delete DATA[k]; try { for (const k of Object.keys(localStorage)) if (/^pp_rated/.test(k)) localStorage.removeItem(k); } catch {} location.reload(); };
 $("#playerQ").oninput = render;
 
 // ---------- NFL (ESPN game logs)
@@ -3302,27 +3306,32 @@ const LEARN = {};
 // Segment self-correction: if a KIND of pick (unders, combo stats like Pts+Rebs+Asts) has been missing more than
 // predicted on this device, shift that kind by the gap, shrunk by sample size (15 picks move it a little, 100+ most of the way).
 const SEG = {};
+// Engine version. "nov20" = exactly the engine from the Nov 20 good night (user's choice, default).
+// "nov21" = the later per-type correction that doesn't double-count. Switchable in the menu so the two can be compared.
+function ENGINE(){ try { return localStorage.getItem("pp_engine") || "nov20"; } catch { return "nov20"; } }
 function segGap(sport, key){
   const T = SEG[sport] ||= (() => {
     // measure each kind's miss AFTER the overall calibration (learnAdj) has already corrected it, so the same
     // misses are never subtracted twice; only what's special about this kind of pick is left
-    const t = {}, add = (k, r) => { (t[k] ||= {n: 0, pr: 0, h: 0}); t[k].n++; t[k].pr += learnAdj(sport, r[7]); t[k].h += r[6]; };
+    const v20 = ENGINE() === "nov20";
+    const t = {}, add = (k, r) => { (t[k] ||= {n: 0, pr: 0, h: 0}); t[k].n++; t[k].pr += v20 ? r[7] : learnAdj(sport, r[7]); t[k].h += r[6]; };
     for (const r of trackLoad(sport)) if (r[6] != null && r[7] != null) {
-      // learn per side AND pick type: deep goblins missing shouldn't drag down standards and demons
-      const side = r[3], ty = r[11] || "standard"; add("side|" + side + "|" + ty, r);
-      if (/\+/.test(r[1] || "")) add("combo|" + side + "|" + ty, r);
+      const side = r[3], ty = r[11] || "standard", tail = v20 ? "" : "|" + ty;   // nov21: per side AND pick type
+      add("side|" + side + tail, r);
+      if (/\+/.test(r[1] || "")) add("combo|" + side + tail, r);
     }
     return t;
   })();
   const x = T[key]; if (!x || x.n < 15) return 0;
-  return clip((x.h - x.pr) / x.n * x.n / (x.n + 40), -0.12, 0.08);
+  return ENGINE() === "nov20" ? clip((x.h - x.pr) / x.n * x.n / (x.n + 40), -0.25, 0.1) : clip((x.h - x.pr) / x.n * x.n / (x.n + 40), -0.12, 0.08);
 }
 function segAdjust(p){
   if (p.pMore == null || p.live) return;
   p.segShift = 0;
   for (const side of ["M", "L"]) {
-    let d = segGap(p.sport, "side|" + side + "|" + p.type);
-    if (/\+/.test(p.stat)) d += segGap(p.sport, "combo|" + side + "|" + p.type) * 0.7;
+    const tail = ENGINE() === "nov20" ? "" : "|" + p.type;
+    let d = segGap(p.sport, "side|" + side + tail);
+    if (/\+/.test(p.stat)) d += segGap(p.sport, "combo|" + side + tail) * 0.7;
     if (!d) continue;
     if (side === "M") { p.pMore = clip(p.pMore + d, 0.03, 0.95); if (p.pLess != null && p.type === "standard") p.pLess = clip(p.pLess - d, 0.03, 0.95); }
     else if (p.pLess != null) { p.pLess = clip(p.pLess + d, 0.03, 0.95); if (p.type === "standard") p.pMore = clip(p.pMore - d, 0.03, 0.95); }
@@ -3665,7 +3674,7 @@ function packRated(sport){
       const gs = H[nm] || [], mine = d.picks.filter(p => p.player === nm);
       if (gs.length) hist[nm] = gs.filter((g, i) => i < 25 || mine.some(p => sameOpp(p, g.opp))).slice(0, 45).map(slimG);
     }
-    return JSON.stringify({v: 13, sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
+    return JSON.stringify({v: 14, eng: ENGINE(), sport, t: d.time.getTime(), boardAge: BOARD_AGE[sport] || 0, note: d.note, picks, hist, cal: CAL[sport] || null, news: d.newsChecked || 0});
   } catch (e) { console.warn("couldn't save ratings", e); return null; }
 }
 function unpackRated(js){
@@ -3675,14 +3684,14 @@ function unpackRated(js){
 }
 async function saveRated(sport){
   const txt = packRated(sport); if (!txt) return;
-  IDB.set("rated:" + sport, {t: Date.now(), v: txt});
-  if (IS_WEB) fetch(`/rated/${sport}`, {method: "POST", body: txt, headers: {"content-type": "application/json"}}).catch(() => {});
+  IDB.set("rated:" + ENGINE() + ":" + sport, {t: Date.now(), v: txt});
+  if (IS_WEB) fetch(`/rated/${sport}${ENGINE() === "nov20" ? "" : "-" + ENGINE()}`, {method: "POST", body: txt, headers: {"content-type": "application/json"}}).catch(() => {});
 }
 async function loadRated(sport){
   const got = [];
-  const mine = await IDB.get("rated:" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
-  if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
-  return got.filter(j => j && j.v === 13 && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
+  const mine = await IDB.get("rated:" + ENGINE() + ":" + sport); if (mine) { try { got.push(JSON.parse(mine.v)); } catch {} }
+  if (IS_WEB) { try { const r = await tFetch(`/rated/${sport}${ENGINE() === "nov20" ? "" : "-" + ENGINE()}`, {}, 6000); if (r.ok) got.push(await r.json()); } catch {} }
+  return got.filter(j => j && j.v === 14 && j.eng === ENGINE() && j.sport === sport && Array.isArray(j.picks)).sort((a, b) => b.t - a.t)[0] || null;
 }
 const FRESH = 15 * 60e3;   // ratings younger than this are shown without redoing the work
 async function quickStart(force){
