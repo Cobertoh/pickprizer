@@ -4,5 +4,7 @@
   "name": "pickprizer",
   "main": "public/_worker.js",
   "compatibility_date": "2026-11-01",
-  "kv_namespaces": [{ "binding": "KV" }]
+  "kv_namespaces": [{ "binding": "KV" }],
+  // keep the payment / Google settings added in the Cloudflare dashboard when a new version deploys
+  "keep_vars": true
 }

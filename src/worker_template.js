@@ -143,6 +143,183 @@ async function rated(req, env, ctx, sport) {
   await kvPut(env, ctx, k, text, 2 * DAY);
   return json({ ok: true }, 200);
 }
+
+// ---------- ACCOUNTS, PLANS AND PAYMENTS
+// Users live in KV ("user/<name>"). Passwords are salted PBKDF2 hashes (never stored or logged in plain text).
+// Sessions are signed cookies that carry the plan, so data routes can check access without a KV read per request.
+// Plans: guest (not signed in) < free < basic ($4.99) < pro ($14.99). "dev" accounts see everything and can preview plans.
+const PLAN_RANK = { guest: 0, free: 1, basic: 2, pro: 3 };
+const ITER = 15000;   // PBKDF2 rounds: sized for the free Workers plan's 10 ms CPU budget; stored per user so it can be raised
+const SESSION_DAYS = 180, PLAN_FRESH_MS = 3 * DAY * 1000;
+const enc = new TextEncoder();
+const b64u = buf => { let s = ""; const a = new Uint8Array(buf); for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+const unb64u = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+const same = (a, b) => { if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false; let x = 0; for (let i = 0; i < a.length; i++) x |= a.charCodeAt(i) ^ b.charCodeAt(i); return x === 0; };
+// the owner's developer account (password hash only; change the password from the account menu any time)
+const BUILTIN = { pickhitdev: { u: "PickHitDev", s: "Z8vcqrYMz081-SNOpuPtAA", h: "motRzw3K7mYf6djfVFyc31_tcQshCTeRAiLoGUZzWK0", it: 15000, plan: "pro", role: "dev" } };
+const RESERVED = /^(admin|administrator|support|pickhit|pickhitdev|root|system|owner|moderator|staff)$/i;
+let HMACKEY = null;
+async function hmacKey(env) {
+  if (HMACKEY) return HMACKEY;
+  let s = env.SESSION_SECRET || (env.KV ? await env.KV.get("cfg/secret") : null);
+  if (!s) { s = b64u(crypto.getRandomValues(new Uint8Array(32))); if (env.KV) await env.KV.put("cfg/secret", s); }
+  return HMACKEY = await crypto.subtle.importKey("raw", enc.encode(s), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+}
+const sign = async (env, msg) => b64u(await crypto.subtle.sign("HMAC", await hmacKey(env), enc.encode(msg)));
+async function pwHash(pw, saltB64, it) {
+  const k = await crypto.subtle.importKey("raw", enc.encode(pw), "PBKDF2", false, ["deriveBits"]);
+  return b64u(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: unb64u(saltB64), iterations: it }, k, 256));
+}
+async function getUser(env, name) {
+  const k = String(name || "").toLowerCase();
+  if (env.KV) { const t = await env.KV.get("user/" + k); if (t) { try { return JSON.parse(t); } catch (e) {} } }
+  return BUILTIN[k] ? { ...BUILTIN[k] } : null;
+}
+const putUser = (env, u) => env.KV.put("user/" + u.u.toLowerCase(), JSON.stringify(u));
+const effPlan = u => u.role === "dev" ? "pro" : (u.plan || "free");
+async function makeCookie(env, u) {
+  const body = b64u(enc.encode(JSON.stringify({ u: u.u.toLowerCase(), n: u.u, p: effPlan(u), r: u.role || "user", v: Date.now(), e: Date.now() + SESSION_DAYS * DAY * 1000 })));
+  return `ph=${body}.${await sign(env, body)}; Path=/; Max-Age=${SESSION_DAYS * DAY}; HttpOnly; Secure; SameSite=Lax`;
+}
+const CLEAR = "ph=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax";
+async function session(req, env) {
+  const m = (req.headers.get("cookie") || "").match(/(?:^|;\s*)ph=([^;]+)/); if (!m) return null;
+  const [body, sig] = m[1].split("."); if (!body || !sig || !same(sig, await sign(env, body))) return null;
+  let s; try { s = JSON.parse(new TextDecoder().decode(unb64u(body))); } catch (e) { return null; }
+  return s && s.e > Date.now() ? s : null;
+}
+// plan check for data routes: the plan inside the cookie must have been confirmed in the last 3 days (the app refreshes it on open)
+async function access(req, env) { const s = await session(req, env); return s && Date.now() - s.v < PLAN_FRESH_MS ? s.p : s ? "stale" : "guest"; }
+const meOut = u => ({ user: u.u, plan: effPlan(u), role: u.role || "user", base: u.plan || "free", google: !!u.g });
+const withCookie = (o, cookie, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store", "set-cookie": cookie } });
+async function readJSON(req, max = 20000) { const t = await req.text(); if (t.length > max) throw new Error("too big"); return JSON.parse(t); }
+// failed-login throttle (per name + IP, in the edge cache, so it costs no KV writes)
+async function tooMany(req, name, bump) {
+  const ip = req.headers.get("cf-connecting-ip") || "x", key = new Request("https://rl.pickhit/" + encodeURIComponent(ip + "|" + name));
+  const hit = await caches.default.match(key), n = hit ? +(await hit.text()) : 0;
+  if (bump) await caches.default.put(key, new Response(String(n + 1), { headers: { "cache-control": "max-age=900" } }));
+  return n >= 10;
+}
+async function auth(req, env, path) {
+  if (!env.KV && path !== "/auth/config" && path !== "/auth/me") return json({ message: "Accounts need the KV storage set up." }, 503);
+  if (path === "/auth/config") return json({ google: env.GOOGLE_CLIENT_ID || null, pay: !!(env.WHOP_API_KEY && env.WHOP_PLAN_BASIC && env.WHOP_PLAN_PRO), manage: env.WHOP_MANAGE_URL || "https://whop.com/@me/settings/memberships/" }, 200);
+  if (path === "/auth/me") {
+    const s = await session(req, env); if (!s) return json({ user: null }, 200);
+    const u = await getUser(env, s.u); if (!u) return withCookie({ user: null }, CLEAR);
+    return withCookie(meOut(u), await makeCookie(env, u));   // refreshes the plan inside the cookie
+  }
+  if (path === "/auth/logout") return withCookie({ ok: true }, CLEAR);
+  if (req.method !== "POST") return json({ message: "method" }, 405);
+  let b; try { b = await readJSON(req); } catch (e) { return json({ message: "bad request" }, 400); }
+  if (path === "/auth/signup") {
+    const name = String(b.username || "").trim(), pw = String(b.password || "");
+    if (!/^[A-Za-z0-9_.]{3,20}$/.test(name)) return json({ message: "Username: 3-20 letters, numbers, dots or underscores." }, 400);
+    if (RESERVED.test(name) || BUILTIN[name.toLowerCase()]) return json({ message: "That username is taken." }, 409);
+    if (pw.length < 8 || pw.length > 200) return json({ message: "Password needs at least 8 characters." }, 400);
+    if (await getUser(env, name)) return json({ message: "That username is taken." }, 409);
+    const s = b64u(crypto.getRandomValues(new Uint8Array(16))), u = { u: name, s, h: await pwHash(pw, s, ITER), it: ITER, plan: "free", role: "user", t: Date.now() };
+    await putUser(env, u);
+    return withCookie(meOut(u), await makeCookie(env, u));
+  }
+  if (path === "/auth/login") {
+    const name = String(b.username || "").trim().toLowerCase(), pw = String(b.password || "");
+    if (await tooMany(req, name, false)) return json({ message: "Too many tries. Wait 15 minutes and try again." }, 429);
+    const u = await getUser(env, name);
+    if (!u || !u.h || !same(await pwHash(pw, u.s, u.it || ITER), u.h)) { await tooMany(req, name, true); return json({ message: "Wrong username or password." }, 401); }
+    if ((u.it || 0) < ITER) { u.s = b64u(crypto.getRandomValues(new Uint8Array(16))); u.h = await pwHash(pw, u.s, ITER); u.it = ITER; await putUser(env, u); }
+    return withCookie(meOut(u), await makeCookie(env, u));
+  }
+  if (path === "/auth/password") {
+    const s = await session(req, env); if (!s) return json({ message: "Sign in first." }, 401);
+    const u = await getUser(env, s.u), np = String(b.next || "");
+    if (!u || (u.h && !same(await pwHash(String(b.old || ""), u.s, u.it || ITER), u.h))) return json({ message: "Current password is wrong." }, 401);
+    if (np.length < 8 || np.length > 200) return json({ message: "New password needs at least 8 characters." }, 400);
+    u.s = b64u(crypto.getRandomValues(new Uint8Array(16))); u.h = await pwHash(np, u.s, ITER); u.it = ITER;
+    await putUser(env, u);
+    return json({ ok: true }, 200);
+  }
+  if (path === "/auth/google") {
+    if (!env.GOOGLE_CLIENT_ID) return json({ message: "Google sign-in isn't set up." }, 400);
+    let info; try { const r = await fetch("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(String(b.credential || ""))); info = r.ok ? await r.json() : null; } catch (e) { info = null; }
+    if (!info || info.aud !== env.GOOGLE_CLIENT_ID || !/accounts\.google\.com$/.test(info.iss || "") || !(+info.exp * 1000 > Date.now()) || !info.sub) return json({ message: "Google sign-in failed." }, 401);
+    // only Google's account id is kept, never the email address
+    let name = await env.KV.get("g/" + info.sub), u = name ? await getUser(env, name) : null;
+    if (!u) {
+      const base = String(info.given_name || "player").replace(/[^A-Za-z0-9]/g, "").slice(0, 12) || "player";
+      for (let i = 0; i < 6 && !u; i++) { const cand = base + (100 + Math.floor(Math.random() * 9900)); if (!(await getUser(env, cand))) u = { u: cand, g: info.sub, plan: "free", role: "user", t: Date.now() }; }
+      if (!u) return json({ message: "Try again." }, 500);
+      await putUser(env, u); await env.KV.put("g/" + info.sub, u.u.toLowerCase());
+    }
+    return withCookie(meOut(u), await makeCookie(env, u));
+  }
+  return json({ message: "not found" }, 404);
+}
+// ---------- PAYMENTS (Whop: built for betting-analysis products; no monthly fee, a small cut per payment)
+// /pay/checkout makes a Whop checkout link tagged with the PickHit username, so the payment webhook knows whose plan to upgrade.
+async function payCheckout(req, env) {
+  const s = await session(req, env); if (!s) return json({ message: "Create an account or sign in first." }, 401);
+  let b; try { b = await readJSON(req); } catch (e) { return json({ message: "bad request" }, 400); }
+  const plan = b.plan === "basic" ? "basic" : b.plan === "pro" ? "pro" : null, planId = plan === "basic" ? env.WHOP_PLAN_BASIC : env.WHOP_PLAN_PRO;
+  if (!plan || !env.WHOP_API_KEY || !planId) return json({ message: "Payments aren't switched on yet." }, 503);
+  const origin = new URL(req.url).origin;
+  const r = await fetch("https://api.whop.com/api/v1/checkout_configurations", { method: "POST",
+    headers: { "Authorization": "Bearer " + env.WHOP_API_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ plan_id: planId, metadata: { pickhit_user: s.u, pickhit_plan: plan }, redirect_url: origin + "/?paid=1" }) });
+  const js = await r.json().catch(() => ({}));
+  if (!r.ok || !js.purchase_url) return json({ message: "Checkout couldn't start (Whop said: " + String((js.error && js.error.message) || js.message || r.status).slice(0, 120) + ")" }, 502);
+  return json({ url: js.purchase_url }, 200);
+}
+async function whopVerify(req, env, raw) {
+  const id = req.headers.get("webhook-id"), ts = req.headers.get("webhook-timestamp"), sigs = (req.headers.get("webhook-signature") || "").split(" ");
+  if (!id || !ts || !env.WHOP_WEBHOOK_SECRET || Math.abs(Date.now() / 1000 - +ts) > 300) return false;
+  const msg = enc.encode(`${id}.${ts}.${raw}`), sec = env.WHOP_WEBHOOK_SECRET, keys = [enc.encode(sec)];
+  try { const k = sec.replace(/^(ws|whsec)_/, ""); keys.push(unb64u(k.replace(/\+/g, "-").replace(/\//g, "_"))); } catch (e) {}   // Standard Webhooks keys may be base64
+  for (const kb of keys) {
+    const k = await crypto.subtle.importKey("raw", kb, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const mac = btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("HMAC", k, msg))));
+    if (sigs.some(x => same(x.split(",")[1] || "", mac))) return true;
+  }
+  return false;
+}
+async function payWebhook(req, env) {
+  const raw = await req.text();
+  if (!(await whopVerify(req, env, raw))) return json({ message: "bad signature" }, 401);
+  let ev; try { ev = JSON.parse(raw); } catch (e) { return json({ message: "bad" }, 400); }
+  const d = ev.data || {}, type = String(ev.type || ev.action || "");
+  const meta = d.metadata || (d.membership && d.membership.metadata) || (d.checkout_configuration && d.checkout_configuration.metadata) || {};
+  const memId = d.membership_id || (d.membership && (d.membership.id || d.membership)) || (/^mem_/.test(d.id || "") ? d.id : null);
+  const planId = (d.plan && d.plan.id) || d.plan_id || (d.membership && d.membership.plan && d.membership.plan.id) || null;
+  let name = meta.pickhit_user || (memId ? await env.KV.get("mem/" + memId) : null);
+  if (!name) return json({ ok: true, note: "no PickHit user on this event" }, 200);
+  const u = await getUser(env, name); if (!u) return json({ ok: true, note: "unknown user" }, 200);
+  const plan = planId === env.WHOP_PLAN_PRO ? "pro" : planId === env.WHOP_PLAN_BASIC ? "basic" : (meta.pickhit_plan === "pro" || meta.pickhit_plan === "basic" ? meta.pickhit_plan : null);
+  const status = String(d.status || "");
+  const on = /went_valid|activated|payment\.succeeded|renewed/.test(type) || (/membership\.updated/.test(type) && /^(active|trialing|completed)$/.test(status));
+  const off = /went_invalid|deactivated|refund\.created|dispute\.created/.test(type) || (/membership\.updated/.test(type) && /^(canceled|cancelled|expired|past_due|unresolved)$/.test(status));
+  if (on && plan) { u.plan = plan; if (memId) { u.mem = memId; await env.KV.put("mem/" + memId, u.u.toLowerCase()); } await putUser(env, u); }
+  else if (off && (!memId || !u.mem || u.mem === memId)) { if (u.role !== "dev") u.plan = "free"; await putUser(env, u); }
+  return json({ ok: true }, 200);
+}
+// ---------- PICK OF THE DAY (shown to everyone on the homepage, signed in or not)
+async function potd(req, env) {
+  const day = new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10);   // US Eastern-ish day
+  const cur = env.KV ? JSON.parse((await env.KV.get("potd/cur")) || "null") : null;
+  if (req.method === "GET") return new Response(JSON.stringify(cur && cur.day === day ? cur : { day, picks: {} }), { headers: { "content-type": "application/json", "cache-control": "public, max-age=120" } });
+  if (req.method !== "POST" || !env.KV) return json({ message: "method" }, 405);
+  if (PLAN_RANK[await access(req, env)] < 2) return json({ message: "members only" }, 403);
+  let b; try { b = await readJSON(req, 4000); } catch (e) { return json({ message: "bad" }, 400); }
+  const sp = String(b.sport || ""), p = b.pick || {};
+  if (!/^[a-z]{2,8}$/.test(sp) || typeof p.player !== "string" || p.player.length > 60 || typeof p.stat !== "string" || p.stat.length > 40 || !(p.prob > 0 && p.prob < 1)) return json({ message: "bad" }, 400);
+  const o = cur && cur.day === day ? cur : { day, picks: {} }, old = o.picks[sp];
+  if (old && Date.now() - old.t < 2 * 3600e3) return json({ ok: true, skipped: true }, 200);
+  const clean = { player: p.player, stat: p.stat, line: +p.line, side: p.side === "Less" ? "Less" : "More", type: ["goblin", "standard", "demon"].includes(p.type) ? p.type : "standard",
+    prob: Math.round(p.prob * 1000) / 1000, grade: String(p.grade || "").slice(0, 3), call: String(p.call || "").slice(0, 12), opp: String(p.opp || "").slice(0, 40), team: String(p.team || "").slice(0, 40),
+    start: String(p.start || "").slice(0, 40), why: Array.isArray(p.why) ? p.why.slice(0, 3).map(x => String(x).slice(0, 160)) : [], t: Date.now() };
+  o.picks[sp] = clean;
+  await env.KV.put("potd/cur", JSON.stringify(o), { expirationTtl: 3 * DAY });
+  return json({ ok: true }, 200);
+}
+
 const json = (o, status) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 
@@ -155,6 +332,16 @@ const MANIFEST = JSON.stringify({
 export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
+    if (url.pathname.startsWith("/auth/")) return auth(req, env, url.pathname);
+    if (url.pathname === "/pay/checkout") return payCheckout(req, env);
+    if (url.pathname === "/pay/whop") return payWebhook(req, env);
+    if (url.pathname === "/potd") return potd(req, env);
+    // the rating engine's data routes are for paying members (guests and free accounts see the homepage + pick of the day)
+    if (url.pathname === "/p" || url.pathname.startsWith("/rated/") || url.pathname.startsWith("/snap/")) {
+      const a = await access(req, env);
+      if (a === "stale") return json({ message: "refresh", refresh: true }, 401);
+      if (PLAN_RANK[a] < 2) return json({ message: "members only", plan: a }, 403);
+    }
     if (url.pathname === "/p") return proxy(req, ctx);
     const bm = url.pathname.match(/^\/board(?:\/(\d{1,4}))?\/?$/);
     if (bm) return board(req, env, ctx, bm[1]);

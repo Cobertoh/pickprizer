@@ -1,0 +1,40 @@
+// Exercises the worker's account, plan-gating, webhook and pick-of-the-day routes with an in-memory KV.
+import w from '../public/_worker.js';
+import fs from 'fs';
+const store=new Map();const KV={get:async k=>store.get(k)??null,put:async(k,v)=>{store.set(k,v)},getWithMetadata:async k=>({value:store.get(k)??null,metadata:null}),list:async()=>({keys:[]})};
+const cache=new Map();globalThis.caches={default:{match:async k=>cache.get(k.url)?.clone(),put:async(k,v)=>{cache.set(k.url,v)}}};
+const realFetch=globalThis.fetch;let whopCalls=[];
+globalThis.fetch=async(u,o)=>{u=String(u);if(u.includes('api.whop.com')){whopCalls.push(JSON.parse(o.body));return new Response(JSON.stringify({purchase_url:'https://whop.com/checkout/ch_test/'}),{status:200})}return new Response('{"ok":1}',{status:200})};
+const env={KV,WHOP_API_KEY:'k',WHOP_PLAN_BASIC:'plan_basic',WHOP_PLAN_PRO:'plan_pro',WHOP_WEBHOOK_SECRET:'ws_testsecret123'};
+let jar='';const call=async(path,opts={})=>{const r=await w.fetch(new Request('https://pickhit.test'+path,{...opts,headers:{...(opts.headers||{}),cookie:opts.nocookie?'':jar,'content-type':'application/json'}}),env,{waitUntil:()=>{}});const sc=r.headers.get('set-cookie');if(sc&&!opts.nocookie)jar=sc.split(';')[0].replace(/^ph=$/,'');const t=await r.text();let j;try{j=JSON.parse(t)}catch{j=t.slice(0,40)}return {s:r.status,j}};
+const ok=(c,m)=>{console.log((c?'PASS':'FAIL')+'  '+m);if(!c)process.exitCode=1};
+let r=await call('/p?u=https://site.api.espn.com/x',{nocookie:true});ok(r.s===403,'guest blocked from data proxy');
+r=await call('/auth/signup',{method:'POST',body:JSON.stringify({username:'Tester_1',password:'short'})});ok(r.s===400,'short password rejected');
+r=await call('/auth/signup',{method:'POST',body:JSON.stringify({username:'PickHitDev',password:'longenough1'})});ok(r.s===409,'cannot take the dev username');
+r=await call('/auth/signup',{method:'POST',body:JSON.stringify({username:'Tester_1',password:'longenough1'})});ok(r.s===200&&r.j.plan==='free','sign up -> free plan');
+ok(!JSON.stringify([...store.values()]).includes('longenough1'),'password not stored in plain text');
+r=await call('/auth/me');ok(r.j.user==='Tester_1','stays signed in (session cookie)');
+r=await call('/p?u=https://site.api.espn.com/x');ok(r.s===403,'free account blocked from engine data');
+r=await call('/pay/checkout',{method:'POST',body:JSON.stringify({plan:'basic'})});ok(r.s===200&&r.j.url&&whopCalls[0].metadata.pickhit_user==='tester_1'&&whopCalls[0].plan_id==='plan_basic','checkout link tagged with username');
+// signed webhook
+const sendHook=async(body,secret='ws_testsecret123')=>{const raw=JSON.stringify(body),id='msg_1',ts=String(Math.floor(Date.now()/1000));const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);const sig=Buffer.from(await crypto.subtle.sign('HMAC',k,new TextEncoder().encode(`${id}.${ts}.${raw}`))).toString('base64');
+ return (await w.fetch(new Request('https://pickhit.test/pay/whop',{method:'POST',body:raw,headers:{'webhook-id':id,'webhook-timestamp':ts,'webhook-signature':'v1,'+sig}}),env,{})).status};
+ok(await sendHook({type:'membership.activated',data:{id:'mem_1',plan:{id:'plan_basic'},metadata:{pickhit_user:'tester_1'}}},'ws_wrong')===401,'forged webhook rejected');
+ok(await sendHook({type:'membership.activated',data:{id:'mem_1',plan:{id:'plan_basic'},metadata:{pickhit_user:'tester_1'}}})===200,'signed webhook accepted');
+r=await call('/auth/me');ok(r.j.plan==='basic','payment -> Basic plan');
+r=await call('/p?u=https://site.api.espn.com/x');ok(r.s===200,'Basic member can load engine data');
+ok(await sendHook({type:'membership.activated',data:{id:'mem_2',plan:{id:'plan_pro'},metadata:{pickhit_user:'tester_1'}}})===200,'upgrade webhook');
+r=await call('/auth/me');ok(r.j.plan==='pro','upgrade -> Pro');
+ok(await sendHook({type:'membership.deactivated',data:{id:'mem_2'}})===200,'cancel webhook (no metadata, matched by membership id)');
+r=await call('/auth/me');ok(r.j.plan==='free','cancel -> back to free');
+r=await call('/auth/logout');r=await call('/auth/me');ok(r.j.user===null,'sign out');
+r=await call('/auth/login',{method:'POST',body:JSON.stringify({username:'tester_1',password:'wrongpass1'})});ok(r.s===401,'wrong password rejected');
+const dev=JSON.parse(fs.readFileSync('/tmp/devacct.json'));
+r=await call('/auth/login',{method:'POST',body:JSON.stringify({username:'PickHitDev',password:dev.pw})});ok(r.s===200&&r.j.role==='dev'&&r.j.plan==='pro','developer account signs in with full access');
+r=await call('/potd',{method:'POST',body:JSON.stringify({sport:'nba',pick:{player:'Test Guy',stat:'Points',line:20.5,side:'More',type:'standard',prob:0.64,grade:'A',call:'BET'}})});ok(r.s===200,'member posts pick of the day');
+r=await call('/potd',{nocookie:true});ok(r.j.picks&&r.j.picks.nba&&r.j.picks.nba.player==='Test Guy','anyone can read pick of the day');
+r=await call('/auth/password',{method:'POST',body:JSON.stringify({old:dev.pw,next:'brand-new-pass-9'})});ok(r.s===200,'change password');
+r=await call('/auth/logout');r=await call('/auth/login',{method:'POST',body:JSON.stringify({username:'pickhitdev',password:'brand-new-pass-9'})});ok(r.s===200&&r.j.role==='dev','new password works, still developer');
+// forged cookie
+r=await w.fetch(new Request('https://pickhit.test/p?u=https://site.api.espn.com/x',{headers:{cookie:'ph='+Buffer.from(JSON.stringify({u:'x',p:'pro',r:'dev',v:Date.now(),e:Date.now()+1e9})).toString('base64url')+'.fakesig'}}),env,{});ok(r.status===403,'forged session cookie rejected');
+const t0=performance.now();for(let i=0;i<5;i++)await call('/auth/login',{method:'POST',body:JSON.stringify({username:'pickhitdev',password:'brand-new-pass-9'})});console.log('login avg ms (node):',((performance.now()-t0)/5).toFixed(1));
