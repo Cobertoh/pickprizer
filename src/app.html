@@ -1574,7 +1574,11 @@ function finalize(picks){
     const done = p.liveCur != null && p.liveCur > p.line;   // live and already past the line
     p.pMore = bm == null ? null : done ? 0.99 : clip(learnAdj(p.sport, bm + crowd + tr), 0.03, 0.9);   // never claim more than 90%: injuries, blowouts and foul trouble exist
     p.pLess = p.type !== "standard" || bl == null ? null : done ? 0.01 : clip(learnAdj(p.sport, bl - crowd), 0.03, 0.9);
-    if (!p.live && p.pMore != null && p.pMore < 0.99) { realityCheck(p); liftStrong(p, bm, bl, crowd, tr); swingyShrink(p); segAdjust(p); anchorToMarket(p, stdOf[p.player + "|" + p.stat]); }
+    if (!p.live && p.pMore != null && p.pMore < 0.99) { realityCheck(p); liftStrong(p, bm, bl, crowd, tr); swingyShrink(p); segAdjust(p); anchorToMarket(p, stdOf[p.player + "|" + p.stat]);
+      // history-only sports (no opportunity engine) ran ~3 points hot at 60-70% in testing: when the cautious
+      // second opinion is lower, lean 40% toward it
+      if (p.second === "long") { const lean = (v, o, h) => v == null || o == null || h == null || Math.min(o, h) >= v ? v : v - 0.4 * (v - Math.min(o, h));
+        p.pMore = lean(p.pMore, p.oMore, p.hMore); p.pLess = lean(p.pLess, p.oLess, p.hLess); } }
     let conf = p.mMore != null && p.games >= 15 ? "High" : (p.games >= 8 || p.mMore != null) ? "Med" : "Low";
     if (p.inj && /question|day|doubt/i.test(p.inj.status)) conf = "Low";
     p.conf = p.pMore == null ? "" : conf;
@@ -2436,7 +2440,7 @@ function callOf(p, side){
   if (isGod(p) && (trustV(p) >= 0.62 || (p.type === "demon" && prob >= 0.6))) return {c: "bet", lab: "BET", txt: `${p.type === "demon" ? "I'd bet it. A demon this likely is rare, and it checks out." : "I'd bet it."} Hits about ${inTen(prob)} and pays enough to come out ahead (a 2-pick only needs 58% per pick). ${why}${wo ? ` Only thing to watch: ${wo}.` : ""}${gob}`.trim()};
   if (isGod(p)) return {c: "lean", lab: "LEAN BET", txt: `I'd play it. About ${inTen(prob)}, and it pays enough to come out ahead over time, just not by much. ${why}${wo ? ` Watch: ${wo}.` : ""}${gob}`.trim()};
   if (isSafeLeg(p)) return {c: "lean", lab: "SAFE LEG", txt: `Very likely to hit (${pct(prob)}), but it pays little: it cuts the payout to ×${legFactor(p).toFixed(2)}. Use it to steady a lineup, not as your main bet.`};
-  if (v >= BREAKEVEN_V && prob >= 0.55) return {c: "lean", lab: "SMALL PLAY", txt: `About ${pct(prob)}. Slightly better than what the payout needs, so it's fine as a filler leg, but not one to lean on.${gob}`};
+  if (Math.min(v, trustV(p)) >= BREAKEVEN_V && prob >= 0.55) return {c: "lean", lab: "SMALL PLAY", txt: `About ${pct(prob)}. Slightly better than what the payout needs, so it's fine as a filler leg, but not one to lean on.${gob}`};
   return {c: "pass", lab: "PASS", txt: `I'd pass: ${prob < 0.56 ? `it's close to a coin flip (${pct(prob)})` : `at ${pct(prob)} it doesn't pay enough to come out ahead`}.`};
 }
 const callBadge = p => { const k = callOf(p); return `<span class="call ${k.c}">${k.lab}</span>`; };
@@ -3701,7 +3705,21 @@ function trackDashboard0(){
 // =====================================================================================================
 const OPP_SPORTS = {nba: {key: "MIN", full: 48, bench: 22, rateN: 30}, wnba: {key: "MIN", full: 40, bench: 20, rateN: 25},
   cbb: {key: "MIN", full: 40, bench: 20, rateN: 25}, nhl: {key: "TOI", full: 60, bench: 14, rateN: 30}};
+// SECOND OPINION for sports without the opportunity engine (MLB, golf, soccer, line-only boards...): the weighted
+// recent model must agree with the player's full multi-season hit rate at this exact line (shrunk toward a coin flip
+// when the sample is small). Top picks and lineup legs then use the more cautious of the two: the same "both methods
+// must say yes" rule that fixed the winner's curse in the NBA simulations.
+function secondOpinion(picks){
+  for (const p of picks) {
+    if (p.oMore != null || p.sMore == null || p.longMore == null || !(p.longN >= 12)) continue;
+    const n = p.longN, k = 8, sh = r => (r * n + 0.5 * k) / (n + k);
+    p.oMore = sh(p.longMore); p.hMore = p.sMore;
+    if (p.longLess != null && p.sLess != null) { p.oLess = sh(p.longLess); p.hLess = p.sLess; }
+    p.second = "long";
+  }
+}
 async function oppModel(picks, sport){
+  if (localStorage.getItem("pp_noopp")) return;   // test hook: simulate a sport with game history only
   const C = OPP_SPORTS[sport]; if (!C) return 0;
   const H = HIST[sport] || {}; let n = 0;
   const avg = xs => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
@@ -3831,6 +3849,7 @@ async function footballModel(picks, sport){
     if (l3avg != null && l3avg > 1.3 * d.mean && l3avg - d.mean > 8) risks.push({t: `Big recent games (${l3avg.toFixed(0)} a game over the last 3) ran ahead of his usual volume and efficiency; expect some pullback`});
     if (o5.length >= 3 && d.oProj < 3 && p.best !== "Less") risks.push({hard: true, t: `Small role: only ~${d.oProj.toFixed(1)} ${word} a game`});
     p.opp2 = {fb: true, oProj: +d.oProj.toFixed(1), eff: +d.eff.toFixed(3), mean: +mean.toFixed(1), notes, risks};
+    p.oMore = oMore; p.hMore = p.sMore; p.oLess = oLess; p.hLess = p.sLess;   // each method's own answer (agreement = trust)
     p.sMore = clip(W * oMore + (1 - W) * p.sMore, 0.01, 0.99);
     if (p.sLess != null) p.sLess = clip(W * oLess + (1 - W) * p.sLess, 0.01, 0.99);
     p.proj = +(W * mean + (1 - W) * (p.proj ?? mean)).toFixed(1);
@@ -4541,6 +4560,7 @@ async function analyze(picks, sport = SPORT){
   const r = (kind === "espn" ? await analyzeESPN(picks, sport) : kind === "ufc" ? await analyzeUFC(picks) : kind === "golf" ? await analyzeGolf(picks) : kind === "sofa" ? await analyzeSoccer(picks) : kind === "line" ? await analyzeLineOnly(picks, sport) : sport === "tennis" ? await analyzeTennis(picks) : sport === "nfl" ? await analyzeNFL(picks) : sport === "cfb" ? await analyzeCFB(picks) : await analyzeNBA(picks)) || {};
   setStatus("Projecting minutes and simulating every game…", 0.84);
   await oppModel(picks, sport); await footballModel(picks, sport);
+  secondOpinion(picks);
   setStatus("Checking spreads, totals and rest days…", 0.86);
   const gc = await gameContext(picks, sport);
   for (const p of picks) profilePick(p);
