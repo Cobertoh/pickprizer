@@ -1827,6 +1827,12 @@ document.addEventListener("click", e => {
   if (b.dataset.done) return;
   const src = b.dataset.played === "mine" ? "My lineup" : /^sty/.test(b.dataset.played) ? "Hit Picks " + (STYLES[store.get("style", "")]?.name || "") : "Hit Picks";
   slipSave(L, src.trim()); b.dataset.done = "1"; b.textContent = "Saved ✓ (graded after the games)";
+  // same player in several of today's slips = they all win or lose together
+  const day = new Date().toDateString(), cnt = {};
+  for (const sl of slipsLoad().filter(x => new Date(x.at).toDateString() === day)) for (const g of new Set(sl.legs.map(l => l.player + "|" + l.stat))) cnt[g] = (cnt[g] || 0) + 1;
+  const rep = Object.entries(cnt).filter(([, c]) => c >= 2).sort((a, b) => b[1] - a[1]);
+  if (rep.length) { const [k, c] = rep[0]; const [pl, st] = k.split("|");
+    b.closest(".lineup").insertAdjacentHTML("beforeend", `<p class="warn" style="margin-top:8px">⚠️ <b>${esc(pl)} ${esc(st)}</b> is in ${c} of your slips today. If that one pick misses, all ${c} lose together. Using different picks in each slip spreads the risk.</p>`); }
 });
 function lineupCard(def, L, best){
   const {title, sub} = def;
@@ -2397,7 +2403,20 @@ function godBlock(p){   // a RED FLAG that keeps a pick out of Top picks and lin
   if (p.oppHard && side === "More") return "small role for this line";
   if (p.verdict?.c === "r") return "flagged as risky";
   if ((p.ctxNotes || []).some(n => (n.dir === 1 || n.dir === -1) && (n.dir > 0) !== (side === "More") && (n.size || 0) >= 0.06)) return "a teammate change points the other way";
+  if (side === "More") { const mv = minutesRisk(p); if (mv) return mv; }
   return null;
+}
+// An "over" needs the minutes to show up. Rookies with a short NBA record and bench players whose minutes swing
+// game to game can look great on averages and still post a dud when the coach shortens the rotation or it's a
+// blowout (e.g. a 23-minute rookie with a 16-minute game in his log). Those stay out of Top picks and lineups.
+function minutesRisk(p){
+  if (!["nba", "wnba", "cbb"].includes(p.sport)) return null;
+  if (p.sport === "nba" && p.games < 15) return `only ${p.games} NBA games so far: his role is still settling`;
+  const ms = ((HIST[p.sport] || {})[p.player] || []).slice(0, 10).map(g => g.MIN).filter(m => m != null && m > 0);
+  if (ms.length < 5) return null;
+  const mean = ms.reduce((a, b) => a + b, 0) / ms.length; if (mean >= 32) return null;   // heavy-minute starters are steady
+  const sd = Math.sqrt(ms.reduce((a, b) => a + (b - mean) ** 2, 0) / ms.length), lo = Math.min(...ms), hi = Math.max(...ms);
+  return lo < 0.65 * mean || sd / mean > 0.25 ? `his minutes swing a lot (${Math.round(lo)}–${Math.round(hi)} in his last ${ms.length})` : null;
 }
 // Bang for the buck: chance × how much the pick multiplies the payout. A standard at 75% = 0.75; a deep goblin at 95%
 // that cuts the payout to ×0.47 = 0.45 (safe but pays pennies); a demon at 72% that adds ×1.6 = 1.15 (the real prize).
