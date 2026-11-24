@@ -469,6 +469,7 @@ header h1 img.hw{width:auto!important;height:30px!important;border-radius:0!impo
 .rsrch{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:10px 0}.rsrch div{padding:10px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.02)}
 .rsrch b{display:block;font-size:18px}.rsrch span{font-size:12.5px;color:var(--mut)}
 /* Basic plan: research only, no per-pick ratings */
+.gev{display:flex;flex-direction:column;gap:2px;margin-top:5px;font-size:12.5px;line-height:1.35}.gev .ge{color:#efe5e9}.gev .gck{color:var(--good)}.gev .grk{color:#ffcf8a}
 .vb .leg .p,.vb .leg .why,.vb .leg .risk,.vb .wk,.vb .leg .vd,.vb .whyp{display:none}
 .tpill.lk:after{content:" 🔒"}
 </style>
@@ -2507,9 +2508,19 @@ const callBadge = p => { const k = callOf(p); return `<span class="call ${k.c}">
 function godList(list, type){
   return list.filter(p => isGod(p) && (!type || p.type === type)).sort((a, b) => trustV(b) - trustV(a) || probOf(b) - probOf(a));
 }
+// Why a Top pick made the cut: the strongest evidence, the checks it passed, and the one thing that could go wrong
+function godEvidence(p){
+  let r = {why: [], risk: []}; try { r = reasons({pk: p, side: p.best, p: probOf(p)}); } catch {}
+  const m = p.best === "More" ? p.oMore : p.oLess, h = p.best === "More" ? p.hMore : p.hLess, checks = [];
+  if (m != null && h != null) checks.push("both of my separate methods say yes on their own");
+  if (["nba", "wnba", "cbb"].includes(p.sport) && p.best === "More") checks.push("steady minutes");
+  checks.push("no injury or news flags", "line close to his normal range");
+  return `<div class="gev">${(r.why || []).slice(0, 2).map(t => `<span class="ge">• ${esc(t)}</span>`).join("")}
+    <span class="gck">✓ Passed: ${checks.join(" · ")}</span>${(r.risk || [])[0] && !/watch/i.test(callOf(p).txt || "") ? `<span class="grk">Watch: ${esc(r.risk[0])}</span>` : ""}</div>`;
+}
 function godRow(p, i){
   const prob = probOf(p);
-  return `<div class="grow2" data-pk="${esc(p.sport + "|" + p.id)}"><span class="gi">${i}</span>${gradeBadge(p)}<div class="gtx"><b>${esc(p.player)}</b> <span class="gside">${p.best === "More" ? "Over" : "Under"} ${p.line} ${esc(p.stat)}</span>${p.type !== "standard" ? ` <span class="tag ${p.type}">${p.type.toUpperCase()}</span> <span class="gpay">${payTxt(p, true)}</span>` : ""}<small>${callBadge(p)} ${esc(callOf(p).txt)}</small></div><div class="gpct">${pct(prob)}<small>hits ${inTen(prob)}</small><small class="gx">×${legFactor(p).toFixed(2)} pay</small></div></div>`;
+  return `<div class="grow2" data-pk="${esc(p.sport + "|" + p.id)}"><span class="gi">${i}</span>${gradeBadge(p)}<div class="gtx"><b>${esc(p.player)}</b> <span class="gside">${p.best === "More" ? "Over" : "Under"} ${p.line} ${esc(p.stat)}</span>${p.type !== "standard" ? ` <span class="tag ${p.type}">${p.type.toUpperCase()}</span> <span class="gpay">${payTxt(p, true)}</span>` : ""}<small>${callBadge(p)} ${esc(callOf(p).txt)}</small>${godEvidence(p)}</div><div class="gpct">${pct(prob)}<small>hits ${inTen(prob)}</small><small class="gx">×${legFactor(p).toFixed(2)} pay</small></div></div>`;
 }
 // a small all-Top-pick lineup: different players and games where possible, chance shown honestly
 function godLineup(list){
@@ -2578,6 +2589,7 @@ const BMODES = {
   god: {lab: "👑 Top", txt: "Top picks only, best first", ok: isGod, key: valueOf},
   bet: {lab: "✅ I'd bet", txt: "picks I'd bet, most likely to hit first", ok: p => p.verdict && ["bet", "lean"].includes(callOf(p).c) && callOf(p).lab !== "SAFE LEG", key: p => probOf(p) ?? -1},
   value: {lab: "💎 Value", txt: "likely AND pays well, best value first", ok: isValuePick, key: valueOf},
+  stars: {lab: "⭐ Stars", txt: "big-minute stars, most likely first (their lines are the toughest to beat)", ok: p => ["nba", "wnba"].includes(p.sport) && (p.minAvg || 0) >= 32 && !p.live, key: p => probOf(p) ?? -1},
   picked: {lab: "🔥 Most picked", txt: "most picked first", ok: p => p.trending != null, key: p => p.trending ?? -1},
 };
 function render(){

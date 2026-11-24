@@ -1,0 +1,10 @@
+const {chromium}=require('playwright');const {makeWorld}=require('./simleague.js');const W=makeWorld(3,0,Date.now());
+(async()=>{const b=await chromium.launch();const pg=await b.newPage({viewport:{width:430,height:900}});const errs=[];pg.on('pageerror',e=>errs.push(e.message));
+ await pg.route('**/p?u=*',r=>{const t=new URL(r.request().url()).searchParams.get('u');if(t.includes('news.google'))return r.fulfill({body:'<rss/>'});const m=W.mock(t);r.fulfill({status:m.__status||200,body:JSON.stringify(m),contentType:'application/json'})});
+ await pg.goto('http://127.0.0.1:47821/');await pg.evaluate(()=>{localStorage.clear();localStorage.setItem('pp_sport','nba');localStorage.setItem('pp_nodirect','1')});await pg.reload();
+ await pg.waitForFunction(()=>/NBA ·/.test(document.querySelector('#status').textContent),null,{timeout:300000});
+ await pg.evaluate(()=>{store.set('bshow','god');goTab('board');render()});await pg.waitForTimeout(400);
+ console.log('top rows',await pg.evaluate(()=>document.querySelectorAll('.gev').length));
+ await pg.evaluate(()=>{store.set('bshow','');render();document.querySelector('.godbox')?.scrollIntoView()});await pg.waitForTimeout(300);await pg.screenshot({path:'/tmp/shot_ev.png'});
+ await pg.evaluate(()=>{store.set('bshow','stars');render()});await pg.waitForTimeout(300);console.log('stars picks',await pg.evaluate(()=>[document.querySelectorAll('#out .pick').length,ALL.filter(p=>BMODES.stars.ok(p)).length,ALL.filter(p=>p.minAvg!=null).length,document.querySelector('#out h2')?.textContent]));
+ console.log('errors',errs.length?errs:'none');await b.close()})();
