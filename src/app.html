@@ -606,7 +606,8 @@ async function fetchBoard(sport = SPORT){
   if (IS_WEB) tries.push(async () => {   // the copy someone (or the iPhone Shortcut) sent in: fastest
     const r = await tFetch(`/board/${L}`, {}, 8000); if (!r.ok) return r;
     const age = +(r.headers.get("x-age") || 0), js = await r.json();
-    if (age > 3 * 3600) { stale = {js, age}; return {ok: false, status: "old"}; }
+    // older than 5 minutes: try for a fresher board first (live lines change after tip-off), keep this one as a fallback
+    if (age > 300) { stale = {js, age}; return {ok: false, status: "old"}; }
     BOARD_AGE[sport] = age; return {ok: true, json: async () => js};
   });
   if (IS_WEB) tries.push(() => tFetch(ppUrl(sport), {credentials: "omit"}, 10000));
@@ -2498,7 +2499,12 @@ function callOf(p, side){
   const blk = godBlock(p), why = reasonOf(p), wo = watchOut(p), ed = prob - breakeven(p);
   const df = Math.abs(legFactor(p) - 1).toFixed(1);
   const gob = p.type === "goblin" ? ` Good as a safe leg, but it cuts the payout by about ${df}×.` : p.type === "demon" ? ` Bonus: it adds about ${df}× to the payout.` : "";
-  if (p.live) return {c: "lean", lab: "LIVE", txt: p.liveStale ? `He's already past ${p.line}, so PrizePicks has almost certainly pulled or raised this line. Refresh and rate the live line instead.` : `Game in progress: ${p.liveNote || "rated with what he has so far"}. Live lines change fast, so check this exact line is still on PrizePicks before you play it.`};
+  if (p.live) {
+    if (p.livePre) return {c: "pass", lab: "OLD LINE", txt: `${p.liveNote}. Get the live board: run the PickHit Shortcut on your iPhone (or open PrizePicks), then tap refresh here, and I'll rate the real live line.`};
+    if (p.liveStale) return {c: "pass", lab: "OLD LINE", txt: `He's already past ${p.line}, so PrizePicks has almost certainly pulled or raised this line. Refresh to rate the live line.`};
+    const fine = ` ${p.liveNote}. Live lines move fast: make sure ${p.line} is still the line on PrizePicks.`;
+    return prob >= 0.62 && valueOf(p) >= BREAKEVEN_V ? {c: "bet", lab: "LIVE BET", txt: `I'd bet it live.${fine}`} : prob >= 0.55 ? {c: "lean", lab: "LIVE LEAN", txt: `Slight lean live.${fine}`} : {c: "pass", lab: "PASS", txt: `I'd pass live.${fine}`};
+  }
   const v = valueOf(p);
   if (blk) return {c: "pass", lab: "PASS", txt: `I'd pass: ${BLOCK_TXT[blk] || blk}.${prob >= 0.7 ? ` The ${pct(prob)} looks good on paper, but I don't trust it.` : ""}`};
   if (isGod(p) && (trustV(p) >= 0.62 || (p.type === "demon" && prob >= 0.6))) return {c: "bet", lab: "BET", txt: `${p.type === "demon" ? "I'd bet it. A demon this likely is rare, and it checks out." : "I'd bet it."} Hits about ${inTen(prob)} and pays enough to come out ahead (a 2-pick only needs 58% per pick). ${why}${wo ? ` Only thing to watch: ${wo}.` : ""}${gob}`.trim()};
@@ -3408,7 +3414,7 @@ const LIVE_LEN = {nba: [4, 12], wnba: [4, 10], cbb: [2, 20]};
 async function liveAdjust(picks, sport, games){
   const L = LIVE_LEN[sport], livePicks = picks.filter(p => p.liveGame && p.sMore != null);
   if (!L || !livePicks.length) { for (const p of picks.filter(p => p.live)) p.liveNote = L ? "Game in progress, but live stats weren't available yet: this is rated from before the game. Refresh in a minute" : "Game in progress: rated from before the game (no live box score for this sport)"; return 0; }
-  const C = CTX[sport], byGame = {};
+  const C = CTX[sport], byGame = {}, boardAt = Date.now() - (BOARD_AGE[sport] || 0) * 1000;
   for (const p of livePicks) (byGame[p.liveGame.id] ||= []).push(p);
   let n = 0;
   await pool(Object.keys(byGame), 3, async id => {
@@ -3431,12 +3437,13 @@ async function liveAdjust(picks, sport, games){
       if (cur == null) continue;
       const expFinal = cur + full * rem, sdr = Math.max(0.5, sd * Math.sqrt(rem));
       const tM = Math.floor(p.line) + 0.5, tL = Math.ceil(p.line) - 0.5;
-      p.liveStale = cur > p.line;   // already past it: this pregame line is gone from PrizePicks
+      const pre = p.start && new Date(p.start).getTime() > boardAt - 60e3;   // board copy was taken before tip-off
+      p.livePre = pre; p.liveStale = pre || cur > p.line;   // pregame line, or already past it: not a line you can play now
       p.sMore = cur > p.line ? 0.99 : clip(1 - phi((tM - expFinal) / sdr), 0.01, 0.95);
       if (p.type === "standard") p.sLess = cur > p.line ? 0.01 : clip(phi((tL - expFinal) / sdr), 0.01, 0.95);
       p.liveMore = p.sMore; p.liveLess = p.sLess;
       p.proj = +expFinal.toFixed(1); p.liveCur = cur; p.liveRem = Math.round(rem * total); p.live = true; n++;
-      p.liveNote = cur > p.line ? `Live: already at ${cur}, past ${p.line} (this line is likely gone from PrizePicks)` : `Live: ${cur} so far with about ${p.liveRem} min left, on pace for ${p.proj}`;
+      p.liveNote = pre ? `Live: ${cur} so far, on pace for ${p.proj}. But the ${p.line} line is from before tip-off and PrizePicks has posted new live lines` : cur > p.line ? `Live: already at ${cur}, past ${p.line} (this line is likely gone from PrizePicks)` : `Live: ${cur} so far with about ${p.liveRem} min left, on pace for ${p.proj}`;
     }
   });
   for (const p of picks) if (p.live && p.liveCur == null && !p.liveNote) p.liveNote = "Game in progress, but live stats couldn't be matched: rated from before the game. Refresh in a minute";
