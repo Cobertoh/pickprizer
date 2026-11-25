@@ -2422,7 +2422,9 @@ function minutesRisk(p){
 // Bang for the buck: chance × how much the pick multiplies the payout. A standard at 75% = 0.75; a deep goblin at 95%
 // that cuts the payout to ×0.47 = 0.45 (safe but pays pennies); a demon at 72% that adds ×1.6 = 1.15 (the real prize).
 const valueOf = p => { const pr = probOf(p); return pr == null ? 0 : pr * legFactor(p); };
-const passesChecks = p => !p.live ? godBlock(p) === null : probOf(p) >= 0.9;
+// live picks never go into Top picks or lineups: PrizePicks pulls the pregame line at tip-off and posts new live lines,
+// so the line we have is often no longer the one you can actually play
+const passesChecks = p => !p.live && godBlock(p) === null;
 // What a pick needs to come out ahead: in a 2-pick Power Play (3×) each pick must hit 57.7% (value 0.577).
 const BREAKEVEN_V = 0.577;
 // (see TOP PICK rule below)
@@ -2446,10 +2448,11 @@ function topSet(sport){
   let t = TOPSETS.get(arr); if (t) return t;
   t = new Set(arr.filter(godEligible).sort((a, b) => trustV(b) - trustV(a)).slice(0, TOP_N)); TOPSETS.set(arr, t); return t;
 }
-const isGod = p => (p.live && probOf(p) >= 0.9) || (!p.live && topSet(p.sport).has(p));
+const isGod = p => !p.live && topSet(p.sport).has(p);
 const isSafeLeg = p => passesChecks(p) && !isGod(p) && probOf(p) >= 0.72;
 function gradeOf(p){
   const prob = probOf(p); if (prob == null) return {g: "–", c: "n", t: "Not rated"};
+  if (p.live) return {g: "–", c: "n", t: "Live: check this line is still on PrizePicks"};
   if (isGod(p)) return trustV(p) >= 0.63 ? {g: "A+", c: "ap", t: "Top pick: likely AND pays well"} : {g: "A", c: "a", t: "Top pick"};
   if (isSafeLeg(p)) return {g: "A−", c: "s", t: "Safe, but pays little"};
   if (godBlock(p)) return prob >= 0.5 ? {g: "C", c: "c", t: "Has a red flag"} : {g: "D", c: "d", t: "Skip"};
@@ -2495,7 +2498,7 @@ function callOf(p, side){
   const blk = godBlock(p), why = reasonOf(p), wo = watchOut(p), ed = prob - breakeven(p);
   const df = Math.abs(legFactor(p) - 1).toFixed(1);
   const gob = p.type === "goblin" ? ` Good as a safe leg, but it cuts the payout by about ${df}×.` : p.type === "demon" ? ` Bonus: it adds about ${df}× to the payout.` : "";
-  if (p.live && prob >= 0.9) return {c: "bet", lab: "BET", txt: `He's already on pace live. ${why}`.trim()};
+  if (p.live) return {c: "lean", lab: "LIVE", txt: p.liveStale ? `He's already past ${p.line}, so PrizePicks has almost certainly pulled or raised this line. Refresh and rate the live line instead.` : `Game in progress: ${p.liveNote || "rated with what he has so far"}. Live lines change fast, so check this exact line is still on PrizePicks before you play it.`};
   const v = valueOf(p);
   if (blk) return {c: "pass", lab: "PASS", txt: `I'd pass: ${BLOCK_TXT[blk] || blk}.${prob >= 0.7 ? ` The ${pct(prob)} looks good on paper, but I don't trust it.` : ""}`};
   if (isGod(p) && (trustV(p) >= 0.62 || (p.type === "demon" && prob >= 0.6))) return {c: "bet", lab: "BET", txt: `${p.type === "demon" ? "I'd bet it. A demon this likely is rare, and it checks out." : "I'd bet it."} Hits about ${inTen(prob)} and pays enough to come out ahead (a 2-pick only needs 58% per pick). ${why}${wo ? ` Only thing to watch: ${wo}.` : ""}${gob}`.trim()};
@@ -2585,7 +2588,7 @@ function bestStripHTML(list){
 // Value pick: likely enough to trust (60%+, no serious flags) AND it pays like a 68%+ standard or better
 const isValuePick = p => { const pr = probOf(p); return pr != null && pr >= 0.6 && !p.live && valueOf(p) >= 0.68 && legFactor(p) >= 0.85 && p.verdict?.c !== "r" && !["serious news", "injury tag", "line far from his average", "too few games to trust", "scoring unconfirmed", "all-or-nothing stat"].includes(godBlock(p)); };
 const BMODES = {
-  "": {lab: "All picks", txt: "highest chance first", ok: () => true, key: p => probOf(p) ?? -1},
+  "": {lab: "All picks", txt: "highest chance first", ok: () => true, key: p => p.liveStale ? -1 : probOf(p) ?? -1},
   god: {lab: "👑 Top", txt: "Top picks only, best first", ok: isGod, key: valueOf},
   bet: {lab: "✅ I'd bet", txt: "picks I'd bet, most likely to hit first", ok: p => p.verdict && ["bet", "lean"].includes(callOf(p).c) && callOf(p).lab !== "SAFE LEG", key: p => probOf(p) ?? -1},
   value: {lab: "💎 Value", txt: "likely AND pays well, best value first", ok: isValuePick, key: valueOf},
@@ -3428,11 +3431,12 @@ async function liveAdjust(picks, sport, games){
       if (cur == null) continue;
       const expFinal = cur + full * rem, sdr = Math.max(0.5, sd * Math.sqrt(rem));
       const tM = Math.floor(p.line) + 0.5, tL = Math.ceil(p.line) - 0.5;
-      p.sMore = cur > p.line ? 0.99 : clip(1 - phi((tM - expFinal) / sdr), 0.01, 0.99);
-      if (p.type === "standard") p.sLess = cur > p.line ? 0.01 : clip(phi((tL - expFinal) / sdr), 0.01, 0.99);
+      p.liveStale = cur > p.line;   // already past it: this pregame line is gone from PrizePicks
+      p.sMore = cur > p.line ? 0.99 : clip(1 - phi((tM - expFinal) / sdr), 0.01, 0.95);
+      if (p.type === "standard") p.sLess = cur > p.line ? 0.01 : clip(phi((tL - expFinal) / sdr), 0.01, 0.95);
       p.liveMore = p.sMore; p.liveLess = p.sLess;
       p.proj = +expFinal.toFixed(1); p.liveCur = cur; p.liveRem = Math.round(rem * total); p.live = true; n++;
-      p.liveNote = cur > p.line ? `Live: already at ${cur}, past the line` : `Live: ${cur} so far with about ${p.liveRem} min left, on pace for ${p.proj}`;
+      p.liveNote = cur > p.line ? `Live: already at ${cur}, past ${p.line} (this line is likely gone from PrizePicks)` : `Live: ${cur} so far with about ${p.liveRem} min left, on pace for ${p.proj}`;
     }
   });
   for (const p of picks) if (p.live && p.liveCur == null && !p.liveNote) p.liveNote = "Game in progress, but live stats couldn't be matched: rated from before the game. Refresh in a minute";
