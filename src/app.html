@@ -577,7 +577,8 @@ const SPORTS = {
   golf:   {name: "Golf",   label: "⛳ Golf",   league: 1, leagueNames: ["PGA", "GOLF", "LPGA", "LIVGOLF"], unitGame: "round", kind: "golf"},
   mma:    {name: "MMA",    label: "🥊 MMA",    league: 12, leagueNames: ["MMA", "UFC"], unitGame: "fight", kind: "ufc"},
   wnba:   {name: "WNBA",   label: "🏀 WNBA",   league: 3, leagueNames: ["WNBA"],   unitGame: "game", kind: "espn", path: "basketball/wnba", stats: "bball", calYear: true},
-  nba2h:  {name: "NBA 2nd Half", label: "🏀 NBA 2H", league: 0, leagueNames: ["NBA2H"], unitGame: "game", half: true},
+  nba2h:  {name: "NBA 2nd Half", label: "🏀 NBA 2H", league: 0, leagueNames: ["NBA2H"], unitGame: "game", half: 0.5},
+  nba4q:  {name: "NBA 4th Quarter", label: "🏀 NBA 4Q", league: 0, leagueNames: ["NBA4Q"], unitGame: "game", half: 0.25},
   mlb:    {name: "MLB",    label: "⚾ MLB",    league: 2, leagueNames: ["MLB"],    unitGame: "game", kind: "espn", path: "baseball/mlb", stats: "mlb", calYear: true},
 };
 // PrizePicks' league numbers can change: when its league list is reachable, correct them by name
@@ -588,7 +589,7 @@ async function fixLeagues(){
     for (const t of tries) {
       try { const r = await t(); if (!r.ok) continue; const js = await r.json();
         for (const l of js.data || []) { const nm = String(l.attributes?.name || "").toUpperCase(); for (const sp of Object.values(SPORTS)) if (sp.leagueNames[0] === nm) sp.league = +l.id; }
-        if (!SPORTS.nba2h.league) continue;
+        if (!SPORTS.nba2h.league || !SPORTS.nba4q.league) continue;
         return true; } catch {}
     }
   } catch {}
@@ -989,7 +990,7 @@ function parseBoard(js, sport = SPORT){
     const type = (a.odds_type || "standard").toLowerCase();
     if (!["standard","goblin","demon"].includes(type) || a.is_promo) continue;
     // half / quarter boards label stats like "Points (2H)", "2H Points" or "2nd Half Points": rate them as the base stat
-    if (sp.half && a.stat_type) a.stat_type = String(a.stat_type).replace(/\s*[-–(]?\s*\b(2H|1H|2nd\s*half|second\s*half|1st\s*half|first\s*half|half)\b\s*\)?\s*/ig, " ").replace(/\s+/g, " ").trim();
+    if (sp.half && a.stat_type) a.stat_type = String(a.stat_type).replace(/\s*[-–(]?\s*\b(2H|1H|4Q|1Q|2nd\s*half|second\s*half|1st\s*half|first\s*half|4th\s*quarter|fourth\s*quarter|1st\s*quarter|half|quarter)\b\s*\)?\s*/ig, " ").replace(/\s+/g, " ").trim();
     if (a.status != null && /final|complete|cancel|void|closed|settled|postpon/i.test(a.status)) continue;   // live lines stay
     const live = (a.status != null && a.status !== "pre_game") || (a.start_time && Date.parse(a.start_time) < Date.now() - 60e3);
     const rel = p.relationships || {};
@@ -1256,8 +1257,8 @@ const statFn = (sport, stat) => {
 function seriesFor(p){
   const f = statFn(p.sport, p.stat), gs = (HIST[p.sport] || {})[p.player] || [];
   if (!f) return [];
-  const h = p.sport === "nba2h" ? 0.5 : 1;   // 2nd-half page: about half of each full game (the line is for one half)
-  return gs.filter(g => !["nba", "nba2h"].includes(p.sport) || g.MIN >= 5).map(g => ({date: g.date, opp: g.opp || "", home: g.home, v: f(g) == null ? null : +(f(g) * h).toFixed(1), min: g.MIN})).filter(x => x.v != null);
+  const h = SPORTS[p.sport]?.half || 1;   // 2H / 4Q pages: that share of each full game (the line is for that part of the game)
+  return gs.filter(g => !["nba", "nba2h", "nba4q"].includes(p.sport) || g.MIN >= 5).map(g => ({date: g.date, opp: g.opp || "", home: g.home, v: f(g) == null ? null : +(f(g) * h).toFixed(1), min: g.MIN})).filter(x => x.v != null);
 }
 function sameOpp(p, o){
   if (!p.opp || !o) return false;
@@ -2420,8 +2421,8 @@ function godBlock(p){   // a RED FLAG that keeps a pick out of Top picks and lin
 // game to game can look great on averages and still post a dud when the coach shortens the rotation or it's a
 // blowout (e.g. a 23-minute rookie with a 16-minute game in his log). Those stay out of Top picks and lineups.
 function minutesRisk(p){
-  if (!["nba", "nba2h", "wnba", "cbb"].includes(p.sport)) return null;
-  if (["nba", "nba2h"].includes(p.sport) && p.games < 15) return `only ${p.games} NBA games so far: his role is still settling`;
+  if (!["nba", "nba2h", "nba4q", "wnba", "cbb"].includes(p.sport)) return null;
+  if (["nba", "nba2h", "nba4q"].includes(p.sport) && p.games < 15) return `only ${p.games} NBA games so far: his role is still settling`;
   const ms = ((HIST[p.sport] || {})[p.player] || []).slice(0, 10).map(g => g.MIN).filter(m => m != null && m > 0);
   if (ms.length < 5) return null;
   const mean = ms.reduce((a, b) => a + b, 0) / ms.length; if (mean >= 32) return null;   // heavy-minute starters are steady
@@ -3425,21 +3426,23 @@ async function gameContext(picks, sport){
 // (starters sit late), foul trouble, and anyone who hasn't played.
 let HALF_RUN = false;
 const phiInv = q => { q = clip(q, 1e-6, 1 - 1e-6); let lo = -8, hi = 8; for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (phi(m) < q) lo = m; else hi = m; } return (lo + hi) / 2; };
-function halfPrep(picks){
-  HALF_RUN = true;
-  for (const p of picks) { p.h2 = {line: p.line, live: p.live}; p.line = p.line % 1 ? 2 * p.line + 0.5 : 2 * p.line; p.sport = "nba"; p.live = false; }
+// f = the share of the game the line covers (2nd half 0.5, 4th quarter 0.25). A line L is rated as a full-game line
+// at L / f; a part of a game has f of the average but √f of the spread, so z(part) = z(game) × √f.
+function halfPrep(picks, sport){
+  HALF_RUN = true; const f = SPORTS[sport].half;
+  for (const p of picks) { p.h2 = {line: p.line, live: p.live, sport, f}; p.line = p.line % 1 ? Math.ceil(p.line) / f - 0.5 : p.line / f; p.sport = "nba"; p.live = false; }
 }
-async function halfConvert(picks){
-  const cv = q => q == null ? q : clip(phi(phiInv(q) / Math.SQRT2), 0.01, 0.97);
+async function halfConvert(picks, sport){
+  const f = SPORTS[sport].half, q4 = f < 0.5, cv = q => q == null ? q : clip(phi(phiInv(q) * Math.sqrt(f)), 0.01, 0.97);
   for (const p of picks) {
     if (!p.h2) continue;
-    p.line = p.h2.line; p.sport = "nba2h";
+    p.line = p.h2.line; p.sport = sport;
     for (const k of ["pMore", "pLess", "sMore", "sLess", "oMore", "oLess", "hMore", "hLess"]) if (p[k] != null) p[k] = cv(p[k]);
-    if (p.proj != null) p.proj = +(p.proj / 2).toFixed(1);
-    if (p.sd) p.sd = p.sd / Math.SQRT2;
-    if (p.prof) for (const k of ["q1", "q3", "med", "p10", "p90"]) if (p.prof[k] != null) p.prof[k] = +(p.prof[k] / 2).toFixed(1);
+    if (p.proj != null) p.proj = +(p.proj * f).toFixed(1);
+    if (p.sd) p.sd = p.sd * Math.sqrt(f);
+    if (p.prof) for (const k of ["q1", "q3", "med", "p10", "p90"]) if (p.prof[k] != null) p.prof[k] = +(p.prof[k] * f).toFixed(1);
   }
-  HIST.nba2h = HIST.nba;
+  HIST[sport] = HIST.nba;
   // first-half context from ESPN's live box scores
   const games = {}; for (const p of picks) if (p.liveGame && p.liveGame.id) (games[p.liveGame.id] ||= []).push(p);
   await pool(Object.keys(games), 3, async id => {
@@ -3454,11 +3457,11 @@ async function halfConvert(picks){
       const g = box[norm(p.player)], shift = (dz, why, dir) => { for (const [k, sg] of [["pMore", 1], ["pLess", -1]]) if (p[k] != null) p[k] = clip(phi(phiInv(p[k]) + sg * dz), 0.01, 0.97); p.h2risk = why; p.h2riskDir = dir; };
       p.h1 = {margin, per, min: g?.MIN ?? null, pf: g?.PF ?? null};
       if (g && (g.dnp || (g.MIN === 0 && per >= 2))) { shift(-0.8, "he hasn't played tonight", -1); continue; }
-      if (g && g.PF >= 4) { shift(-0.3, `${g.PF} fouls already`, -1); continue; }
-      if (margin >= 18 && (p.minAvg || 0) >= 26) shift(-0.25, `${margin}-point game: starters may sit late`, -1);
+      if (g && g.PF >= (q4 ? 5 : 4)) { shift(-0.3, `${g.PF} fouls already`, -1); continue; }
+      if (margin >= (q4 ? 15 : 18) && (p.minAvg || 0) >= 26) shift(q4 ? -0.45 : -0.25, `${margin}-point game: starters may sit ${q4 ? "the 4th" : "late"}`, -1);
     }
   });
-  for (const p of picks) if (p.h1) (p.extraWhy ||= []).unshift(`First half: ${p.h1.min != null ? `${p.h1.min} min, ${p.h1.pf} fouls; ` : ""}score gap ${p.h1.margin}`);
+  for (const p of picks) if (p.h1) (p.extraWhy ||= []).unshift(`${q4 ? "Through 3 quarters" : "First half"}: ${p.h1.min != null ? `${p.h1.min} min, ${p.h1.pf} fouls; ` : ""}score gap ${p.h1.margin}`);
 }
 // ---------- LIVE GAMES (basketball): what he has so far + his usual rate for the time that's left
 const LIVE_LEN = {nba: [4, 12], wnba: [4, 10], cbb: [2, 20]};
@@ -4860,7 +4863,7 @@ async function analyze(picks, sport = SPORT){
   setStatus(`Found ${picks.length} ${sp.name} picks…`, 0.03);
   await addTrending(picks, sport);
   const half = !!SPORTS[sport].half, sx = half ? "nba" : sport;
-  if (half) halfPrep(picks);
+  if (half) halfPrep(picks, sport);
   const kind = SPORTS[sx].kind;
   const r = (kind === "espn" ? await analyzeESPN(picks, sport) : kind === "ufc" ? await analyzeUFC(picks) : kind === "golf" ? await analyzeGolf(picks) : kind === "sofa" ? await analyzeSoccer(picks) : kind === "line" ? await analyzeLineOnly(picks, sport) : sport === "tennis" ? await analyzeTennis(picks) : sport === "nfl" ? await analyzeNFL(picks) : sport === "cfb" ? await analyzeCFB(picks) : await analyzeNBA(picks)) || {};
   setStatus("Projecting minutes and simulating every game…", 0.84);
@@ -4878,7 +4881,7 @@ async function analyze(picks, sport = SPORT){
   }
   if ($("#useReddit").checked) { setStatus("Reading what people are saying on Reddit…", 0.88); scoreBuzz(picks, await reddit(sport)); }
   finalize(picks);
-  if (half) { HALF_RUN = false; await halfConvert(picks); }
+  if (half) { HALF_RUN = false; await halfConvert(picks, sport); }
   CLASSIFY_PICKS[sport] = {picks}; classify(picks);
   if (!half) { trackUpdate(sport, picks); slipsGrade(sport); }   // full-game box scores can't grade 2nd-half lines
   if (!half) setTimeout(() => { try { const rt = replayTest(sport, picks); if (rt && DATA[sport]) DATA[sport].replay = {acc70: rt.acc70, n70: rt.n70, w: rt.best.w}; } catch (e) { console.warn("replay", e); } }, 300);

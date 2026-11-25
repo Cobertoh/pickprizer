@@ -83,7 +83,7 @@ const stored = (o) => new Response(o.text, { headers: { "content-type": "applica
 // The list of PrizePicks links the iPhone Shortcut loads (one per line), so nobody has to type them.
 const SC_LEAGUES = [7, 9, 15, 20, 8, 5, 82, 1, 12, 2, 3];
 // period boards PrizePicks lists as separate leagues (their numbers are learned from the league list the Shortcut sends)
-const SC_EXTRA = ["NBA2H"];
+const SC_EXTRA = ["NBA2H", "NBA4Q"];
 async function scList(env) {
   const ids = [...SC_LEAGUES];
   try { const o = await kvGet(env, "leagues"); if (o) for (const l of JSON.parse(o.text).data || []) if (SC_EXTRA.includes(String(l.attributes && l.attributes.name || "").toUpperCase())) ids.push(+l.id); } catch (e) {}
