@@ -598,7 +598,10 @@ async function fixLeagues(){
 for (const k of Object.keys(SPORTS)) { try { const v = +localStorage.getItem("pp_lg_" + k); if (v && !SPORTS[k].league) SPORTS[k].league = v; } catch {} }   // board numbers learned from pastes
 let SPORT = (() => { try { return localStorage.getItem("pp_sport") || "nba"; } catch { return "nba"; } })();
 if (!SPORTS[SPORT]) SPORT = "nba";
-const ppUrl = (sport = SPORT) => `https://api.prizepicks.com/projections?league_id=${SPORTS[sport].league}&per_page=1000&single_stat=true`;
+// a board whose PrizePicks number isn't known yet (2H / 4Q) opens PrizePicks' list of boards instead: paste it once and
+// PickHit learns every board's number
+const ppUrl = (sport = SPORT) => SPORTS[sport].league ? `https://api.prizepicks.com/projections?league_id=${SPORTS[sport].league}&per_page=1000&single_stat=true` : "https://api.prizepicks.com/leagues";
+const ppLinkSet = () => { const a = $("#ppLink"); if (!a) return; a.href = ppUrl(); a.textContent = SPORTS[SPORT].league ? "1 · Open today's picks" : "1 · Open PrizePicks' list of boards (one time)"; };
 const BOARDS = {}, BOARD_AGE = {};
 const agoTxt = s => s < 90 ? "just now" : s < 3600 ? Math.round(s / 60) + " min ago" : s < 86400 ? (Math.round(s / 360) / 10) + " hours ago" : Math.round(s / 86400) + " days ago";
 const IS_WEB = !window.EXT_FETCH && !/^(127\.0\.0\.1|localhost)$/.test(location.hostname);
@@ -793,7 +796,7 @@ function drawSportTabs(){
     SPORT = b.dataset.sport; store.set("sport", SPORT); drawSportTabs(); $("#pastePanel").classList.toggle("hide", !NEEDPASTE[SPORT] || TAB === "mine"); showSport();
     quickStart();
   });
-  $("#ppLink").href = ppUrl();
+  ppLinkSet();
 }
 let TAB = "home";
 const NEEDPASTE = {};
@@ -4892,7 +4895,7 @@ async function analyze(picks, sport = SPORT){
 }
 function showSport(){
   const d = DATA[SPORT], sp = SPORTS[SPORT];
-  $("#ppLink").href = ppUrl();
+  ppLinkSet();
   if (!d) {
     ALL = [];
     $("#tabs").classList.toggle("hide", !Object.keys(DATA).length); $("#coachView").innerHTML = loaderHTML(`Getting today's ${sp.name} picks…`); $("#out").innerHTML = loaderHTML(`Getting today's ${sp.name} picks…`);
@@ -5164,6 +5167,13 @@ function boardSport(js){
   return k;
 }
 async function usePasted(js){
+  // PrizePicks' list of boards: learn every board's number (one time), then point the link at the real board
+  if (Array.isArray(js.data) && js.data.length && js.data.every(d => d.type === "league")) {
+    for (const l of js.data) { const nm = String(l.attributes?.name || "").toUpperCase(); for (const k of Object.keys(SPORTS)) if (SPORTS[k].leagueNames[0] === nm && +l.id) { SPORTS[k].league = +l.id; store.set("lg_" + k, +l.id); } }
+    if (IS_WEB) fetch("/board", {method: "POST", body: JSON.stringify(js), headers: {"content-type": "application/json"}}).catch(() => {});   // the server (and your Shortcut) learn them too
+    $("#pasteBox").value = ""; ppLinkSet();
+    return setStatus(SPORTS[SPORT].league ? `Learned PrizePicks' board numbers ✓ Now tap "1 · Open today's picks" again: it opens the ${SPORTS[SPORT].name} board. Copy and paste that the same way.` : `Got the list, but it has no ${SPORTS[SPORT].name} board right now (PrizePicks only lists it while games are at that stage).`);
+  }
   const sp = boardSport(js); $("#pastePanel").classList.add("hide"); shareBoard(js, sp);
   const picks = parseBoard(js, sp);
   if (!picks.length) { const un = [...new Set((UNRATED[sp] || []).map(u => u.stat))].slice(0, 6), n = (js.data || []).length;

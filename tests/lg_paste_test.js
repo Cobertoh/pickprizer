@@ -1,0 +1,10 @@
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch();const pg=await b.newPage();const errs=[];pg.on('pageerror',e=>errs.push(e.message));
+ await pg.route('**/p?u=*',r=>r.fulfill({status:403,body:'{}'}));
+ await pg.goto('http://127.0.0.1:47821/');await pg.evaluate(()=>{localStorage.clear();localStorage.setItem('pp_sport','nba4q');localStorage.setItem('pp_nodirect','1')});await pg.reload();await pg.waitForTimeout(3000);
+ console.log('before:',await pg.evaluate(()=>[$("#ppLink").href,$("#ppLink").textContent]));
+ const L={data:[{id:'7',type:'league',attributes:{name:'NBA',projections_count:500}},{id:'84',type:'league',attributes:{name:'NBA2H'}},{id:'192',type:'league',attributes:{name:'NBA4Q'}}]};
+ await pg.evaluate(js=>{$("#pasteBox").value=js;$("#pasteGo").click()},JSON.stringify(L));await pg.waitForTimeout(800);
+ console.log('after:',await pg.evaluate(()=>[$("#ppLink").href,$("#ppLink").textContent,document.querySelector('#status').textContent,localStorage.getItem('pp_lg_nba2h')]));
+ await pg.reload();await pg.waitForTimeout(1500);console.log('after reload:',await pg.evaluate(()=>$("#ppLink").href));
+ console.log('errors',errs.length?errs:'none');await b.close()})();
