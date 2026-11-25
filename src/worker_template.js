@@ -87,6 +87,7 @@ const SC_EXTRA = ["NBA2H", "NBA4Q"];
 async function scList(env) {
   const ids = [...SC_LEAGUES];
   try { const o = await kvGet(env, "leagues"); if (o) for (const l of JSON.parse(o.text).data || []) if (SC_EXTRA.includes(String(l.attributes && l.attributes.name || "").toUpperCase())) ids.push(+l.id); } catch (e) {}
+  try { const o = await kvGet(env, "lgmap"); if (o) for (const [nm, id] of Object.entries(JSON.parse(o.text))) if (SC_EXTRA.includes(nm) && !ids.includes(id)) ids.push(id); } catch (e) {}
   const urls = ids.map(l => `https://api.prizepicks.com/projections?per_page=1000&single_stat=true&league_id=${l}`);
   urls.push("https://api.prizepicks.com/leagues");
   return new Response(urls.join("\n"), { headers: { "content-type": "text/plain", "cache-control": "no-store" } });
@@ -110,6 +111,10 @@ async function board(req, env, ctx, league) {
   if (text.length > 12e6) return json({ message: "too big" }, 413);
   if (!/^\s*\{\s*"data"\s*:\s*\[\s*\{/.test(text.slice(0, 200)) || !text.includes('"projection"')) return json({ message: "not a PrizePicks board" }, 400);
   await kvPut(env, ctx, k, text, 2 * DAY);
+  try {   // remember which board number is the 2H / 4Q board (found by name inside the board), so the Shortcut fetches it
+    const nm = SC_EXTRA.find(n => text.includes('"name":"' + n + '"'));
+    if (nm) { const o = await kvGet(env, "lgmap"), map = o ? JSON.parse(o.text) : {}; if (map[nm] !== +league) { map[nm] = +league; await kvPut(env, ctx, "lgmap", JSON.stringify(map), 60 * DAY); } }
+  } catch (e) {}
   // Time machine: keep one pregame snapshot per day (the last one saved before 7pm ET), for 90 days, straight to KV.
   const now = new Date(), et = new Date(now.getTime() - 5 * 3600e3), day = et.toISOString().slice(0, 10);
   if (env.KV && et.getUTCHours() < 19) ctx.waitUntil(env.KV.put("snap/" + sport + "/" + day, text, { expirationTtl: 90 * DAY, metadata: { t: Date.now() } }).catch(() => {}));
@@ -359,7 +364,11 @@ export default {
     const bm = url.pathname.match(/^\/board(?:\/(\d{1,4}))?\/?$/);
     if (bm) return board(req, env, ctx, bm[1]);
     if (url.pathname === "/sc") return scList(env);
-    if (url.pathname === "/leagues") { const o = await kvGet(env, "leagues"); return o ? stored(o) : json({ message: "no league list yet" }, 404); }
+    if (url.pathname === "/leagues") {
+      const o = await kvGet(env, "leagues"); if (o) return stored(o);
+      const m = await kvGet(env, "lgmap"); if (m) return json({ data: Object.entries(JSON.parse(m.text)).map(([name, id]) => ({ id: String(id), type: "league", attributes: { name } })) }, 200);
+      return json({ message: "no league list yet" }, 404);
+    }
     if (url.pathname === "/track") return track(req, env, ctx);
     const sm = url.pathname.match(/^\/snap\/([a-z0-9]{2,8})(?:\/(\d{4}-\d\d-\d\d))?$/);
     if (sm) return snap(req, env, sm[1], sm[2]);

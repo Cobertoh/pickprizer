@@ -595,6 +595,7 @@ async function fixLeagues(){
   } catch {}
   return false;
 }
+for (const k of Object.keys(SPORTS)) { try { const v = +localStorage.getItem("pp_lg_" + k); if (v && !SPORTS[k].league) SPORTS[k].league = v; } catch {} }   // board numbers learned from pastes
 let SPORT = (() => { try { return localStorage.getItem("pp_sport") || "nba"; } catch { return "nba"; } })();
 if (!SPORTS[SPORT]) SPORT = "nba";
 const ppUrl = (sport = SPORT) => `https://api.prizepicks.com/projections?league_id=${SPORTS[sport].league}&per_page=1000&single_stat=true`;
@@ -5158,7 +5159,7 @@ function boardSport(js){
   const lg = (js.included || []).find(i => i.type === "league"), nm = String(lg?.attributes?.name || "").toUpperCase();
   const k = nm && Object.keys(SPORTS).find(k => SPORTS[k].leagueNames.includes(nm));
   if (!k) return SPORT;
-  if (lg.id && +lg.id) SPORTS[k].league = +lg.id;
+  if (lg.id && +lg.id) { SPORTS[k].league = +lg.id; store.set("lg_" + k, +lg.id); }
   if (k !== SPORT) { SPORT = k; store.set("sport", SPORT); drawSportTabs(); showSport(); }
   return k;
 }
