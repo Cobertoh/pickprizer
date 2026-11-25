@@ -988,6 +988,8 @@ function parseBoard(js, sport = SPORT){
     if (lid != null && !leagues[lid] && String(lid) !== String(sp.league)) continue;
     const type = (a.odds_type || "standard").toLowerCase();
     if (!["standard","goblin","demon"].includes(type) || a.is_promo) continue;
+    // half / quarter boards label stats like "Points (2H)", "2H Points" or "2nd Half Points": rate them as the base stat
+    if (sp.half && a.stat_type) a.stat_type = String(a.stat_type).replace(/\s*[-–(]?\s*\b(2H|1H|2nd\s*half|second\s*half|1st\s*half|first\s*half|half)\b\s*\)?\s*/ig, " ").replace(/\s+/g, " ").trim();
     if (a.status != null && /final|complete|cancel|void|closed|settled|postpon/i.test(a.status)) continue;   // live lines stay
     const live = (a.status != null && a.status !== "pre_game") || (a.start_time && Date.parse(a.start_time) < Date.now() - 60e3);
     const rel = p.relationships || {};
@@ -5160,7 +5162,8 @@ function boardSport(js){
 async function usePasted(js){
   const sp = boardSport(js); $("#pastePanel").classList.add("hide"); shareBoard(js, sp);
   const picks = parseBoard(js, sp);
-  if (!picks.length) return setStatus(`That paste had no ${SPORTS[sp].name} picks PickHit can rate (finished games and promos are skipped).`);
+  if (!picks.length) { const un = [...new Set((UNRATED[sp] || []).map(u => u.stat))].slice(0, 6), n = (js.data || []).length;
+    return setStatus(`That paste had ${n} lines but none PickHit can rate yet${un.length ? `. Stat names it couldn't read: ${un.join(", ")}` : " (finished games and promos are skipped)"}. Send me this message and I'll add them.`); }
   setStatus(`Got ${picks.length} ${SPORTS[sp].name} picks from your paste. Rating them (about a minute)…`, 0.03);
   const t0 = Date.now(), dog = setInterval(() => { if (DATA[sp] && DATA[sp].time >= t0) return clearInterval(dog);
     if (Date.now() - t0 > 150e3) { clearInterval(dog); setStatus(`Still working after 2½ minutes. The slow step: ${$("#status").textContent.slice(0, 80)}. Problems so far: ${Object.keys(ERRS).join(", ") || "none"}. Tap refresh to try again.`); } }, 5000);

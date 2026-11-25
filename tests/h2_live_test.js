@@ -1,7 +1,7 @@
 // NBA 2H with games IN PROGRESS, board pasted by hand (the user's path), league number unknown.
 const {chromium}=require('playwright');const {makeWorld}=require('./simleague.js');const W=makeWorld(3,0,Date.now());
 const board=JSON.parse(JSON.stringify(W.mock('https://api.prizepicks.com/projections?league_id=7')));
-for(const d of board.data){const a=d.attributes;a.line_score=Math.round(a.line_score)/2;if(a.line_score%1===0)a.line_score+=0.5;a.start_time=new Date(Date.now()-90*60e3).toISOString();a.status='in_game';d.relationships.league.data.id='84'}
+for(const d of board.data){const a=d.attributes;a.line_score=Math.round(a.line_score)/2;if(a.line_score%1===0)a.line_score+=0.5;a.start_time=new Date(Date.now()-90*60e3).toISOString();a.status='in_game';a.stat_type=a.stat_type+' (2H)';d.relationships.league.data.id='84'}
 board.included=board.included.filter(x=>x.type!=='league');board.included.push({type:'league',id:'84',attributes:{name:'NBA2H'}});
 const events=W.today.pairs.map(([h,a],i)=>({id:'g'+i,competitions:[{competitors:[{homeAway:'home',score:'60',team:{abbreviation:h}},{homeAway:'away',score:i===0?'35':'55',team:{abbreviation:a}}],status:{period:2,displayClock:'0:00',type:{state:'in'}},odds:[]}],status:{period:2,displayClock:'0:00',type:{state:'in'}}}));
 const summary=id=>{const i=+id.slice(1),[h,a]=W.today.pairs[i];const ath=W.players.filter(p=>p.team===h||p.team===a).map((p,k)=>({athlete:{displayName:p.name},didNotPlay:false,stats:[String(10+k%12),String(k%5===0?4:1),String(k%15)]}));
