@@ -82,11 +82,24 @@ async function kvPut(env, ctx, k, text, ttlSec) {
 const stored = (o) => new Response(o.text, { headers: { "content-type": "application/json", "cache-control": "no-store", "x-age": String(Math.round((Date.now() - o.t) / 1000)), "access-control-expose-headers": "x-age" } });
 // The list of PrizePicks links the iPhone Shortcut loads (one per line), so nobody has to type them.
 const SC_LEAGUES = [7, 9, 15, 20, 8, 5, 82, 1, 12, 2, 3];
-const scList = () => new Response(SC_LEAGUES.map(l => `https://api.prizepicks.com/projections?per_page=1000&single_stat=true&league_id=${l}`).join("\n"), { headers: { "content-type": "text/plain", "cache-control": "no-store" } });
+// period boards PrizePicks lists as separate leagues (their numbers are learned from the league list the Shortcut sends)
+const SC_EXTRA = ["NBA2H"];
+async function scList(env) {
+  const ids = [...SC_LEAGUES];
+  try { const o = await kvGet(env, "leagues"); if (o) for (const l of JSON.parse(o.text).data || []) if (SC_EXTRA.includes(String(l.attributes && l.attributes.name || "").toUpperCase())) ids.push(+l.id); } catch (e) {}
+  const urls = ids.map(l => `https://api.prizepicks.com/projections?per_page=1000&single_stat=true&league_id=${l}`);
+  urls.push("https://api.prizepicks.com/leagues");
+  return new Response(urls.join("\n"), { headers: { "content-type": "text/plain", "cache-control": "no-store" } });
+}
+const scListOld = () => new Response(SC_LEAGUES.map(l => `https://api.prizepicks.com/projections?per_page=1000&single_stat=true&league_id=${l}`).join("\n"), { headers: { "content-type": "text/plain", "cache-control": "no-store" } });
 async function board(req, env, ctx, league) {
   if (!league) {   // the Shortcut posts every board to /board: read which league it is from the board itself
     if (req.method !== "POST") return json({ message: "method" }, 405);
-    const text = await req.text(), m = text.match(/"league"\s*:\s*\{\s*"data"\s*:\s*\{[^}]*"id"\s*:\s*"?(\d{1,4})/);
+    const text = await req.text();
+    if (text.length < 2e6 && /"type"\s*:\s*"league"/.test(text) && !text.includes('"projection"')) {   // PrizePicks' league list
+      try { if (Array.isArray(JSON.parse(text).data)) { const old = await kvGet(env, "leagues"); if (!old || Date.now() - old.t > 12 * 3600e3) await kvPut(env, ctx, "leagues", text, 30 * DAY); return json({ ok: true, leagues: true }, 200); } } catch (e) {}
+    }
+    const m = text.match(/"league"\s*:\s*\{\s*"data"\s*:\s*\{[^}]*"id"\s*:\s*"?(\d{1,4})/);
     if (!m) return json({ message: "empty or not a PrizePicks board" }, 200);
     return board(new Request(req.url, { method: "POST", body: text }), env, ctx, m[1]);
   }
@@ -309,7 +322,7 @@ async function potd(req, env) {
   if (PLAN_RANK[await access(req, env)] < 2) return json({ message: "members only" }, 403);
   let b; try { b = await readJSON(req, 4000); } catch (e) { return json({ message: "bad" }, 400); }
   const sp = String(b.sport || ""), p = b.pick || {};
-  if (!/^[a-z]{2,8}$/.test(sp) || typeof p.player !== "string" || p.player.length > 60 || typeof p.stat !== "string" || p.stat.length > 40 || !(p.prob > 0 && p.prob < 1)) return json({ message: "bad" }, 400);
+  if (!/^[a-z0-9]{2,8}$/.test(sp) || typeof p.player !== "string" || p.player.length > 60 || typeof p.stat !== "string" || p.stat.length > 40 || !(p.prob > 0 && p.prob < 1)) return json({ message: "bad" }, 400);
   const o = cur && cur.day === day ? cur : { day, picks: {} }, old = o.picks[sp];
   if (old && Date.now() - old.t < 2 * 3600e3) return json({ ok: true, skipped: true }, 200);
   const clean = { player: p.player, stat: p.stat, line: +p.line, side: p.side === "Less" ? "Less" : "More", type: ["goblin", "standard", "demon"].includes(p.type) ? p.type : "standard",
@@ -345,11 +358,12 @@ export default {
     if (url.pathname === "/p") return proxy(req, ctx);
     const bm = url.pathname.match(/^\/board(?:\/(\d{1,4}))?\/?$/);
     if (bm) return board(req, env, ctx, bm[1]);
-    if (url.pathname === "/sc") return scList();
+    if (url.pathname === "/sc") return scList(env);
+    if (url.pathname === "/leagues") { const o = await kvGet(env, "leagues"); return o ? stored(o) : json({ message: "no league list yet" }, 404); }
     if (url.pathname === "/track") return track(req, env, ctx);
-    const sm = url.pathname.match(/^\/snap\/([a-z]{2,8})(?:\/(\d{4}-\d\d-\d\d))?$/);
+    const sm = url.pathname.match(/^\/snap\/([a-z0-9]{2,8})(?:\/(\d{4}-\d\d-\d\d))?$/);
     if (sm) return snap(req, env, sm[1], sm[2]);
-    const rm = url.pathname.match(/^\/rated\/([a-z]{2,8}(?:-nov21)?)$/);
+    const rm = url.pathname.match(/^\/rated\/([a-z0-9]{2,8}(?:-nov21)?)$/);
     if (rm) return rated(req, env, ctx, rm[1]);
     if (url.pathname === "/manifest.json") return new Response(MANIFEST, { headers: { "content-type": "application/manifest+json" } });
     if (url.pathname === "/icon.png" || url.pathname === "/apple-touch-icon.png" || url.pathname === "/favicon.ico")
