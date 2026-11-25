@@ -5148,15 +5148,33 @@ loadSharedTrack().finally(() => {});
     if (engineOK()) quickStart(fresh); else welcomeIfNew();
   });
 }
+// a pasted board says which league it is: go to that sport tab (and remember PrizePicks' number for it)
+function boardSport(js){
+  const lg = (js.included || []).find(i => i.type === "league"), nm = String(lg?.attributes?.name || "").toUpperCase();
+  const k = nm && Object.keys(SPORTS).find(k => SPORTS[k].leagueNames.includes(nm));
+  if (!k) return SPORT;
+  if (lg.id && +lg.id) SPORTS[k].league = +lg.id;
+  if (k !== SPORT) { SPORT = k; store.set("sport", SPORT); drawSportTabs(); showSport(); }
+  return k;
+}
+async function usePasted(js){
+  const sp = boardSport(js); $("#pastePanel").classList.add("hide"); shareBoard(js, sp);
+  const picks = parseBoard(js, sp);
+  if (!picks.length) return setStatus(`That paste had no ${SPORTS[sp].name} picks PickHit can rate (finished games and promos are skipped).`);
+  setStatus(`Got ${picks.length} ${SPORTS[sp].name} picks from your paste. Rating them (about a minute)…`, 0.03);
+  const t0 = Date.now(), dog = setInterval(() => { if (DATA[sp] && DATA[sp].time >= t0) return clearInterval(dog);
+    if (Date.now() - t0 > 150e3) { clearInterval(dog); setStatus(`Still working after 2½ minutes. The slow step: ${$("#status").textContent.slice(0, 80)}. Problems so far: ${Object.keys(ERRS).join(", ") || "none"}. Tap refresh to try again.`); } }, 5000);
+  try { await analyze(picks, sp); } catch (e) { clearInterval(dog); setStatus("Rating stopped with an error: " + e.message + ". Send this to support."); throw e; }
+}
 $("#clipGo").onclick = async () => {
   try {
     const txt = await navigator.clipboard.readText();
     const js = JSON.parse(txt.slice(txt.indexOf("{")));
-    $("#pastePanel").classList.add("hide"); shareBoard(js, SPORT); await analyze(parseBoard(js));
+    await usePasted(js);
   } catch (e) { setStatus("Couldn't read the PrizePicks data from your clipboard (" + e.message + "). Copy the whole page and try again, or paste into the box."); }
 };
 $("#pasteGo").onclick = async () => {
-  try { const js = JSON.parse($("#pasteBox").value); $("#pastePanel").classList.add("hide"); shareBoard(js, SPORT); await analyze(parseBoard(js)); }
+  try { const v = $("#pasteBox").value; await usePasted(JSON.parse(v.slice(v.indexOf("{")))); }
   catch (e) { setStatus("That didn't look like the PrizePicks data: " + e.message); }
 };
 </script>
