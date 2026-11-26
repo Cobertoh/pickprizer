@@ -1627,7 +1627,7 @@ function finalize(picks){
     const done = p.liveCur != null && p.liveCur > p.line;   // live and already past the line
     p.pMore = bm == null ? null : done ? 0.99 : clip(learnAdj(p.sport, bm + crowd + tr), 0.03, 0.9);   // never claim more than 90%: injuries, blowouts and foul trouble exist
     p.pLess = p.type !== "standard" || bl == null ? null : done ? 0.01 : clip(learnAdj(p.sport, bl - crowd), 0.03, 0.9);
-    if (!p.live && p.pMore != null && p.pMore < 0.99) { realityCheck(p); liftStrong(p, bm, bl, crowd, tr); swingyShrink(p); segAdjust(p); anchorToMarket(p, stdOf[p.player + "|" + p.stat]);
+    if (!p.live && p.pMore != null && p.pMore < 0.99) { realityCheck(p); liftStrong(p, bm, bl, crowd, tr); swingyShrink(p); skewAdjust(p); segAdjust(p); anchorToMarket(p, stdOf[p.player + "|" + p.stat]);
       // history-only sports (no opportunity engine) ran ~3 points hot at 60-70% in testing: when the cautious
       // second opinion is lower, lean 40% toward it
       if (p.second === "long") { const lean = (v, o, h) => v == null || o == null || h == null || Math.min(o, h) >= v ? v : v - 0.4 * (v - Math.min(o, h));
@@ -2191,7 +2191,9 @@ const STYLES = {
   mid: {icon: "⚖️", name: "Balanced", blurb: "3–4 picks · pays 5× or more · the middle ground", ns: [3, 4], pay: 5, K: 34},
   bold: {icon: "🔥", name: "Bold", blurb: "3–5 picks · pays 8–15× · where strong demon combos live", ns: [3, 4, 5], pay: 8, maxPay: 15, K: 30},
   big: {icon: "🚀", name: "Big swing", blurb: "4–6 picks · pays 20× or more · $2 for a big hit", ns: [4, 5, 6], pay: 20, K: 26},
+  unders: {icon: "⬇️", name: "All unders", blurb: "you pick 2–6 · every leg a standard Less", ns: [6], pay: 0, K: 40, side: "Less"},
 };
+document.addEventListener("click", e => { const b = e.target.closest("[data-undn]"); if (b) { store.set("unders_n", +b.dataset.undn); renderStyle(); } });
 function styleLegs(){
   // eligible = the number can be trusted: no red flag at all (the only thing allowed "against" it is being under 70%)
   return buildLegs().filter(l => l.side === l.pk.best && !l.pk.live && l.p >= 0.55 && godBlock(l.pk) === null);
@@ -2242,14 +2244,19 @@ function bestForStyle(S, legs, avoid){
 function renderStyle(){
   const box = $("#styleOut"); if (!box) return;
   const k = store.get("style", ""), S0 = STYLES[k];
-  const S = S0 && k === "safe" && ENGINE() !== "nov20" ? {...S0, pay: 2, minEV: 1.02} : S0;
+  let S = S0 && k === "safe" && ENGINE() !== "nov20" ? {...S0, pay: 2, minEV: 1.02} : S0;
   if (!S) { box.innerHTML = ""; return; }
-  const legs = styleLegs();
+  let legs = styleLegs(), nRow = "";
+  if (S && S.side) {   // all-unders: only standard Less picks, and you choose how many legs
+    legs = legs.filter(l => l.side === S.side && l.pk.type === "standard");
+    const n = clip(+store.get("unders_n", 6) || 6, 2, 6); S = {...S, ns: [Math.max(2, Math.min(n, legs.length))]};
+    nRow = `<div class="tpills" style="margin:6px 0 10px">${[2, 3, 4, 5, 6].map(k => `<button type="button" class="tpill gl ${k === n ? "on" : ""}" data-undn="${k}">${k} picks</button>`).join("")}</div>`;
+  }
   if (legs.length < 2) { box.innerHTML = `<p class="note">There aren't enough picks I'd bet on this board yet. Check back closer to game time.</p>`; return; }
   const avoid = new Set(), out = [];
   for (let i = 0; i < 3; i++) { const b = bestForStyle(S, legs, avoid) || (S.minEV ? bestForStyle({...S, minEV: 0}, legs, avoid) : null); if (!b) break; out.push(b); b.L.forEach(l => avoid.add(l.pk.player)); }
   if (!out.length) { box.innerHTML = `<p class="note">Nothing on tonight's board reaches ${S.pay}×${S.maxPay ? `–${S.maxPay}×` : ""} using only picks without red flags, so I won't make one up.${k === "safe" ? " Lines and injury news usually firm up closer to game time; check back then." : ` Try ${k === "big" || k === "bold" ? "Balanced" : "Safe"}.`}</p>`; return; }
-  box.innerHTML = out.map((b, i) => {
+  box.innerHTML = nRow + out.map((b, i) => {
     const st = lineupStats(b.L, false), fx = FLEX[b.n] && st.flex > st.power, ev = Math.max(st.power, st.flex);
     const all = st.d[b.n], pay = fx ? st.flexPay : st.powerPay, be = 1 / st.powerPay;
     const why = `<div class="whybox"><div class="whyp">${b.L.map(l => `<span><b>${pct(l.p)}</b><small>${esc(l.pk.player.split(" ").slice(-1)[0])}</small></span>`).join("")}</div>
@@ -2257,7 +2264,7 @@ function renderStyle(){
       ${!fx && all > be * 1.05 ? `That sounds low, but at ${st.powerPay.toFixed(1)}× you only need to win <b>${pct(be)}</b> of the time to break even, so winning ${pct(all)} puts you ahead over time.` : ""}</p></div>`;
     const card = lineupCard({id: "sty" + i, title: `${i === 0 ? "⭐ Best" : i === 1 ? "2nd" : "3rd"} ${S.name.toLowerCase()} lineup`, sub: i ? "No players shared with the ones above" : "Highest chance of winning for this payout", mode: fx ? "flex" : "power"}, b.L, i === 0);
     return `${i === 0 ? why : ""}${card.html}<div class="stysum ${i ? "alt" : ""}">💵 ${ev >= 1.05 ? `<b>Worth playing.</b> On average it pays back $${ev.toFixed(2)} per $1.` : ev >= 0.95 ? `<b>About break-even</b> ($${ev.toFixed(2)} back per $1 on average). Fine for a small bet.` : `<b>Best this style can do tonight, but it loses money on average</b> ($${ev.toFixed(2)} back per $1). Treat it as a $2 sweat.`}</div>`;
-  }).join("") + `<p class="gfine">Chances come from real game logs and are checked against the track record. Picks with any red flag (injury tags, bad news, teammate changes against it, cold recent games, one-play lines like under 0.5 steals) are never used.</p>`;
+  }).join("") + (S.side ? `<p class="gfine">Unders are rated with the lopsided-stats correction: most stats have a long upper tail, so a typical night lands below the average.</p>` : "") + `<p class="gfine">Chances come from real game logs and are checked against the track record. Picks with any red flag (injury tags, bad news, teammate changes against it, cold recent games, one-play lines like under 0.5 steals) are never used.</p>`;
   bindCoach();
 }
 function bindCoach(){
@@ -2611,6 +2618,8 @@ const BMODES = {
   god: {lab: "👑 Top", txt: "Top picks only, best first", ok: isGod, key: valueOf},
   bet: {lab: "✅ I'd bet", txt: "picks I'd bet, most likely to hit first", ok: p => p.verdict && ["bet", "lean"].includes(callOf(p).c) && callOf(p).lab !== "SAFE LEG", key: p => probOf(p) ?? -1},
   value: {lab: "💎 Value", txt: "likely AND pays well, best value first", ok: isValuePick, key: valueOf},
+  less: {lab: "⬇️ Unders", txt: "standard Less picks, most likely first", ok: p => p.type === "standard" && p.best === "Less" && !p.live, key: p => probOf(p) ?? -1},
+  more: {lab: "⬆️ Overs", txt: "More picks, most likely first", ok: p => p.best === "More" && !p.live, key: p => probOf(p) ?? -1},
   stars: {lab: "⭐ Stars", txt: "big-minute stars, most likely first (their lines are the toughest to beat)", ok: p => ["nba", "wnba"].includes(p.sport) && (p.minAvg || 0) >= 32 && !p.live, key: p => probOf(p) ?? -1},
   picked: {lab: "🔥 Most picked", txt: "most picked first", ok: p => p.trending != null, key: p => p.trending ?? -1},
 };
@@ -3521,6 +3530,17 @@ async function liveAdjust(picks, sport, games){
 }
 
 // ---------- 2) CONSISTENCY & RISK: median, middle 50%, 80% range, boom/bust, role change, outliers, minutes sensitivity
+// LOPSIDED STATS: most player stats have a long upper tail (a few big nights pull the average up), so his typical night
+// sits below his average. The model's spread is symmetric, so it overrated overs and underrated unders near the line
+// (simulated leagues: "50-55%" unders really hit 56%, overs 51%). Shift by how far his median sits below his mean.
+const SKEW_K = 0.6;
+function skewAdjust(p){
+  const f = p.prof; if (!f || !(f.sd > 0) || f.n < 10 || p.live) return;
+  const d = clip((f.mean - f.med) / f.sd, -0.6, 0.6) * SKEW_K * Math.min(1, f.n / 20); if (!d) return;
+  const sh = (q, sg) => q == null ? q : clip(phi(phiInv(q) + sg * d), 0.01, 0.99);
+  p.pMore = sh(p.pMore, -1); if (p.pLess != null) p.pLess = sh(p.pLess, 1);
+  p.skew = +d.toFixed(2);
+}
 function profilePick(p){
   const s = seriesFor(p).slice(0, 20), v = s.map(x => x.v);
   if (v.length < 6) return;
@@ -3530,7 +3550,7 @@ function profilePick(p){
   const cv = mean > 0 ? sd / mean : 1, tM = Math.floor(p.line) + 0.5, tL = Math.ceil(p.line) - 0.5;
   const ext = v.filter(x => Math.abs(x - mean) > 2 * sd).length / v.length;
   const label = cv <= 0.3 ? "steady" : (hi > 1.8 * Math.max(med, 0.5) || cv > 0.6) ? "boom-or-bust" : cv > 0.45 ? "swingy" : "fairly steady";
-  p.prof = {n: v.length, med: +med.toFixed(1), q1: +q1.toFixed(1), q3: +q3.toFixed(1), lo: +lo.toFixed(1), hi: +hi.toFixed(1), cv: +cv.toFixed(2), label,
+  p.prof = {n: v.length, mean: +mean.toFixed(2), sd: +sd.toFixed(2), med: +med.toFixed(1), q1: +q1.toFixed(1), q3: +q3.toFixed(1), lo: +lo.toFixed(1), hi: +hi.toFixed(1), cv: +cv.toFixed(2), label,
     overRate: +(v.filter(x => x > tM).length / v.length).toFixed(2), underRate: +(v.filter(x => x < tL).length / v.length).toFixed(2), ext: +ext.toFixed(2)};
   // outlier in the last 3 games (robust: median and MAD)
   const mad = quant([...v.map(x => Math.abs(x - med))].sort((a, b) => a - b), 0.5) || sd || 1;

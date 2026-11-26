@@ -1,0 +1,13 @@
+const {chromium}=require('playwright');const {makeWorld}=require('./simleague.js');const W=makeWorld(4,0,Date.now());
+(async()=>{const b=await chromium.launch();const pg=await b.newPage({viewport:{width:430,height:900}});const errs=[];pg.on('pageerror',e=>errs.push(e.message));
+ await pg.route('**/p?u=*',r=>{const t=new URL(r.request().url()).searchParams.get('u');if(t.includes('news.google'))return r.fulfill({body:'<rss/>'});const m=W.mock(t);r.fulfill({status:m.__status||200,body:JSON.stringify(m),contentType:'application/json'})});
+ await pg.goto('http://127.0.0.1:47821/');await pg.evaluate(()=>{localStorage.clear();localStorage.setItem('pp_sport','nba');localStorage.setItem('pp_nodirect','1')});await pg.reload();
+ await pg.waitForFunction(()=>/NBA ·/.test(document.querySelector('#status').textContent),null,{timeout:300000});
+ await pg.evaluate(()=>goTab('coach'));const has=await pg.evaluate(()=>!!document.querySelector('[data-style=unders]'));console.log('unders style button:',has);
+ await pg.click('[data-style=unders]');await pg.waitForTimeout(1200);
+ const r=await pg.evaluate(()=>[...document.querySelectorAll('#styleOut .lineup')].map(L=>{const ps=[...L.querySelectorAll('.leg')].map(l=>ALL.find(p=>p.sport+'|'+p.id===l.dataset.pk));return {n:ps.length,sides:[...new Set(ps.map(p=>p.best))],types:[...new Set(ps.map(p=>p.type))],ch:L.innerText.match(/(\d+(\.\d)?)%/)?.[0]}}));console.log('6-pick lineups:',JSON.stringify(r));
+ await pg.click('[data-undn="3"]');await pg.waitForTimeout(800);console.log('3-pick:',await pg.evaluate(()=>[...document.querySelectorAll('#styleOut .lineup')].map(L=>L.querySelectorAll('.leg').length)));
+ await pg.screenshot({path:'/tmp/shot_unders.png'});
+ await pg.evaluate(()=>{store.set('bshow','less');goTab('board');render()});await pg.waitForTimeout(300);
+ console.log('board unders:',await pg.evaluate(()=>{const ids=[...document.querySelectorAll('#out .pick')].map(e=>ALL.find(p=>p.sport+'|'+p.id===e.dataset.pk));return [ids.length,[...new Set(ids.map(p=>p.best+'/'+p.type))],ids.slice(0,3).map(p=>p.player+' Less '+p.line+' '+p.stat+' '+Math.round(100*probOf(p))+'%')]}));
+ console.log('errors',errs.length?errs:'none');await b.close()})();
