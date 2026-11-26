@@ -1382,7 +1382,7 @@ function verdictOf(p, side){
   if (Math.abs(p.realityShift || 0) >= 0.05) flags.push("the model disagreed with his recent games, so it was toned down");
   if (p.minCv != null && p.minCv > 0.22) flags.push("his minutes swing a lot");
   if (p.type !== "standard" && !(p.cal && p.cal.ownN >= 30)) flags.push("too little history to verify");
-  if (UNVERIFIED.has(p.sport + "|" + p.stat)) flags.push("scoring unconfirmed");
+  if (unverified(p)) flags.push("scoring unconfirmed");
   if (p.lineOnly) hard.push("no game stats for this pick");
   if (p.newsFlag) hard.push("major news: " + p.newsFlag);
   if (p.oppHard && side === "More") hard.push(p.returning ? "first game back from an absence" : p.opp2?.fb ? "small role for this line" : "bench role for this line");
@@ -1668,7 +1668,7 @@ function buildLegs(){
   GAME_CAP = nGames >= 3 ? 2 : nGames === 2 ? 3 : 6;
   for (const p of pool) {
     if (p.inj && /out|doubt|injured reserve|suspen/i.test(p.inj.status)) continue;
-    if (UNVERIFIED.has(p.sport + "|" + p.stat)) continue;
+    if (unverified(p)) continue;
     for (const side of p.type === "standard" ? ["More", "Less"] : ["More"]) {
       const prob = side === "More" ? p.pMore : p.pLess;
       if (prob == null || p.games < 5) continue;
@@ -2384,7 +2384,7 @@ function card(p, i){
     ${p.verdict ? (() => { const k = callOf(p); return `<div class="callrow"><span class="call ${k.c}">${k.lab}</span><span>${esc(k.txt)}</span></div>`; })() : ""}
     <div class="chips">${chips.join("")}</div>
     ${p.inj ? `<div class="inj">⚠ ${esc(p.inj.status)}${p.inj.comment ? ": " + esc(p.inj.comment.slice(0, 100)) : ""}</div>` : ""}
-    ${UNVERIFIED.has(p.sport + "|" + p.stat) ? `<div class="inj">⚠ PrizePicks' tennis fantasy scoring isn't confirmed, so this is a rough guess and it's never used in lineups</div>` : ""}
+    ${unverified(p) ? `<div class="inj">⚠ ${p.unverified ? "Kicker fantasy is estimated (game logs don't list every kick's distance)" : "PrizePicks' fantasy scoring for this sport isn't confirmed"}, so this is a rough guess and it's never used in lineups</div>` : ""}
     ${p.lineOnly ? `<div class="note">Rated from PrizePicks' lines and the community (no game stats for this pick)</div>` : p.games < 3 ? `<div class="note">${p.found === false ? (p.sport === "tennis" ? "player not found on Sofascore" : "player not found on ESPN or NBA.com") : p.games ? `too few ${p.unit || "games"} to rate` : "no stats loaded (tap “Having trouble?” at the bottom)"}</div>` : ""}</div>
     <div class="pct" style="color:${prob != null ? c : "var(--mut)"}">${pct(prob)}<small>${prob != null ? "hits " + inTen(prob) : side.toLowerCase()}</small></div></div>`;
 }
@@ -2410,7 +2410,7 @@ function godBlock(p){   // a RED FLAG that keeps a pick out of Top picks and lin
   if (p.lineOnly || p.games < 8) return "too few games to trust";
   if (isSwingy(p)) return "all-or-nothing stat";
   if (p.best === "Less" && segGap(p.sport, "side|L" + (ENGINE() === "nov20" ? "" : "|" + p.type)) <= -0.08) return "unders have been missing lately";
-  if (UNVERIFIED.has(p.sport + "|" + p.stat)) return "scoring unconfirmed";
+  if (unverified(p)) return "scoring unconfirmed";
   if (p.newsFlag || p.news?.some(n => n.tone === "bad")) return "serious news";
   if (p.inj && /question|day|doubt|out|suspen|reserve/i.test(p.inj.status || "")) return "injury tag";
   if (p.trap) return "line far from his average";
@@ -2681,7 +2681,8 @@ const NFL_COLS = {
   rushLng: ["longRushing", "rushing.LNG"], rec: ["receptions", "receiving.REC"], tgt: ["receivingTargets", "receiving.TGTS", "receiving.TGT"],
   recYds: ["receivingYards", "receiving.YDS"], recTD: ["receivingTouchdowns", "receiving.TD"], recLng: ["longReception", "receiving.LNG"],
   fumLost: ["fumblesLost", "fumbles.LST"], tackles: ["totalTackles", "defensive.TOT"], solo: ["soloTackles", "defensive.SOLO"],
-  defSacks: ["defensive.SACK", "sacks"], fgm: ["fieldGoalsMade", "kicking.FG"], xpm: ["extraPointsMade", "kicking.XP"],
+  defSacks: ["defensive.SACK", "sacks"], fgm: ["fieldGoalsMade-fieldGoalAttempts", "fieldGoalsMade", "kicking.FG"], xpm: ["extraPointsMade-extraPointAttempts", "extraPointsMade", "kicking.XP"],
+  kpts: ["totalKickingPoints", "kicking.PTS"], fgLng: ["longFieldGoalMade", "kicking.LNG"],
 };
 const NFL_STATS = {
   "Pass Yards": g => g.passYds, "Passing Yards": g => g.passYds, "Pass TDs": g => g.passTD, "Passing TDs": g => g.passTD,
@@ -2690,9 +2691,16 @@ const NFL_STATS = {
   "Receiving Yards": g => g.recYds, "Rec Yards": g => g.recYds, "Receptions": g => g.rec, "Rec Targets": g => g.tgt, "Targets": g => g.tgt,
   "Rush+Rec Yds": g => g.rushYds + g.recYds, "Pass+Rush Yds": g => g.passYds + g.rushYds, "Rush+Rec TDs": g => g.rushTD + g.recTD,
   "Longest Reception": g => g.recLng, "Longest Rush": g => g.rushLng, "Tackles+Ast": g => g.tackles, "Sacks": g => g.defSacks,
-  "Fantasy Score": g => 0.04 * g.passYds + 4 * g.passTD - g.int + 0.1 * (g.rushYds + g.recYds) + 6 * (g.rushTD + g.recTD) + g.rec - g.fumLost,
+  // kickers: their logs only have kicking columns
+  "FG Made": g => g.fgm, "Field Goals Made": g => g.fgm, "Kicking Points": g => g.kpts ?? (g.fgm == null ? null : 3 * g.fgm + (g.xpm || 0)),
+  "Fantasy Score": g => isKicker(g) ? kickFantasy(g) : (g.passYds == null && g.rushYds == null && g.recYds == null) ? null :
+    0.04 * g.passYds + 4 * g.passTD - g.int + 0.1 * (g.rushYds + g.recYds) + 6 * (g.rushTD + g.recTD) + g.rec - g.fumLost,
 };
-const NFL_VOLATILE = new Set(["Pass TDs", "Passing TDs", "Rush TDs", "Rush+Rec TDs", "INT", "Interceptions", "Pass INTs", "Longest Reception", "Longest Rush", "Sacks"]);
+const isKicker = g => g.fgm != null && g.passYds == null && g.rushYds == null && g.recYds == null;
+// PrizePicks kicker fantasy: 3 per field goal (+1 at 40-49 yds, +2 at 50+), 1 per extra point. Game logs don't list every
+// kick's distance, so long kicks are estimated from his longest make: an approximation, so it's never a Top pick.
+const kickFantasy = g => g.fgm == null ? null : 3 * g.fgm + (g.xpm || 0) + (g.fgm > 0 && g.fgLng >= 50 ? 1.5 : g.fgm > 0 && g.fgLng >= 40 ? 0.8 : 0);
+const NFL_VOLATILE = new Set(["FG Made", "Field Goals Made", "Pass TDs", "Passing TDs", "Rush TDs", "Rush+Rec TDs", "INT", "Interceptions", "Pass INTs", "Longest Reception", "Longest Rush", "Sacks"]);
 const nflSeasons = () => { const d = new Date(); const y = d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1; return [y, y - 1, y - 2, y - 3, y - 4]; };
 
 function parseNflGamelog(js){
@@ -2710,7 +2718,7 @@ function parseNflGamelog(js){
       if (seen.has(ev.eventId)) continue; seen.add(ev.eventId);
       const s = ev.stats || [], meta = (js.events || {})[ev.eventId] || {};
       const g = {date: meta.gameDate || "", eid: String(ev.eventId), opp: oppAbbr(meta, NFL_ALIASES), home: meta.atVs !== "@"};
-      for (const f of Object.keys(NFL_COLS)) { const v = parseFloat(String(s[col[f]] ?? "").replace(/,/g, "")); g[f] = isNaN(v) ? 0 : v; }
+      for (const f of Object.keys(NFL_COLS)) { if (col[f] == null) { g[f] = null; continue; } const v = parseFloat(String(s[col[f]] ?? "").replace(/,/g, "")); g[f] = isNaN(v) ? 0 : v; }   // a column ESPN doesn't have = no data (not 0)
       games.push(g);
     }
   }
@@ -2727,6 +2735,9 @@ function scoreNFL(p, seasons, depth, f = NFL_STATS[p.stat], decay = 0.93){
   const games = all.slice(0, Math.min(depth, 60));
   p.games = games.length; p.unit = "games";
   if (games.length < 3) return;
+  // every game exactly 0 against a line of 1+ almost always means the stat isn't in his game log, not a lock
+  if (p.line >= 1 && games.every(([g]) => !f(g))) { p.games = 0; p.dataGap = true; return; }
+  if (p.stat === "Fantasy Score" && isKicker(games[0][0])) p.unverified = true;
   const w = games.map(([, sw], i) => sw * Math.pow(decay, i)), W = w.reduce((a, b) => a + b, 0);
   const vals = games.map(([g]) => f(g));
   const mu = vals.reduce((s, v, i) => s + w[i] * v, 0) / W;
@@ -4161,6 +4172,7 @@ const SOFA_BASES = ["https://www.sofascore.com/api/v1", "https://api.sofascore.c
 let SOFA_BASE = null;
 // Tennis fantasy scoring isn't confirmed (published charts disagree), so it's shown but never used in lineups.
 const UNVERIFIED = new Set(["tennis|Fantasy Score", "cfb|Fantasy Score"]);
+const unverified = p => p.unverified || UNVERIFIED.has(p.sport + "|" + p.stat);
 const TENNIS_STATS = {
   "Total Games Won": r => r.GW, "Games Won": r => r.GW, "Total Games": r => r.GW + r.GL, "Games Lost": r => r.GL,
   "Aces": r => r.ACE, "Double Faults": r => r.DF, "Break Points Won": r => r.BPW,
@@ -4641,7 +4653,7 @@ async function checkMine(){
   for (const pk of pool) for (const side of pk.type === "standard" ? ["More", "Less"] : ["More"]) {
     if ((side === "More" ? pk.pMore : pk.pLess) == null) continue;
     if (pk.inj && /out|doubt|injured reserve|suspen/i.test(pk.inj.status)) continue;
-    if (typeof UNVERIFIED !== "undefined" && UNVERIFIED.has(pk.sport + "|" + pk.stat)) continue;
+    if (typeof UNVERIFIED !== "undefined" && unverified(pk)) continue;
     const T = L.slice(); T[wi] = legFor(pk, side);
     const s = lineupStats(T, false);
     if (s.powerPay < raw.powerPay * 0.9) continue;
