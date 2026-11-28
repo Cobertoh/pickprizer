@@ -1126,10 +1126,10 @@ async function playerLogs(name, espnIds, years){
   }
   return {logs, src: "ESPN", missing: !id && !logs};
 }
-async function injuries(base = ESPN, toAbbr = nickToAbbr){
+async function injuries(base = ESPN, toAbbr = nickToAbbr, fresh = false){
   const out = {}; // norm name -> {status, team, comment}
   try {
-    const js = await getJSON(`${base}/injuries`);
+    const js = fresh ? await (await rawFetch(`${base}/injuries`)).json() : await getJSON(`${base}/injuries`);   // fresh: skip the cache (pre-bet check)
     const walk = (o, team) => {
       if (Array.isArray(o)) return o.forEach(x => walk(x, team));
       if (!o || typeof o !== "object") return;
@@ -1920,7 +1920,7 @@ function lineupCard(def, L, best){
   const keep = verdict.filter(v => /Weakest link|Correlation|Before lock/.test(v));
   const html = `<div class="lineup${best ? " best" : ""}" id="lu-${def.id}">
     <div class="lhead"><div><h3>${title}</h3><div class="sub">${sub}</div></div>
-      <span class="lbtns"><button class="copy" data-copy="${esc(plain)}">Copy</button><button type="button" class="copy played" data-played="${esc(def.id)}">✅ I played this</button></span></div>
+      <span class="lbtns"><button class="copy" data-copy="${esc(plain)}">Copy</button><button type="button" class="copy played" data-played="${esc(def.id)}">✅ I played this</button><button type="button" class="copy" data-precheck="lu">🔍 Pre-bet check</button></span></div>
     <div class="lbig lbig3"><div><b style="color:${hitCol}">${pct1(hit)}</b><span>chance the whole entry ${usePower ? "hits" : "profits"}</span></div><div><b>${pay.toFixed(1)}×</b><span>${usePower ? "Power" : "Flex"} payout (est.)</span></div><div><b style="color:${(usePower ? hit * pay : ev) >= 1 ? "var(--good)" : "var(--mid)"}">$${((usePower ? hit * pay : ev) * 10).toFixed(2)}</b><span>average back per $10 (expected value)</span></div></div>
     <p class="note">Each pick's own chance is on its row below. The entry chance is lower because every pick has to hit. It also includes a small correction: picks chosen as the best of hundreds tend to be a little overrated, and picks that work against each other count against the entry.</p>
     ${usePower ? (() => { const fair = 1 / pay, edge = hit / fair; return `<p class="note">${edge >= 1.05 ? `Break-even at ${pay.toFixed(1)}× is ${pct1(fair)}. This lineup is <b>${edge.toFixed(1)}×</b> that, so the odds lean your way` : `Break-even at ${pay.toFixed(1)}× is ${pct1(fair)}, about what this lineup has. Lower the payout for odds that lean your way`}</p>`; })() : ""}
@@ -2456,6 +2456,7 @@ function godBlock(p){   // a RED FLAG that keeps a pick out of Top picks and lin
   if (p.oppHard && side === "More") return "small role for this line";
   if (p.verdict?.c === "r") return "flagged as risky";
   if ((p.ctxNotes || []).some(n => (n.dir === 1 || n.dir === -1) && (n.dir > 0) !== (side === "More") && (n.size || 0) >= 0.06)) return "a teammate change points the other way";
+  if (p.sanity) return p.sanity;
   if (side === "More") { const mv = minutesRisk(p); if (mv) return mv; }
   { const m = side === "More" ? p.mMore : p.mLess; if (m != null && m < 0.47) return `sportsbooks lean the other way (${pct(m)} for this side)`; }
   if (p.h2risk && (side === "More") === (p.h2riskDir < 0)) return p.h2risk;
@@ -3567,6 +3568,19 @@ async function liveAdjust(picks, sport, games){
 // sits below his average. The model's spread is symmetric, so it overrated overs and underrated unders near the line
 // (simulated leagues: "50-55%" unders really hit 56%, overs 51%). Shift by how far his median sits below his mean.
 const SKEW_K = 0.5;
+// BROKEN-DATA SAFETY NET: PrizePicks sets lines close to what a player usually does. When our numbers put him far from
+// the line AND call it near-certain, the likeliest explanation is bad data (a missing stat, the wrong player, a role
+// change we can't see), not a free win. Example caught by this: a kicker "projected 0" against a 10.5 line.
+function sanityCheck(p){
+  const pr = probOf(p); if (pr == null || p.live || pr < 0.78) return;
+  const v = seriesFor(p).slice(0, 20).map(x => x.v).filter(x => x != null); if (v.length < 5) return;
+  const m = v.reduce((a, b) => a + b, 0) / v.length, sd = Math.max(0.8, Math.sqrt(v.reduce((a, x) => a + (x - m) ** 2, 0) / v.length));
+  const z = Math.abs(p.line - m) / sd, ratio = p.line > 0 && m > 0 ? Math.max(p.line / m, m / p.line) : Infinity;
+  if (z > 2.5 || (p.line >= 2 && ratio > 3)) {
+    p.sanity = `the numbers look off: he averages ${m.toFixed(1)} lately vs a line of ${p.line}. PrizePicks rarely misses by that much, so something in the data is probably wrong`;
+    const cap = (q) => q == null ? q : Math.min(q, 0.65); p.pMore = cap(p.pMore); p.pLess = cap(p.pLess);
+  }
+}
 function skewAdjust(p){
   const f = p.prof; if (!f || !(f.sd > 0) || f.n < 10 || p.live) return;
   const d = clip((f.mean - f.med) / f.sd, -0.6, 0.6) * SKEW_K * Math.min(1, f.n / 20); if (!d) return;
@@ -4757,7 +4771,7 @@ async function checkMine(){
     if (!best || s.d[n] > best.d) best = {leg: T[wi], d: s.d[n], pay: s.powerPay};
   }
   if (best && best.d > raw.d[n] * 1.15) swap = `<div class="panel"><b>🔁 Coach's swap:</b> replace <b>${esc(weakest.pk.player)} ${weakest.side} ${weakest.pk.line} ${esc(weakest.pk.stat)}</b> (${pct(weakest.p)}) with <b>${esc(best.leg.pk.player)} ${best.leg.side} ${best.leg.pk.line} ${esc(best.leg.pk.stat)}</b>${best.leg.pk.type !== "standard" ? ` (${best.leg.pk.type})` : ""} (${pct(best.leg.p)}). Your chance of hitting goes from <b>${pct1(raw.d[n])}</b> to <b>${pct1(best.d)}</b>, paying about ${best.pay.toFixed(1)}×.</div>`;
-  const both = `<div class="panel"><b>Your ${n}-pick lineup</b>
+  const both = `<div class="panel"><button type="button" class="pri" data-precheck="mine" style="float:right">🔍 Pre-bet check</button><b>Your ${n}-pick lineup</b>
     <table class="sumtab"><tr><td class="note">Play as</td><td class="note">Chance to win</td><td class="note">Pays</td></tr>
     <tr><td>Power (all ${n} must hit)</td><td style="font-weight:800">${pct1(raw.d[n])}</td><td><b>${raw.powerPay.toFixed(1)}×</b></td></tr>
     ${ft ? `<tr><td>Flex (profit on ${Math.min(...ft.map((m, k) => m > 1 ? k : 99))}+ hits)</td><td style="font-weight:800">${pct1(flexProfit)}</td><td><b>${raw.flexPay.toFixed(1)}×</b> top</td></tr>` : ""}</table>
@@ -5002,6 +5016,7 @@ async function analyze(picks, sport = SPORT){
   if ($("#useReddit").checked) { setStatus("Reading what people are saying on Reddit…", 0.88); scoreBuzz(picks, await reddit(sport)); }
   finalize(picks);
   if (half) { HALF_RUN = false; await halfConvert(picks, sport); }
+  for (const p of picks) { try { sanityCheck(p); } catch (e) {} }
   CLASSIFY_PICKS[sport] = {picks}; classify(picks);
   if (!half) { trackUpdate(sport, picks); slipsGrade(sport); }   // full-game box scores can't grade 2nd-half lines
   if (!half) setTimeout(() => { try { const rt = replayTest(sport, picks); if (rt && DATA[sport]) DATA[sport].replay = {acc70: rt.acc70, n70: rt.n70, w: rt.best.w}; } catch (e) { console.warn("replay", e); } }, 300);
@@ -5079,6 +5094,59 @@ if (IS_WEB && IOS) {
   document.querySelectorAll("#pastePanel code.sel").forEach(c => c.onclick = async () => { try { await navigator.clipboard.writeText(c.textContent); const t = c.textContent; c.textContent = "Copied ✓"; setTimeout(() => c.textContent = t, 1200); } catch {} });
 } else $("#copyWay").open = true;
 
+
+// ---------- PRE-BET CHECK: re-verify a slip right before you play it
+// Pulls a fresh PrizePicks board and a fresh injury report, then checks every leg: still on the board, same line
+// (and how a move changes its chance), game not started, no new injury tag for him, no new "out" for a teammate.
+const INJ_BASE = {nba: ESPN, nba2h: ESPN, nba4q: ESPN, wnba: "https://site.api.espn.com/apis/site/v2/sports/basketball/wnba", nfl: "https://site.api.espn.com/apis/site/v2/sports/football/nfl",
+  nhl: "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl", mlb: "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb", cbb: "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball"};
+async function preBetCheck(legs, box){
+  box.innerHTML = `<div class="panel"><div class="loader-dot"></div> Checking each pick against the latest PrizePicks board and injury report…</div>`;
+  const sports = [...new Set(legs.map(l => l.pk.sport))], fresh = {}, inj = {};
+  await Promise.all(sports.map(async sp => {
+    try { const js = await fetchBoard(sp); if (js && js.error === undefined) fresh[sp] = {picks: parseBoard(js, sp), age: BOARD_AGE[sp] || 0}; } catch (e) {}
+    if (INJ_BASE[sp]) { try { inj[sp] = await injuries(INJ_BASE[sp], nickToAbbr, true); } catch (e) {} }
+  }));
+  const now = Date.now(); let bad = 0, warn = 0;
+  const rows = legs.map(l => {
+    const p = l.pk, notes = []; let lvl = 0;   // 0 ok, 1 check, 2 swap
+    const F = fresh[p.sport];
+    if (p.start && Date.parse(p.start) < now) { notes.push("game has started: PrizePicks won't take this pick now"); lvl = 2; }
+    if (F) {
+      const same = F.picks.filter(q => norm(q.player) === norm(p.player) && q.stat === p.stat);
+      const q = same.find(x => x.type === p.type) || null;
+      if (!q && !(p.start && Date.parse(p.start) < now)) { notes.push(same.length ? `the ${p.type} line is gone (now only ${same.map(x => x.type).join("/")})` : "pulled from the board: often a late scratch or injury"); lvl = 2; }
+      else if (q && q.line !== p.line) {
+        const sd = Math.max(0.8, p.sd || 0.25 * Math.max(p.line, 2)), d = (q.line - p.line) * (l.side === "More" ? -1 : 1);
+        const np = clip(phi(phiInv(l.p) + d / sd), 0.02, 0.98);
+        notes.push(`line moved ${p.line} → ${q.line} (${d > 0 ? "in your favor" : "against you"}: about ${pct(np)} now vs ${pct(l.p)})`);
+        if (np < 0.5) lvl = 2; else if (d < 0) lvl = Math.max(lvl, 1);
+      }
+      if (F.age > 1800) notes.push(`board copy is ${Math.round(F.age / 60)} min old: run your Shortcut for the very latest`);
+    } else notes.push("couldn't get a fresh PrizePicks board to compare");
+    const I = inj[p.sport];
+    if (I) {
+      const me = I[norm(p.player)];
+      if (me && /out|doubt|suspen|injured reserve/i.test(me.status)) { notes.push(`injury report: ${me.status}${me.comment ? " (" + me.comment.slice(0, 80) + ")" : ""}`); lvl = 2; }
+      else if (me && /question|day-to-day|game-time|probable/i.test(me.status) && !(p.inj && p.inj.status === me.status)) { notes.push(`new injury tag: ${me.status}`); lvl = Math.max(lvl, 1); }
+      const was = new Set((p.teammatesOut || []).map(norm));
+      const newOut = Object.entries(I).filter(([nm, x]) => x.team && sameTeam(x.team, p.team) && nm !== norm(p.player) && /out/i.test(x.status) && !was.has(nm)).map(([nm]) => nm);
+      if (newOut.length) { notes.push(`teammate${newOut.length > 1 ? "s" : ""} newly out: ${newOut.slice(0, 3).map(n => n.replace(/\b\w/g, c => c.toUpperCase())).join(", ")}. His role may change`); lvl = Math.max(lvl, 1); }
+    }
+    if (lvl === 2) bad++; else if (lvl === 1) warn++;
+    return `<div class="leg"><b>${["✅", "⚠️", "❌"][lvl]} ${esc(p.player)} ${l.side} ${p.line} ${esc(p.stat)}</b>${notes.length ? notes.map(t => `<div class="note">• ${esc(t)}</div>`).join("") : `<div class="note">• still on the board at ${p.line}, no injury changes</div>`}</div>`;
+  });
+  const head = bad ? `❌ Swap ${bad} pick${bad > 1 ? "s" : ""} before playing` : warn ? `⚠️ Playable, but look at the flagged pick${warn > 1 ? "s" : ""}` : "✅ Good to play: nothing changed since it was rated";
+  box.innerHTML = `<div class="panel"><b>${head}</b><p class="note">Checked ${new Date().toLocaleTimeString([], {hour: "numeric", minute: "2-digit"})}. A pass means the information is current. It doesn't make a loss impossible.</p>${rows.join("")}</div>`;
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-precheck]"); if (!b) return;
+  const card = b.closest(".lineup, .panel, #mineOut") || document.body, box = card.querySelector(".pcOut") || (() => { const d = document.createElement("div"); d.className = "pcOut"; card.appendChild(d); return d; })();
+  let legs = [];
+  if (b.dataset.precheck === "mine") legs = MINE.filter(x => x.pk).map(x => legFor(x.pk, x.side));
+  else legs = [...card.querySelectorAll(".leg[data-pk]")].map(el => { const [sp, ...id] = el.dataset.pk.split("|"); const pk = ALL.find(p => p.sport === sp && p.id === id.join("|")) || Object.values(DATA).flatMap(d => d.picks).find(p => p.sport + "|" + p.id === el.dataset.pk); return pk ? legFor(pk, el.dataset.side || pk.best) : null; }).filter(Boolean);
+  if (legs.length) preBetCheck(legs, box);
+});
 // ---------- ACCOUNTS & PLANS
 // guest (not signed in) and free: homepage, how it works, pick of the day. Basic ($4.99): All picks with every stat and
 // all the research (quietly ranked best-first, but no ratings), Hit Picks lineups with the lineup's chance only.
