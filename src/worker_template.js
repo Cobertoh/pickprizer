@@ -84,6 +84,7 @@ const stored = (o) => new Response(o.text, { headers: { "content-type": "applica
 const SC_LEAGUES = [7, 9, 15, 20, 8, 5, 82, 1, 12, 2, 3];
 // period boards PrizePicks lists as separate leagues (their numbers are learned from the league list the Shortcut sends)
 const SC_EXTRA = ["NBA2H", "NBA4Q"];
+const LEAGUE_SPORT = { 7: "nba", 9: "nfl", 15: "cfb", 20: "cbb", 8: "nhl", 5: "tennis", 82: "soccer", 1: "golf", 12: "mma", 3: "wnba", 2: "mlb" };
 async function scList(env) {
   const ids = [...SC_LEAGUES];
   try { const o = await kvGet(env, "leagues"); if (o) for (const l of JSON.parse(o.text).data || []) if (SC_EXTRA.includes(String(l.attributes && l.attributes.name || "").toUpperCase())) ids.push(+l.id); } catch (e) {}
@@ -117,7 +118,9 @@ async function board(req, env, ctx, league) {
   } catch (e) {}
   // Time machine: keep one pregame snapshot per day (the last one saved before 7pm ET), for 90 days, straight to KV.
   const now = new Date(), et = new Date(now.getTime() - 5 * 3600e3), day = et.toISOString().slice(0, 10);
-  if (env.KV && et.getUTCHours() < 19) ctx.waitUntil(env.KV.put("snap/" + sport + "/" + day, text, { expirationTtl: 90 * DAY, metadata: { t: Date.now() } }).catch(() => {}));
+  // (league number -> the app's sport name; this line used an undefined variable, so every posted board errored after saving and no snapshot was ever kept)
+  const sport = LEAGUE_SPORT[league] || (await (async () => { try { const m = await kvGet(env, "lgmap"); const map = m ? JSON.parse(m.text) : {}; const nm = Object.keys(map).find(n => map[n] === +league); return nm ? nm.toLowerCase() : null; } catch (e) { return null; } })());
+  if (sport && env.KV && et.getUTCHours() < 19) ctx.waitUntil(env.KV.put("snap/" + sport + "/" + day, text, { expirationTtl: 90 * DAY, metadata: { t: Date.now() } }).catch(() => {}));
   return json({ ok: true }, 200);
 }
 async function snap(req, env, sport, day) {

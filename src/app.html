@@ -1434,7 +1434,7 @@ function trackUpdate(sport, picks){
 function slipsLoad(){ try { return JSON.parse(localStorage.getItem("pp_slips") || "[]"); } catch { return []; } }
 function slipsSave(a){ try { localStorage.setItem("pp_slips", JSON.stringify(a.slice(-200))); } catch {} }
 function slipSave(L, src){
-  const st = lineupStats(L, false), n = L.length, ft = FLEX[n], fx = ft && st.flex > st.power;
+  const st = lineupStats(L, false, true), n = L.length, ft = FLEX[n], fx = ft && st.flex > st.power;
   const slip = {id: Date.now().toString(36), at: new Date().toISOString(), src, engine: ENGINE(), mode: fx ? "flex" : "power", pay: fx ? st.flexPay : st.powerPay,
     pred: st.d[n], ev: fx ? st.flex : st.power,
     legs: L.map(l => ({sport: l.pk.sport, player: l.pk.player, stat: l.pk.stat, line: l.pk.line, side: l.side === "More" ? "M" : "L", type: l.pk.type, p: +l.p.toFixed(3), start: l.pk.start, hit: null, v: null}))};
@@ -1689,11 +1689,20 @@ function buildLegs(){
   return legs;
 }
 function dist(ps){ let d = [1]; for (const p of ps) { const n = Array(d.length + 1).fill(0); d.forEach((v, k) => { n[k] += v * (1 - p); n[k + 1] += v * p; }); d = n; } return d; }
-function lineupStats(L, useEff = true){
-  const n = L.length, ps = L.map(l => useEff ? l.pe : l.p), F = L.reduce((a, l) => a * l.f, 1), d = dist(ps);
-  const ft = FLEX[n] || [];
-  return {n, d, F, power: POWER[n] * F * d[n], flex: ft.length ? F * ft.reduce((s, m, k) => s + m * (d[k] || 0), 0) : 0,
-    powerPay: POWER[n] * F, flexPay: ft.length ? ft[n] * F : 0};
+// corr = true: also simulate the lineup with the links between its picks (same player, same game, teammates) and keep
+// the LOWER of the two answers for the chance and for both payouts. Never assumes the picks are independent when
+// they aren't, and never lets an assumed link make a lineup look better than independent picks would.
+function lineupStats(L, useEff = true, corr = false){
+  const n = L.length, ps = L.map(l => useEff ? l.pe : l.p), F = L.reduce((a, l) => a * l.f, 1), ft = FLEX[n] || [];
+  let d = dist(ps);
+  const ev = dd => ({power: POWER[n] * F * dd[n], flex: ft.length ? F * ft.reduce((s, m, k) => s + m * (dd[k] || 0), 0) : 0});
+  let e = ev(d), linked = null;
+  if (corr && n >= 2) {
+    const cs = corrSim(L.map((l, i) => ({...l, p: ps[i]})), 6000);
+    if (cs) { const ec = ev(cs.d); if (ec.power < e.power - 1e-9 || ec.flex < e.flex - 1e-9) linked = cs.pairs.filter(x => Math.abs(x.rho) >= 0.2);
+      if (cs.d[n] < d[n]) d = [...d.slice(0, n), cs.d[n]]; e = {power: Math.min(e.power, ec.power), flex: Math.min(e.flex, ec.flex)}; }
+  }
+  return {n, d, F, power: e.power, flex: e.flex, powerPay: POWER[n] * F, flexPay: ft.length ? ft[n] * F : 0, linked};
 }
 const gameOf = p => [p.team, p.opp].sort().join(" vs ");
 let GAME_CAP = 2;   // max picks from one game; loosened automatically on small slates
@@ -1852,7 +1861,7 @@ function lineupCard(def, L, best){
   const {title, sub} = def;
   if (L) CARD_L[def.id] = L;
   if (!L) return {html: `<div class="lineup"><div class="lhead"><div><h3>${title}</h3><div class="sub">${sub}</div></div></div><p class="note">Not enough eligible picks on tonight's board to build this one.</p></div>`};
-  const e = lineupStats(L, true), raw = lineupStats(L, false), n = L.length, ft = FLEX[n];
+  const e = lineupStats(L, true), raw = lineupStats(L, false, true), n = L.length, ft = FLEX[n];
   const usePower = !ft ? true : def.mode ? def.mode === "power" : e.power >= e.flex, ev = usePower ? e.power : e.flex;
   const pay = usePower ? raw.powerPay : raw.flexPay;
   const profitTiers = ft ? ft.map((m, k) => m > 1 ? k : -1).filter(k => k >= 0) : [];
@@ -2124,10 +2133,13 @@ function bindModeRow(){ document.querySelectorAll("[data-hpmode]").forEach(b => 
 // (no red flags, 8+ games), ranked by the cautious chance (both methods must agree) × payout. Generate = next best.
 const SP_SEEN = {};
 function spKey(){ return [SPORT, store.get("sptype", "standard"), coachGame(), store.get("spstat", "")].join("|"); }
+// players / teams you've ruled out for Single pick (per sport, saved on this device)
+const spX = () => { try { return JSON.parse(localStorage.getItem("pp_spx_" + SPORT) || "null") || {players: [], teams: []}; } catch { return {players: [], teams: []}; } };
+const spXsave = x => { try { localStorage.setItem("pp_spx_" + SPORT, JSON.stringify(x)); } catch {} };
 function spRanked(){
-  const ty = store.get("sptype", "standard"), g = coachGame(), st = store.get("spstat", "");
+  const ty = store.get("sptype", "standard"), g = coachGame(), st = store.get("spstat", ""), X = spX();
   return ALL.filter(p => p.type === ty && !p.live && probOf(p) != null && probOf(p) >= 0.5 && (p.games || 0) >= 8 && godBlock(p) === null
-      && (!g || gameOf(p) === g) && (!st || p.stat === st))
+      && (!g || gameOf(p) === g) && (!st || p.stat === st) && !X.players.includes(p.player) && !X.teams.includes(p.team))
     // goblins are safe legs, so the most likely one ranks first; standards and demons rank by cautious chance × payout
     .sort(ty === "goblin" ? ((a, b) => (bothSay(b) ?? probOf(b)) - (bothSay(a) ?? probOf(a)) || probOf(b) - probOf(a)) : ((a, b) => trustV(b) - trustV(a) || probOf(b) - probOf(a)));
 }
@@ -2143,6 +2155,7 @@ function singleHTML(gameRow){
   return `<p class="note">Pick a type and any filters, then tap Generate. You get the strongest pick on the board; tap again for the next best. Only picks with enough games and no red flags are used.</p>
     <div class="tpills">${["goblin", "standard", "demon"].map(t => `<button type="button" class="tpill ${t} ${ty === t ? "on" : ""}" data-sptype="${t}">${t === "goblin" ? "Goblin" : t === "demon" ? "Demon" : "Standard"}</button>`).join("")}</div>
     ${gameRow.replace("</div>", `</label><label class="fl">Stat<select id="spStat"><option value="">All stats</option>${stats.map(x => `<option ${store.get("spstat", "") === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></div>`).replace(/<\/label><\/label>/, "</label>")}
+    ${(() => { const X = spX(), ch = [...X.players.map(v => ["players", v]), ...X.teams.map(v => ["teams", v])]; return ch.length ? `<div class="chips" style="margin:6px 0">Skipping: ${ch.map(([k, v]) => `<button type="button" class="chip" data-spun="${k}|${esc(v)}">${esc(v)} ✕</button>`).join("")}</div>` : ""; })()}
     <button class="pri wide" id="spGo">✨ Generate pick</button>
     <div id="spOut"></div>`;
 }
@@ -2177,10 +2190,13 @@ function spShow(done){
     <button type="button" class="alt2" data-pk="${esc(cur.sport + "|" + cur.id)}">Full breakdown</button>
   </div>
   <div class="frow"><button class="pri" id="spGo2" ${done || seen.length >= R.length ? "disabled" : ""}>${seen.length >= R.length ? "That's every pick" : "Next best pick →"}</button><button class="alt2" id="spReset">Start over</button></div>
+  <div class="frow"><button class="alt2" data-spx="players|${esc(cur.player)}">Skip ${esc(cur.player.split(" ").slice(-1)[0])}</button>${cur.team ? `<button class="alt2" data-spx="teams|${esc(cur.team)}">Skip ${esc(cur.team)}</button>` : ""}</div>
   <p class="note">${seen.length} of ${R.length} shown for these filters.</p>`;
   $("#spGo2").onclick = () => spNext();
   $("#spReset").onclick = () => { delete SP_SEEN[k]; out.innerHTML = ""; };
+  out.querySelectorAll("[data-spx]").forEach(b => b.onclick = () => { const [kind, v] = b.dataset.spx.split("|"); const X = spX(); if (!X[kind].includes(v)) X[kind].push(v); spXsave(X); renderCoach(); spNext(); });
 }
+document.addEventListener("click", e => { const b = e.target.closest("[data-spun]"); if (!b) return; const [kind, v] = b.dataset.spun.split("|"); const X = spX(); X[kind] = X[kind].filter(x => x !== v); spXsave(X); renderCoach(); });
 // ---------- STYLES: the main Hit Picks. Each style = a payout floor and a pick count; we find the lineup with the
 // highest chance of winning that still pays at least that much, using only legs I'd bet (no PASS calls, no
 // all-or-nothing lines, best side only). Exhaustive search with pruning, so it's the true best for the style.
@@ -2257,7 +2273,7 @@ function renderStyle(){
   for (let i = 0; i < 3; i++) { const b = bestForStyle(S, legs, avoid) || (S.minEV ? bestForStyle({...S, minEV: 0}, legs, avoid) : null); if (!b) break; out.push(b); b.L.forEach(l => avoid.add(l.pk.player)); }
   if (!out.length) { box.innerHTML = `<p class="note">Nothing on tonight's board reaches ${S.pay}×${S.maxPay ? `–${S.maxPay}×` : ""} using only picks without red flags, so I won't make one up.${k === "safe" ? " Lines and injury news usually firm up closer to game time; check back then." : ` Try ${k === "big" || k === "bold" ? "Balanced" : "Safe"}.`}</p>`; return; }
   box.innerHTML = nRow + out.map((b, i) => {
-    const st = lineupStats(b.L, false), fx = FLEX[b.n] && st.flex > st.power, ev = Math.max(st.power, st.flex);
+    const st = lineupStats(b.L, false, true), fx = FLEX[b.n] && st.flex > st.power, ev = Math.max(st.power, st.flex);
     const all = st.d[b.n], pay = fx ? st.flexPay : st.powerPay, be = 1 / st.powerPay;
     const why = `<div class="whybox"><div class="whyp">${b.L.map(l => `<span><b>${pct(l.p)}</b><small>${esc(l.pk.player.split(" ").slice(-1)[0])}</small></span>`).join("")}</div>
       <p>${can("probs") ? `Each pick on its own is <b>${b.L.map(l => pct(l.p)).join(", ")}</b>. ` : ""} ${b.n === 2 ? "Both" : `All ${b.n}`} have to hit, so the whole slip is <b>${pct(all)}</b>${fx ? `, and as a Flex it still pays if you miss one` : ""}.
@@ -3533,7 +3549,7 @@ async function liveAdjust(picks, sport, games){
 // LOPSIDED STATS: most player stats have a long upper tail (a few big nights pull the average up), so his typical night
 // sits below his average. The model's spread is symmetric, so it overrated overs and underrated unders near the line
 // (simulated leagues: "50-55%" unders really hit 56%, overs 51%). Shift by how far his median sits below his mean.
-const SKEW_K = 0.6;
+const SKEW_K = 0.5;
 function skewAdjust(p){
   const f = p.prof; if (!f || !(f.sd > 0) || f.n < 10 || p.live) return;
   const d = clip((f.mean - f.med) / f.sd, -0.6, 0.6) * SKEW_K * Math.min(1, f.n / 20); if (!d) return;
@@ -3676,21 +3692,33 @@ function legSeries(l){
   for (const x of seriesFor(p).slice(0, 120)) if (x.date) m[String(x.date).slice(0, 10)] = (l.side === "More" ? x.v > t : x.v < t) ? 1 : 0;
   return m;
 }
+// hit/miss records give a "phi" correlation, which understates the link between the underlying stats;
+// sin(π/2 · phi) converts it to the scale the simulation below uses
+const latent = r => Math.sin(Math.PI / 2 * clip(r, -1, 1));
 function pairRho(a, b){
   const A = legSeries(a), B = legSeries(b), ds = Object.keys(A).filter(d => d in B);
-  const sameTeamPair = sameTeam(a.pk.team, b.pk.team), sameGame = gameOf(a.pk) === gameOf(b.pk);
+  const sameTeamPair = sameTeam(a.pk.team, b.pk.team), sameGame = gameOf(a.pk) === gameOf(b.pk), samePlayer = a.pk.player === b.pk.player;
   let rho = 0, src = "none";
-  if (ds.length >= 12 && sameTeamPair) {
-    const xs = ds.map(d => A[d]), ys = ds.map(d => B[d]), mx = xs.reduce((s, v) => s + v, 0) / xs.length, my = ys.reduce((s, v) => s + v, 0) / ys.length;
+  const phiOf = () => { const xs = ds.map(d => A[d]), ys = ds.map(d => B[d]), mx = xs.reduce((s, v) => s + v, 0) / xs.length, my = ys.reduce((s, v) => s + v, 0) / ys.length;
     const cov = xs.reduce((s, v, i) => s + (v - mx) * (ys[i] - my), 0), vx = xs.reduce((s, v) => s + (v - mx) ** 2, 0), vy = ys.reduce((s, v) => s + (v - my) ** 2, 0);
-    if (vx > 0 && vy > 0) { rho = cov / Math.sqrt(vx * vy) * ds.length / (ds.length + 10); src = `${ds.length} shared games`; }   // shrunk toward 0 for small samples
+    return vx > 0 && vy > 0 ? cov / Math.sqrt(vx * vy) : null; };
+  if (samePlayer) {
+    // the same player twice (e.g. Pts+Rebs and PRA): his own logs show how tightly the two move; overlapping stats
+    // are near-certain to hit or miss together, so this can go up to 0.95 (it used to be capped at 0.6)
+    const r = ds.length >= 8 ? phiOf() : null;
+    const overlap = /\+|pra|fantasy/i.test(a.pk.stat + b.pk.stat) || a.pk.stat === b.pk.stat;
+    rho = r != null ? latent(r) * ds.length / (ds.length + 4) : (a.side === b.side ? (overlap ? 0.8 : 0.35) : (overlap ? -0.8 : -0.35));
+    return {rho: clip(rho, -0.95, 0.95), src: `same player${r != null ? `, ${ds.length} games` : ""}`, n: ds.length};
+  }
+  if (ds.length >= 12 && sameTeamPair) {
+    const r = phiOf(); if (r != null) { rho = latent(r) * ds.length / (ds.length + 10); src = `${ds.length} shared games`; }   // shrunk toward 0 for small samples
   } else if (sameGame) {
     // no shared history: mild priors (same game pace moves everyone a little; teammates on the same stat compete)
     const sameStat = a.pk.stat === b.pk.stat, sides = a.side === b.side;
     rho = sameTeamPair ? (sameStat ? -0.08 : 0.04) : 0.05; if (!sides) rho = -rho; src = "same game";
     if ((a.pk.sport === "nfl" || a.pk.sport === "cfb") && sameTeamPair && /pass/i.test(a.pk.stat + b.pk.stat) && /rec/i.test(a.pk.stat + b.pk.stat)) { rho = sides ? 0.3 : -0.3; src = "QB-receiver stack"; }
   }
-  return {rho: clip(rho, -0.6, 0.6), src, n: ds.length};
+  return {rho: clip(rho, -0.8, 0.8), src, n: ds.length};
 }
 function corrSim(L, N = 10000){
   const n = L.length, R = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => i === j ? 1 : 0)), pairs = [];
@@ -3883,6 +3911,20 @@ const OPP_SPORTS = {nba: {key: "MIN", full: 48, bench: 22, rateN: 30}, wnba: {ke
 // recent model must agree with the player's full multi-season hit rate at this exact line (shrunk toward a coin flip
 // when the sample is small). Top picks and lineup legs then use the more cautious of the two: the same "both methods
 // must say yes" rule that fixed the winner's curse in the NBA simulations.
+// LONG-RUN ANCHOR: lines move with recent form, players drift back toward their long-run level. In real-game replays
+// (only earlier games used) a plain season average predicted as well as or better than the recency-weighted engine;
+// mixing SEASON_W of it in beat both (replays: error 0.5787 -> 0.5742 and 0.5808 -> 0.5804; full simulation neutral).
+let SEASON_W = 0.5;
+function seasonBlend(picks){
+  for (const p of picks) {
+    if (p.sMore == null || p.live || p.lineOnly) continue;
+    const v = seriesFor(p).slice(0, 82).map(x => x.v).filter(x => x != null); if (v.length < 15) continue;
+    const m = v.reduce((a, b) => a + b, 0) / v.length, sd = Math.max(0.8, Math.sqrt(v.reduce((a, x) => a + (x - m) ** 2, 0) / v.length));
+    const tM = Math.floor(p.line) + 0.5, tL = Math.ceil(p.line) - 0.5, w = SEASON_W * Math.min(1, v.length / 40);
+    const bM = clip(1 - phi((tM - m) / sd), 0.02, 0.98), bL = clip(phi((tL - m) / sd), 0.02, 0.98);
+    p.seasonMore = bM; p.sMore = (1 - w) * p.sMore + w * bM; if (p.sLess != null) p.sLess = (1 - w) * p.sLess + w * bL;
+  }
+}
 function secondOpinion(picks){
   for (const p of picks) {
     if (p.oMore != null || p.sMore == null || p.longMore == null || !(p.longN >= 12)) continue;
@@ -4073,10 +4115,15 @@ function replayTest(sport, picks){
       const sd10 = Math.max(0.8, Math.sqrt(w10.reduce((a, v) => a + (v - avg10) ** 2, 0) / w10.length));
       const d = fb ? fbDist(prior, row[1], row[2], row[3]) : bballDist(prior, f, C.key, C.full); if (!d) continue;
       const actual = f(target);
+      // simple baselines (what a casual bettor would use), from the same prior games only
+      const sv = vals.slice(0, 82), sm = sv.reduce((a, b) => a + b, 0) / sv.length, ssd = Math.max(0.8, Math.sqrt(sv.reduce((a, v) => a + (v - sm) ** 2, 0) / sv.length));
+      const v20 = vals.slice(0, 20), m20 = v20.reduce((a, b) => a + b, 0) / v20.length, sd20 = Math.max(0.5, Math.sqrt(v20.reduce((a, v) => a + (v - m20) ** 2, 0) / v20.length));
+      const med20 = quant([...v20].sort((a, b) => a - b), 0.5), skew = clip((m20 - med20) / sd20, -0.6, 0.6) * SKEW_K;
       for (const [type, off] of [["standard", 0], ["goblin", -0.9], ["demon", 0.6]]) {
         const line = Math.max(0.5, Math.floor(avg10 + off * sd10) + 0.5), t = line;
         const pH = histProb(vals, t), pO = clip(1 - phi((t - d.mean) / Math.max(0.5, d.sd)), 0.01, 0.99);
-        recs.push({type, pH, pO, hit: actual > t ? 1 : 0});
+        const bS = clip(1 - phi((t - sm) / ssd), 0.02, 0.98), bL = (w10.filter(v => v > t).length + 1) / (w10.length + 2);
+        recs.push({type, pH, pO, bS, bL, skew, hit: actual > t ? 1 : 0});
       }
     }
   }
@@ -4089,9 +4136,18 @@ function replayTest(sport, picks){
     const xs = recs.map(r => { const p = q(r); return p >= 0.5 ? {p, h: r.hit} : {p: 1 - p, h: 1 - r.hit}; }).filter(x => x.p >= a && x.p < b);
     return {a, b, n: xs.length, pred: xs.length ? xs.reduce((s, x) => s + x.p, 0) / xs.length : null, act: xs.length ? xs.reduce((s, x) => s + x.h, 0) / xs.length : null};
   });
+  // full engine = best mix + the lopsided-stats (skew) correction; compare against the simple baselines
+  const qE = r => clip(phi(phiInv((1 - SEASON_W) * q(r) + SEASON_W * r.bS) - r.skew), 0.02, 0.98);   // as the app runs it: mix + long-run anchor + skew
+  const metric = fq => { let ll = 0, br = 0; for (const r of recs) { const x = clip(fq(r), 0.02, 0.98); ll -= r.hit ? Math.log(x) : Math.log(1 - x); br += (x - r.hit) ** 2; } return {ll: ll / recs.length, br: br / recs.length}; };
+  const cmp = {engine: metric(qE), mixNoSkew: metric(q), seasonAvg: metric(r => r.bS), last10: metric(r => r.bL), coin: metric(() => 0.5)};
+  const calBy = sel => [[0.5, 0.55], [0.55, 0.6], [0.6, 0.65], [0.65, 0.7], [0.7, 0.99]].map(([a, b]) => {
+    const xs = recs.map(r => { const p = qE(r); return p >= 0.5 ? {p, h: r.hit, side: "More", type: r.type} : {p: 1 - p, h: 1 - r.hit, side: "Less", type: r.type}; }).filter(x => sel(x) && x.p >= a && x.p < b);
+    return {a, b, n: xs.length, pred: xs.length ? xs.reduce((s, x) => s + x.p, 0) / xs.length : null, act: xs.length ? xs.reduce((s, x) => s + x.h, 0) / xs.length : null};
+  });
+  const sides = {More: calBy(x => x.side === "More"), Less: calBy(x => x.side === "Less")}, types = {standard: calBy(x => x.type === "standard"), goblin: calBy(x => x.type === "goblin"), demon: calBy(x => x.type === "demon")};
   const conf = recs.map(r => { const p = q(r); return {p: Math.max(p, 1 - p), right: (p >= 0.5) === (r.hit === 1)}; });
   const c70 = conf.filter(x => x.p >= 0.7), c60 = conf.filter(x => x.p >= 0.6);
-  const res = {sport, n: recs.length, players: seen.size, best, variants, bins,
+  const res = {sport, n: recs.length, players: seen.size, best, variants, bins, cmp, sides, types,
     hist: score(0), engine: score(1), acc70: c70.length ? c70.filter(x => x.right).length / c70.length : null, n70: c70.length,
     acc60: c60.length ? c60.filter(x => x.right).length / c60.length : null, n60: c60.length, at: Date.now(),
     pairs: recs.slice(0, 600).map(r => { const p = q(r); return [+p.toFixed(2), r.hit]; })};
@@ -4106,7 +4162,10 @@ function replayHTML(){
   return `<h4>Replay of past games</h4>` + rs.map(r => `<p class="body"><b>${esc(SPORTS[r.sport]?.label || r.sport)}</b>: ${r.n.toLocaleString()} past predictions (${r.players} player-stats).
     When it leaned 60%+ one way it was right <b>${r.acc60 != null ? pct(r.acc60) : "–"}</b> (${r.n60}); at 70%+, <b>${r.acc70 != null ? pct(r.acc70) : "–"}</b> (${r.n70}).
     Best mix: ${Math.round(r.best.w * 100)}% opportunity engine / ${Math.round((1 - r.best.w) * 100)}% history${r.engine && r.hist ? ` (engine alone error ${r.engine.ll.toFixed(3)}, history alone ${r.hist.ll.toFixed(3)}, mix ${r.best.ll.toFixed(3)}; lower is better)` : ""}. In use: a fixed 40/60 mix, which tracked the truth best in testing.</p>
-    <table class="trk2"><tr><th>Said</th><th>Times</th><th>Actually right</th></tr>${r.bins.map(b => `<tr><td>${Math.round(b.a * 100)}–${Math.round(Math.min(b.b, 0.9) * 100)}%</td><td>${b.n}</td><td>${b.n ? pct(b.act) : "–"}</td></tr>`).join("")}</table>`).join("") +
+    <table class="trk2"><tr><th>Said</th><th>Times</th><th>Actually right</th></tr>${r.bins.map(b => `<tr><td>${Math.round(b.a * 100)}–${Math.round(Math.min(b.b, 0.9) * 100)}%</td><td>${b.n}</td><td>${b.n ? pct(b.act) : "–"}</td></tr>`).join("")}</table>
+    ${r.cmp ? `<p class="note"><b>Against simple methods</b> (prediction error, lower is better): PickHit <b>${r.cmp.engine.ll.toFixed(3)}</b> · season average ${r.cmp.seasonAvg.ll.toFixed(3)} · last-10 hit rate ${r.cmp.last10.ll.toFixed(3)} · coin flip ${r.cmp.coin.ll.toFixed(3)}.
+      ${r.cmp.engine.ll <= Math.min(r.cmp.seasonAvg.ll, r.cmp.last10.ll) ? "PickHit beats both simple methods here." : "⚠ A simple method did better here: treat this sport's chances with extra caution."}</p>
+    <table class="trk2"><tr><th>Said</th><th>Overs: right</th><th>Unders: right</th></tr>${r.sides.More.map((b, i) => { const u = r.sides.Less[i]; return b.n + u.n ? `<tr><td>${Math.round(b.a * 100)}–${Math.round(Math.min(b.b, 0.9) * 100)}%</td><td>${b.n ? `${pct(b.act)} <small>(${b.n})</small>` : "–"}</td><td>${u.n ? `${pct(u.act)} <small>(${u.n})</small>` : "–"}</td></tr>` : ""; }).join("")}</table>` : ""}`).join("") +
     `<p class="note">Old PrizePicks lines aren't published, so each replayed line is rebuilt from the player's average at the time (plus goblin- and demon-style lines). Teammate injuries and news from back then aren't replayed.</p>`;
 }
 
@@ -4663,7 +4722,8 @@ async function checkMine(){
   if (new Set(L.map(l => l.pk.sport + l.pk.team)).size < 2) warn.push("Every pick is from the same team. PrizePicks requires at least 2 different teams.");
   const unr = L.filter(l => l.unrated);
   if (unr.length) warn.push(`${unr.map(l => esc(l.pk.player)).join(", ")} ${unr.length > 1 ? "aren't" : "isn't"} rated (no stats loaded), so I counted ${unr.length > 1 ? "them" : "it"} as a 50/50 coin flip.`);
-  const raw = lineupStats(L, false), ft = FLEX[n];
+  const raw = lineupStats(L, false, true), ft = FLEX[n];
+  if (raw.linked && raw.linked.length) warn.push(`Linked picks: ${raw.linked.slice(0, 3).map(x => `${esc(x.a.pk.player.split(" ").slice(-1)[0])} ${esc(x.a.pk.stat)} + ${esc(x.b.pk.player.split(" ").slice(-1)[0])} ${esc(x.b.pk.stat)} (${x.src})`).join("; ")}. They tend to hit or miss together, so a miss often costs two legs at once. The chances and payouts here already account for it.`);
   const flexProfit = ft ? ft.reduce((s, m, k) => s + (m > 1 ? raw.d[k] : 0), 0) : null;
   // coach's swap: best replacement for the weakest pick that keeps a similar payout
   let swap = "";
@@ -4905,6 +4965,7 @@ async function analyze(picks, sport = SPORT){
   setStatus("Projecting minutes and simulating every game…", 0.84);
   await oppModel(picks, sx); await footballModel(picks, sx);
   secondOpinion(picks);
+  seasonBlend(picks);
   setStatus("Checking spreads, totals and rest days…", 0.86);
   const gc = await gameContext(picks, sx);
   for (const p of picks) profilePick(p);
