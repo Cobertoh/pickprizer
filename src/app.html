@@ -1234,6 +1234,21 @@ async function market(key, picks){
   info.left = left; out.__info = info;
   return out;
 }
+// Book lines from the server: consensus no-vig Over chance at the book's line. A PrizePicks line that differs is
+// converted with the player's spread: z(PP line) = z(book line) + (book line - PP line) / sd. Only within 3 points.
+function applyBookLines(picks, lines){
+  const by = {}; for (const l of lines) (by[norm(l.d) + "|" + l.s] ||= []).push(l);
+  let n = 0;
+  for (const p of picks) {
+    const ls = by[norm(p.player) + "|" + p.stat]; if (!ls || p.live) continue;
+    const L = ls.slice().sort((a, b) => Math.abs(a.pt - p.line) - Math.abs(b.pt - p.line) || b.n - a.n)[0], sd = Math.max(0.8, p.sd || 0.25 * Math.max(p.line, 2));
+    if (Math.abs(L.pt - p.line) > 3) continue;
+    const tM = Math.floor(p.line) + 0.5, tL = Math.ceil(p.line) - 0.5, z = phiInv(L.o);
+    p.mMore = clip(phi(z + (L.pt - tM) / sd), 0.02, 0.98); p.mLess = clip(1 - phi(z + (L.pt - tL) / sd), 0.02, 0.98);
+    p.books = L.n; p.bookLine = L.pt; p.bookOver = L.o; n++;
+  }
+  return n;
+}
 function marketProbs(books){
   // devig books that quote both sides; one-sided quotes get a flat ~6% hold removed
   let mo = [], ml = [];
@@ -1592,6 +1607,7 @@ function marketChance(p, std){   // PrizePicks' implied chance of MORE for this 
 }
 function anchorToMarket(p, std){
   if (p.live || p.pMore == null || p.pMore >= 0.99) return;
+  if (p.mMore != null && p.type === "standard") return;   // already blended with real sportsbook odds
   const m = marketChance(p, std); if (m == null) return;
   let w = MKT_W[p.type] ?? 0.6; try { const o = +localStorage.getItem("pp_mw"); if (o > 0 && o <= 1) w = o; } catch {}
   const raw = p.pMore; p.mkt = +m.toFixed(3);
@@ -2441,6 +2457,7 @@ function godBlock(p){   // a RED FLAG that keeps a pick out of Top picks and lin
   if (p.verdict?.c === "r") return "flagged as risky";
   if ((p.ctxNotes || []).some(n => (n.dir === 1 || n.dir === -1) && (n.dir > 0) !== (side === "More") && (n.size || 0) >= 0.06)) return "a teammate change points the other way";
   if (side === "More") { const mv = minutesRisk(p); if (mv) return mv; }
+  { const m = side === "More" ? p.mMore : p.mLess; if (m != null && m < 0.47) return `sportsbooks lean the other way (${pct(m)} for this side)`; }
   if (p.h2risk && (side === "More") === (p.h2riskDir < 0)) return p.h2risk;
   return null;
 }
@@ -4925,7 +4942,13 @@ async function analyzeNBA(picks){
   }
   const key = $("#oddsKey").value.trim();
   let note = "", booksUsed = false;
-  if (key && $("#useBooks").checked) {
+  if (IS_WEB && SPORT === "nba") {   // the website's shared sportsbook feed (the key lives on the server)
+    setStatus("Checking sportsbook lines…", 0.7);
+    try { const r = await tFetch("/odds/nba", {}, 15000), js = r.ok ? await r.json() : null;
+      if (js && js.lines && js.lines.length) { const n = applyBookLines(picks, js.lines); booksUsed = n > 0; note = ` · sportsbooks: ${n} PrizePicks lines matched (${js.lines.length} book lines)`; }
+      else if (js && js.note) note = ` · sportsbooks: ${js.note}`;
+    } catch (e) { noteErr("sportsbooks", e); }
+  } else if (key && $("#useBooks").checked) {
     setStatus("Pulling sportsbook odds…", 0.7);
     const m = await market(key, picks);
     if (m.error) note = " · ⚠ " + m.error;

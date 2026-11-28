@@ -321,6 +321,51 @@ async function payWebhook(req, env) {
   else if (off && (!memId || !u.mem || u.mem === memId)) { if (u.role !== "dev") u.plan = "free"; await putUser(env, u); }
   return json({ ok: true }, 200);
 }
+
+// ---------- SPORTSBOOK PROPS (The Odds API; key = Cloudflare secret ODDS_API_KEY, never sent to browsers)
+// Player props cost credits per game (markets x regions), so: at most one fetch per sport per day (after 12pm ET,
+// when props are up), cached in KV and shared by every member, and a hard stop while fewer than ODDS_FLOOR credits remain.
+const ODDS_SPORT = { nba: "basketball_nba" };
+const ODDS_MARKETS = { player_points: "Points", player_rebounds: "Rebounds", player_assists: "Assists", player_points_rebounds_assists: "Pts+Rebs+Asts" };
+const ODDS_FLOOR = 40;
+async function oddsRoute(req, env, ctx, sport) {
+  const et = new Date(Date.now() - 5 * 3600e3), day = et.toISOString().slice(0, 10), k = "odds/" + sport;
+  const cur = await kvGet(env, k), o = cur ? JSON.parse(cur.text) : null, meta = JSON.parse(((await kvGet(env, "odds/meta")) || {}).text || "{}");
+  const out = (x, note) => json({ ...(x && x.day === day ? x : { day, lines: [] }), remaining: meta.remaining ?? null, note: note || (x && x.day === day ? "" : "no sportsbook lines yet today") }, 200);
+  if (o && o.day === day) return out(o);
+  if (!env.ODDS_API_KEY || !ODDS_SPORT[sport]) return out(null, env.ODDS_API_KEY ? "sportsbook props not set up for this sport" : "no sportsbook key set");
+  if (et.getUTCHours() < 12) return out(null, "sportsbook props are fetched after 12pm ET");
+  if (meta.remaining != null && meta.remaining < ODDS_FLOOR) return out(null, `sportsbook credits nearly used up (${meta.remaining} left): paused until they reset`);
+  if (meta.lock && Date.now() - meta.lock < 180e3) return out(null, "fetching sportsbook lines…");
+  meta.lock = Date.now(); await kvPut(env, ctx, "odds/meta", JSON.stringify(meta), 40 * DAY);
+  const base = `https://api.the-odds-api.com/v4/sports/${ODDS_SPORT[sport]}`, key = encodeURIComponent(env.ODDS_API_KEY);
+  const agg = {}; let games = 0, remaining = meta.remaining ?? null, err = "";
+  try {
+    const er = await fetch(`${base}/events?apiKey=${key}`);   // free
+    if (!er.ok) throw new Error("events " + er.status);
+    const now = Date.now(), evs = (await er.json()).filter(e => { const t = Date.parse(e.commence_time); return t > now - 10 * 60e3 && t < now + 20 * 3600e3; }).slice(0, 15);
+    for (const ev of evs) {
+      if (remaining != null && remaining < ODDS_FLOOR) break;
+      const r = await fetch(`${base}/events/${ev.id}/odds?apiKey=${key}&regions=us&oddsFormat=decimal&markets=${Object.keys(ODDS_MARKETS).join(",")}`);
+      const left = r.headers.get("x-requests-remaining"); if (left != null) remaining = +left;
+      if (!r.ok) { err = "odds " + r.status; continue; }
+      games++;
+      for (const bk of (await r.json()).bookmakers || []) for (const m of bk.markets || []) {
+        const stat = ODDS_MARKETS[m.key]; if (!stat) continue;
+        const sides = {};
+        for (const x of m.outcomes || []) if ((x.name === "Over" || x.name === "Under") && x.point != null && x.price > 1) (sides[x.description + "|" + x.point] ||= {})[x.name] = 1 / x.price;
+        for (const [dk, q] of Object.entries(sides)) if (q.Over && q.Under) {   // remove the bookmaker's cut
+          const [d, pt] = dk.split("|"), a = (agg[d + "|" + stat + "|" + pt] ||= { d, s: stat, pt: +pt, o: 0, n: 0 }); a.o += q.Over / (q.Over + q.Under); a.n++;
+        }
+      }
+    }
+  } catch (e) { err = String(e.message || e); }
+  const lines = Object.values(agg).map(a => ({ d: a.d, s: a.s, pt: a.pt, o: +(a.o / a.n).toFixed(3), n: a.n }));
+  meta.remaining = remaining; meta.lock = 0; meta.last = Date.now(); await kvPut(env, ctx, "odds/meta", JSON.stringify(meta), 40 * DAY);
+  const res = { day, t: Date.now(), games, lines };
+  if (lines.length) await kvPut(env, ctx, k, JSON.stringify(res), 2 * DAY);
+  return out(res, lines.length ? "" : "sportsbooks returned no player lines" + (err ? " (" + err + ")" : ""));
+}
 // ---------- PICK OF THE DAY (shown to everyone on the homepage, signed in or not)
 async function potd(req, env) {
   const day = new Date(Date.now() - 5 * 3600e3).toISOString().slice(0, 10);   // US Eastern-ish day
@@ -358,12 +403,13 @@ export default {
     if (url.pathname === "/pay/whop") return payWebhook(req, env);
     if (url.pathname === "/potd") return potd(req, env);
     // the rating engine's data routes are for paying members (guests and free accounts see the homepage + pick of the day)
-    if (url.pathname === "/p" || url.pathname.startsWith("/rated/") || url.pathname.startsWith("/snap/")) {
+    if (url.pathname === "/p" || url.pathname.startsWith("/rated/") || url.pathname.startsWith("/snap/") || url.pathname.startsWith("/odds/")) {
       const a = await access(req, env);
       if (a === "stale") return json({ message: "refresh", refresh: true }, 401);
       if (PLAN_RANK[a] < 2) return json({ message: "members only", plan: a }, 403);
     }
     if (url.pathname === "/p") return proxy(req, ctx);
+    { const om = url.pathname.match(/^\/odds\/([a-z0-9]{2,8})$/); if (om) return oddsRoute(req, env, ctx, om[1]); }
     const bm = url.pathname.match(/^\/board(?:\/(\d{1,4}))?\/?$/);
     if (bm) return board(req, env, ctx, bm[1]);
     if (url.pathname === "/sc") return scList(env);
